@@ -1,0 +1,52 @@
+<%- include('../partials/head', { title: 'Box Management' }) %>
+<body class="app-layout">
+  <%- include('../partials/nav', { currentPage: 'boxes' }) %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
+      <div class="page-actions">
+        <a href="/boxes/create" class="btn btn-primary">+ Add Box</a>
+      </div>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <h2 class="section-title">Box Management</h2>
+
+    <% if (boxes.length === 0) { %>
+      <p class="empty-state">No boxes found. Add your first glovebox.</p>
+    <% } else { %>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Alias / Name</th>
+          <th>Project No.</th>
+          <th>Manufacturer</th>
+          <th>Type</th>
+          <th>Build Year</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% boxes.forEach(b => { %>
+        <tr>
+          <td><strong><%= b.box_alias %></strong></td>
+          <td class="mono"><%= b.project_number %></td>
+          <td><%= b.manufacturer %></td>
+          <td><%= b.box_type %></td>
+          <td><%= b.build_year %></td>
+          <td class="actions">
+            <a href="/boxes/<%= b.id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
+            <form action="/boxes/<%= b.id %>?_method=DELETE" method="POST" class="inline-form" onsubmit="return confirm('Delete this box?')">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </main>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,143 @@
+<%- include('../partials/head', { title: 'Monitoring – ' + box.box_alias }) %>
+<body class="app-layout">
+  <%- include('../partials/nav', { currentPage: 'monitoring' }) %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <!-- Read-only box info -->
+    <div class="info-row">
+      <div class="info-field">
+        <label>Project No.</label>
+        <span class="mono"><%= box.project_number %></span>
+      </div>
+      <div class="info-field">
+        <label>Manufacturer</label>
+        <span><%= box.manufacturer %></span>
+      </div>
+    </div>
+
+    <!-- Status indicator (box image area) -->
+    <div class="box-status-container">
+      <div class="box-visual status-<%= statusColor %>">
+        <div class="box-icon">
+          <div class="box-body"></div>
+          <div class="box-gloves"></div>
+        </div>
+        <div class="status-label status-<%= statusColor %>">
+          <% if (statusColor === 'green') { %>All systems normal
+          <% } else if (statusColor === 'yellow') { %>Attention required
+          <% } else { %>Immediate service needed<% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Measurement Form -->
+    <form action="/monitoring/<%= box.id %>/submit" method="POST" class="monitoring-form">
+      <div class="monitoring-inputs">
+        <!-- User abbreviation dropdown -->
+        <div class="form-group">
+          <label for="username">User Abbreviation</label>
+          <select id="username" name="username" required>
+            <option value="">– Select –</option>
+            <% usernames.forEach(u => { %>
+            <option value="<%= u %>"><%= u %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <!-- Sensor values – only shown if box has the respective sensor/component -->
+        <div class="sensor-values">
+          <% if (box.has_o2_sensor) { %>
+          <div class="form-group sensor-field">
+            <label for="o2Value">O₂ <span class="hint">(ppm)</span></label>
+            <input type="number" id="o2Value" name="o2Value" step="0.01" min="0" max="999"
+                   placeholder="0.00">
+          </div>
+          <% } %>
+
+          <% if (box.has_h2o_sensor) { %>
+          <div class="form-group sensor-field">
+            <label for="h2oValue">H₂O <span class="hint">(ppm)</span></label>
+            <input type="number" id="h2oValue" name="h2oValue" step="0.01" min="0" max="999"
+                   placeholder="0.00">
+          </div>
+          <% } %>
+
+          <% if (box.has_fridge) { %>
+          <div class="form-group sensor-field">
+            <label for="fridgeTemp">Fridge Temp <span class="hint">(°C)</span></label>
+            <input type="number" id="fridgeTemp" name="fridgeTemp" step="0.1"
+                   placeholder="0.0">
+          </div>
+          <% } %>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Submit Values</button>
+      </div>
+    </form>
+
+    <!-- Alert / Maintenance button -->
+    <div class="alert-section">
+      <button class="alert-btn" id="alertBtn" title="View alerts and maintenance tasks">
+        <span class="alert-icon">&#9888;</span>
+      </button>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="modal-overlay" style="display:none">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Alerts & Maintenance</h3>
+          <button class="modal-close" onclick="closeAlertModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="alertList">
+          <p class="empty-state">No active alerts.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Contact KeT -->
+    <div class="contact-section">
+      <h3>Contact KeT Service</h3>
+      <form action="/monitoring/<%= box.id %>/message" method="POST">
+        <div class="form-group">
+          <textarea name="message" rows="4" placeholder="Describe your issue or question..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-secondary">Send Message to KeT</button>
+      </form>
+    </div>
+  </main>
+
+  <script>
+    // Auto-clear username after 1 hour of inactivity (Box-User kiosk behaviour)
+    let inactivityTimer;
+    function resetInactivityTimer() {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        const sel = document.getElementById('username');
+        if (sel) sel.value = '';
+      }, 60 * 60 * 1000);
+    }
+    document.addEventListener('mousemove', resetInactivityTimer);
+    document.addEventListener('keydown', resetInactivityTimer);
+    document.addEventListener('touchstart', resetInactivityTimer);
+    resetInactivityTimer();
+
+    function closeAlertModal() {
+      document.getElementById('alertModal').style.display = 'none';
+    }
+
+    document.getElementById('alertBtn').addEventListener('click', () => {
+      document.getElementById('alertModal').style.display = 'flex';
+    });
+
+    document.getElementById('alertModal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeAlertModal();
+    });
+  </script>
+<%- include('../partials/footer') %>

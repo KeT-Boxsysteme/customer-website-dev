@@ -1,0 +1,21 @@
+<%- include('../partials/head', { title: 'Dashboard' }) %>
+<body class="app-layout">
+  <%- include('../partials/nav', { currentPage: 'dashboard' }) %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-brand">
+        <span class="brand-welcome-text">Welcome to</span>
+        <span class="brand-main">Glovebox-Monitoring by KeT</span>
+      </h1>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <div class="dashboard-greeting">
+      <p>Hello, <strong><%= user.firstname %> <%= user.lastname %></strong>.</p>
+      <p class="role-badge role-<%= user.role %>"><%= user.role.replace('_', ' ').toUpperCase() %></p>
+    </div>
+  </main>
+
+<%- include('../partials/footer') %>

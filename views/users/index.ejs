@@ -1,0 +1,54 @@
+<%- include('../partials/head', { title: 'User Management' }) %>
+<body class="app-layout">
+  <%- include('../partials/nav', { currentPage: 'users' }) %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
+      <div class="page-actions">
+        <a href="/users/create" class="btn btn-primary">+ Add User</a>
+      </div>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <h2 class="section-title">User Management</h2>
+
+    <% if (users.length === 0) { %>
+      <p class="empty-state">No users found. Create your first user.</p>
+    <% } else { %>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>E-Mail</th>
+          <th>Abbreviation</th>
+          <th>Department</th>
+          <th>Role</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(u => { %>
+        <tr>
+          <td><%= u.firstname %> <%= u.lastname %></td>
+          <td><%= u.email %></td>
+          <td class="mono"><%= u.username %></td>
+          <td><%= u.department %></td>
+          <td><span class="role-badge role-<%= u.role %>"><%= u.role.replace('_', ' ') %></span></td>
+          <td class="actions">
+            <a href="/users/<%= u.id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
+            <% if (u.id !== user.id) { %>
+            <form action="/users/<%= u.id %>?_method=DELETE" method="POST" class="inline-form" onsubmit="return confirm('Delete this user?')">
+              <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+  </main>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,180 @@
+<%- include('../partials/head', { title: 'Register' }) %>
+<body class="auth-page">
+  <div class="auth-container auth-container--wide">
+    <h1 class="brand-title">
+      <span class="brand-main">Glovebox-Monitoring by KeT</span>
+    </h1>
+
+    <%- include('../partials/flash') %>
+
+    <form class="auth-form" action="/auth/register" method="POST" id="registerForm">
+
+      <!-- Company Type Selection -->
+      <div class="company-type-selector">
+        <label class="type-btn" id="type-university">
+          <input type="radio" name="companyType" value="university" required> University
+        </label>
+        <label class="type-btn" id="type-startup">
+          <input type="radio" name="companyType" value="startup"> Startup
+        </label>
+        <label class="type-btn" id="type-company">
+          <input type="radio" name="companyType" value="company"> Company
+        </label>
+      </div>
+
+      <!-- Company Details -->
+      <div id="companyFields" class="form-section" style="display:none">
+        <div class="form-group">
+          <label for="companyName">Company / University Name</label>
+          <input type="text" id="companyName" name="companyName">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="street">Street</label>
+            <input type="text" id="street" name="street">
+          </div>
+          <div class="form-group form-group--small">
+            <label for="housenumber">No.</label>
+            <input type="text" id="housenumber" name="housenumber">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group form-group--small">
+            <label for="zip">ZIP Code</label>
+            <input type="text" id="zip" name="zip">
+          </div>
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" name="city">
+          </div>
+        </div>
+
+        <hr class="form-divider">
+
+        <!-- Contact Person -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="firstname">First Name</label>
+            <input type="text" id="firstname" name="firstname">
+          </div>
+          <div class="form-group">
+            <label for="lastname">Last Name</label>
+            <input type="text" id="lastname" name="lastname">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="email">E-Mail Address</label>
+          <input type="email" id="email" name="email">
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" name="phone">
+        </div>
+        <div class="form-group">
+          <label for="username">User Abbreviation <span class="hint">(max. 4 characters)</span></label>
+          <input type="text" id="username" name="username" maxlength="4" style="text-transform:uppercase">
+        </div>
+
+        <!-- Department – university -->
+        <div class="form-group" id="deptUniversity" style="display:none">
+          <label for="deptUni">Department</label>
+          <select id="deptUni" name="department">
+            <option value="university_management">University Management</option>
+            <option value="project_management">Project Management</option>
+            <option value="plant_officer">Plant Officer</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <!-- Department – startup / company -->
+        <div class="form-group" id="deptBusiness" style="display:none">
+          <label for="deptBiz">Department</label>
+          <select id="deptBiz" name="department">
+            <option value="management">Management</option>
+            <option value="department_lead">Department Lead</option>
+            <option value="plant_officer">Plant Officer</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <!-- "Other" text input -->
+        <div class="form-group" id="deptOtherField" style="display:none">
+          <label for="departmentOther">Your Position</label>
+          <input type="text" id="departmentOther" name="departmentOther">
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password">
+        </div>
+        <div class="form-group">
+          <label for="passwordConfirm">Confirm Password</label>
+          <input type="password" id="passwordConfirm" name="passwordConfirm">
+        </div>
+
+        <div class="form-group form-group--checkbox">
+          <label>
+            <input type="checkbox" name="agb" id="agb">
+            I agree to the <a href="/agb" target="_blank">Terms and Conditions</a>
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="submitBtn" disabled>Register</button>
+      </div>
+    </form>
+
+    <p class="auth-link">Already have an account? <a href="/auth/login">Login here</a></p>
+  </div>
+
+  <script>
+    const radios = document.querySelectorAll('input[name="companyType"]');
+    const companyFields = document.getElementById('companyFields');
+    const deptUni = document.getElementById('deptUniversity');
+    const deptBiz = document.getElementById('deptBusiness');
+    const deptOther = document.getElementById('deptOtherField');
+    const submitBtn = document.getElementById('submitBtn');
+    const agbCheck = document.getElementById('agb');
+
+    radios.forEach(r => {
+      r.addEventListener('change', () => {
+        companyFields.style.display = 'block';
+        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
+        r.closest('.type-btn').classList.add('selected');
+
+        if (r.value === 'university') {
+          deptUni.style.display = 'block';
+          deptBiz.style.display = 'none';
+          // Sync name attribute
+          document.getElementById('deptUni').name = 'department';
+          document.getElementById('deptBiz').name = '';
+        } else {
+          deptUni.style.display = 'none';
+          deptBiz.style.display = 'block';
+          document.getElementById('deptBiz').name = 'department';
+          document.getElementById('deptUni').name = '';
+        }
+        checkDeptOther();
+        updateSubmitBtn();
+      });
+    });
+
+    ['deptUni', 'deptBiz'].forEach(id => {
+      document.getElementById(id).addEventListener('change', checkDeptOther);
+    });
+
+    function checkDeptOther() {
+      const activeSelect = document.querySelector('select[name="department"]');
+      deptOther.style.display = (activeSelect && activeSelect.value === 'other') ? 'block' : 'none';
+    }
+
+    agbCheck.addEventListener('change', updateSubmitBtn);
+    document.getElementById('registerForm').addEventListener('input', updateSubmitBtn);
+
+    function updateSubmitBtn() {
+      const type = document.querySelector('input[name="companyType"]:checked');
+      const allFilled = ['companyName','street','housenumber','zip','city','firstname','lastname','email','username','password','passwordConfirm']
+        .every(id => document.getElementById(id).value.trim() !== '');
+      submitBtn.disabled = !(type && allFilled && agbCheck.checked);
+    }
+  </script>
+<%- include('../partials/footer') %>

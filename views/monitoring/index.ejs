@@ -1,0 +1,35 @@
+<%- include('../partials/head', { title: 'Monitoring' }) %>
+<body class="app-layout">
+  <%- include('../partials/nav', { currentPage: 'monitoring' }) %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <h2 class="section-title">Select a Box</h2>
+
+    <% if (boxes.length === 0) { %>
+      <p class="empty-state">No boxes configured yet.</p>
+    <% } else { %>
+    <div class="tile-grid">
+      <% boxes.forEach(b => { %>
+      <a href="/monitoring/<%= b.id %>" class="tile">
+        <div class="tile-alias"><%= b.box_alias %></div>
+        <div class="tile-meta">
+          <span class="tile-label">Project No.</span>
+          <span class="tile-value mono"><%= b.project_number %></span>
+        </div>
+        <div class="tile-meta">
+          <span class="tile-label">Manufacturer</span>
+          <span class="tile-value"><%= b.manufacturer %></span>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+    <% } %>
+  </main>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,118 @@
+<%- include('../partials/head', { title: 'Diagrams – ' + box.box_alias }) %>
+<body class="app-layout">
+  <%- include('../partials/nav', { currentPage: 'diagrams' }) %>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <h2 class="section-title">
+      <%= box.box_alias %> <span class="mono text-muted">&nbsp;#<%= box.project_number %></span>
+    </h2>
+
+    <!-- Time range selector -->
+    <div class="radio-group">
+      <label class="radio-label <%= months === 6 ? 'active' : '' %>">
+        <input type="radio" name="months" value="6" <%= months === 6 ? 'checked' : '' %>
+               onchange="location.href='/diagrams/<%= box.id %>?months=6'"> 6 Months
+      </label>
+      <label class="radio-label <%= months === 9 ? 'active' : '' %>">
+        <input type="radio" name="months" value="9" <%= months === 9 ? 'checked' : '' %>
+               onchange="location.href='/diagrams/<%= box.id %>?months=9'"> 9 Months
+      </label>
+      <label class="radio-label <%= months === 12 ? 'active' : '' %>">
+        <input type="radio" name="months" value="12" <%= months === 12 ? 'checked' : '' %>
+               onchange="location.href='/diagrams/<%= box.id %>?months=12'"> 1 Year
+      </label>
+    </div>
+
+    <!-- Data Table -->
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>User</th>
+            <% if (box.has_o2_sensor) { %><th>O₂ (ppm)</th><% } %>
+            <% if (box.has_h2o_sensor) { %><th>H₂O (ppm)</th><% } %>
+            <% if (box.has_fridge) { %><th>Fridge (°C)</th><% } %>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (measurements.length === 0) { %>
+          <tr><td colspan="6" class="empty-cell">No data available for this period.</td></tr>
+          <% } else { %>
+          <% measurements.forEach(m => { %>
+          <tr>
+            <td><%= new Date(m.measured_at).toLocaleString('en-GB') %></td>
+            <td class="mono"><%= m.username || '–' %></td>
+            <% if (box.has_o2_sensor) { %><td><%= m.o2_value !== null ? m.o2_value : '–' %></td><% } %>
+            <% if (box.has_h2o_sensor) { %><td><%= m.h2o_value !== null ? m.h2o_value : '–' %></td><% } %>
+            <% if (box.has_fridge) { %><td><%= m.fridge_temp !== null ? m.fridge_temp : '–' %></td><% } %>
+          </tr>
+          <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Chart -->
+    <div class="chart-container">
+      <canvas id="valuesChart"></canvas>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    const labels = <%- chartLabels %>;
+    const o2Data = <%- o2Data %>;
+    const h2oData = <%- h2oData %>;
+    const fridgeData = <%- fridgeData %>;
+
+    const datasets = [];
+    <% if (box.has_o2_sensor) { %>
+    datasets.push({
+      label: 'O₂ (ppm)',
+      data: o2Data,
+      borderColor: '#1565c0',
+      backgroundColor: 'rgba(21,101,192,0.1)',
+      tension: 0.3,
+      pointRadius: 3
+    });
+    <% } %>
+    <% if (box.has_h2o_sensor) { %>
+    datasets.push({
+      label: 'H₂O (ppm)',
+      data: h2oData,
+      borderColor: '#2e7d32',
+      backgroundColor: 'rgba(46,125,50,0.1)',
+      tension: 0.3,
+      pointRadius: 3
+    });
+    <% } %>
+
+    new Chart(document.getElementById('valuesChart'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            min: 0,
+            max: 20,
+            title: { display: true, text: 'ppm' }
+          },
+          x: {
+            title: { display: true, text: 'Date' }
+          }
+        },
+        plugins: {
+          legend: { position: 'top' }
+        }
+      }
+    });
+  </script>
+<%- include('../partials/footer') %>

@@ -1,0 +1,33 @@
+<% const u = locals.user; %>
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <span class="logo-text">Glovebox-Monitoring</span>
+    <span class="logo-sub">by KeT</span>
+  </div>
+
+  <ul class="sidebar-nav">
+    <% if (u && u.role === 'admin') { %>
+    <li class="nav-item <%= currentPage === 'users' ? 'active' : '' %>">
+      <a href="/users">User Management</a>
+    </li>
+    <% } %>
+    <% if (u && (u.role === 'admin' || u.role === 'controller')) { %>
+    <li class="nav-item <%= currentPage === 'boxes' ? 'active' : '' %>">
+      <a href="/boxes">Box Management</a>
+    </li>
+    <% } %>
+    <li class="nav-item <%= currentPage === 'monitoring' ? 'active' : '' %>">
+      <a href="/monitoring">Monitoring</a>
+    </li>
+    <li class="nav-item <%= currentPage === 'diagrams' ? 'active' : '' %>">
+      <a href="/diagrams">Diagrams</a>
+    </li>
+  </ul>
+
+  <div class="sidebar-footer">
+    <% if (u) { %>
+    <span class="sidebar-user"><%= u.firstname %> <%= u.lastname %></span>
+    <% } %>
+    <a href="/auth/logout" class="logout-btn">Logout</a>
+  </div>
+</nav>
