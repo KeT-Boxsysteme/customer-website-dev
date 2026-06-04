@@ -1,180 +1,208 @@
 <%- include('../partials/head', { title: 'Register' }) %>
 <body class="auth-page">
-  <div class="auth-container auth-container--wide">
-    <h1 class="brand-title">
-      <span class="brand-main">Glovebox-Monitoring by KeT</span>
-    </h1>
 
-    <%- include('../partials/flash') %>
+  <div class="auth-shell auth-shell--wide">
+    <div class="auth-card">
 
-    <form class="auth-form" action="/auth/register" method="POST" id="registerForm">
-
-      <!-- Company Type Selection -->
-      <div class="company-type-selector">
-        <label class="type-btn" id="type-university">
-          <input type="radio" name="companyType" value="university" required> University
-        </label>
-        <label class="type-btn" id="type-startup">
-          <input type="radio" name="companyType" value="startup"> Startup
-        </label>
-        <label class="type-btn" id="type-company">
-          <input type="radio" name="companyType" value="company"> Company
-        </label>
+      <div class="auth-brand">
+        <span class="auth-brand__main">Glovebox-Monitoring by KeT</span>
       </div>
 
-      <!-- Fields appear after type selection -->
-      <div id="companyFields" class="form-section" style="display:none">
+      <%- include('../partials/flash') %>
 
-        <!-- Company / University Details -->
-        <p class="form-section-title" id="companySectionTitle">Company Details</p>
+      <form id="registerForm" action="/auth/register" method="POST">
 
-        <div class="form-group">
-          <label for="companyName" id="companyNameLabel">Company Name</label>
-          <input type="text" id="companyName" name="companyName" autocomplete="organization">
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="street">Street</label>
-            <input type="text" id="street" name="street" autocomplete="street-address">
-          </div>
-          <div class="form-group form-group--small">
-            <label for="housenumber">No.</label>
-            <input type="text" id="housenumber" name="housenumber">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group form-group--small">
-            <label for="zip">ZIP Code</label>
-            <input type="text" id="zip" name="zip" autocomplete="postal-code">
-          </div>
-          <div class="form-group">
-            <label for="city">City</label>
-            <input type="text" id="city" name="city" autocomplete="address-level2">
-          </div>
-        </div>
-
-        <hr class="form-divider">
-
-        <!-- Contact Person -->
-        <p class="form-section-title">Contact Person</p>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="firstname">First Name</label>
-            <input type="text" id="firstname" name="firstname" autocomplete="given-name">
-          </div>
-          <div class="form-group">
-            <label for="lastname">Last Name</label>
-            <input type="text" id="lastname" name="lastname" autocomplete="family-name">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="email">E-Mail Address</label>
-            <input type="email" id="email" name="email" autocomplete="email">
-          </div>
-          <div class="form-group">
-            <label for="phone">Phone Number</label>
-            <input type="tel" id="phone" name="phone" autocomplete="tel">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group form-group--small">
-            <label for="username">
-              User Abbreviation
-              <span class="hint">(max. 4 chars)</span>
-            </label>
-            <input type="text" id="username" name="username" maxlength="4"
-                   style="text-transform:uppercase" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <!-- University department -->
-            <div id="deptUniversity" style="display:none">
-              <label for="deptUni">Department</label>
-              <select id="deptUni" name="department">
-                <option value="university_management">University Management</option>
-                <option value="project_management">Project Management</option>
-                <option value="plant_officer">Plant Officer</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <!-- Startup / Company department -->
-            <div id="deptBusiness" style="display:none">
-              <label for="deptBiz">Department</label>
-              <select id="deptBiz" name="department">
-                <option value="management">Executive Management</option>
-                <option value="department_lead">Department Lead</option>
-                <option value="plant_officer">Plant Officer</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <!-- "Other" position free-text -->
-        <div class="form-group" id="deptOtherField" style="display:none">
-          <label for="departmentOther">Your Position</label>
-          <input type="text" id="departmentOther" name="departmentOther">
-        </div>
-
-        <hr class="form-divider">
-
-        <!-- Password -->
-        <p class="form-section-title">Set Password</p>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="password">Password</label>
-            <div class="input-wrapper">
-              <input type="password" id="password" name="password" autocomplete="new-password">
-              <button type="button" class="toggle-pw" data-target="password" title="Show / hide password">&#128065;</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="passwordConfirm">Confirm Password</label>
-            <div class="input-wrapper">
-              <input type="password" id="passwordConfirm" name="passwordConfirm" autocomplete="new-password">
-              <button type="button" class="toggle-pw" data-target="passwordConfirm" title="Show / hide password">&#128065;</button>
-            </div>
-            <span class="pw-match-hint" id="pwMatchHint"></span>
-          </div>
-        </div>
-
-        <hr class="form-divider">
-
-        <div class="form-group form-group--checkbox">
-          <label>
-            <input type="checkbox" name="agb" id="agb">
-            I agree to the <a href="/agb" target="_blank">Terms and Conditions</a>
+        <!-- Step 1: Company type -->
+        <div class="type-tabs">
+          <label class="type-tab" id="tab-university">
+            <input type="radio" name="companyType" value="university" required>
+            University
+          </label>
+          <label class="type-tab" id="tab-startup">
+            <input type="radio" name="companyType" value="startup">
+            Startup
+          </label>
+          <label class="type-tab" id="tab-company">
+            <input type="radio" name="companyType" value="company">
+            Company
           </label>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-full" id="submitBtn" disabled>
-          Register
-        </button>
-      </div>
-    </form>
+        <!-- Step 2: All fields (shown after type selection) -->
+        <div id="companyFields" style="display:none">
 
-    <p class="auth-link">Already have an account? <a href="/auth/login">Login here</a></p>
+          <!-- Organisation -->
+          <div class="auth-section-head" id="companySectionTitle">Company Details</div>
+
+          <div class="auth-field">
+            <label for="companyName" id="companyNameLabel">Company Name</label>
+            <input type="text" id="companyName" name="companyName"
+                   placeholder="Acme GmbH" autocomplete="organization">
+          </div>
+
+          <div class="auth-row">
+            <div class="auth-field">
+              <label for="street">Street</label>
+              <input type="text" id="street" name="street"
+                     placeholder="Musterstraße" autocomplete="street-address">
+            </div>
+            <div class="auth-field auth-field--xs">
+              <label for="housenumber">No.</label>
+              <input type="text" id="housenumber" name="housenumber" placeholder="12a">
+            </div>
+          </div>
+
+          <div class="auth-row">
+            <div class="auth-field auth-field--xs">
+              <label for="zip">ZIP</label>
+              <input type="text" id="zip" name="zip"
+                     placeholder="12345" autocomplete="postal-code">
+            </div>
+            <div class="auth-field">
+              <label for="city">City</label>
+              <input type="text" id="city" name="city"
+                     placeholder="Berlin" autocomplete="address-level2">
+            </div>
+          </div>
+
+          <!-- Contact Person -->
+          <div class="auth-section-head">Contact Person</div>
+
+          <div class="auth-row">
+            <div class="auth-field">
+              <label for="firstname">First Name</label>
+              <input type="text" id="firstname" name="firstname"
+                     placeholder="Max" autocomplete="given-name">
+            </div>
+            <div class="auth-field">
+              <label for="lastname">Last Name</label>
+              <input type="text" id="lastname" name="lastname"
+                     placeholder="Mustermann" autocomplete="family-name">
+            </div>
+          </div>
+
+          <div class="auth-row">
+            <div class="auth-field">
+              <label for="email">E-Mail Address</label>
+              <input type="email" id="email" name="email"
+                     placeholder="max@acme.de" autocomplete="email">
+            </div>
+            <div class="auth-field">
+              <label for="phone">Phone Number</label>
+              <input type="tel" id="phone" name="phone"
+                     placeholder="+49 123 456789" autocomplete="tel">
+            </div>
+          </div>
+
+          <div class="auth-row">
+            <div class="auth-field auth-field--xs">
+              <label for="username">
+                Abbreviation
+                <span class="field-hint">max. 4</span>
+              </label>
+              <input type="text" id="username" name="username" maxlength="4"
+                     placeholder="MAMU" style="text-transform:uppercase" autocomplete="off">
+            </div>
+            <div class="auth-field" style="flex:1">
+              <!-- University departments -->
+              <div id="deptUniversity" style="display:none">
+                <label for="deptUni">Department</label>
+                <select id="deptUni" name="department">
+                  <option value="university_management">University Management</option>
+                  <option value="project_management">Project Management</option>
+                  <option value="plant_officer">Plant Officer</option>
+                  <option value="other">Other (specify below)</option>
+                </select>
+              </div>
+              <!-- Business departments -->
+              <div id="deptBusiness" style="display:none">
+                <label for="deptBiz">Department</label>
+                <select id="deptBiz" name="department">
+                  <option value="management">Executive Management</option>
+                  <option value="department_lead">Department Lead</option>
+                  <option value="plant_officer">Plant Officer</option>
+                  <option value="other">Other (specify below)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Free-text for "Other" position -->
+          <div class="auth-field" id="deptOtherField" style="display:none">
+            <label for="departmentOther">Your Position</label>
+            <input type="text" id="departmentOther" name="departmentOther"
+                   placeholder="Enter your role">
+          </div>
+
+          <!-- Password -->
+          <div class="auth-section-head">Password</div>
+
+          <div class="auth-row">
+            <div class="auth-field">
+              <label for="password">Password</label>
+              <div class="pw-field">
+                <input type="password" id="password" name="password"
+                       placeholder="••••••••" autocomplete="new-password">
+                <button type="button" class="pw-eye" data-target="password" title="Show / hide">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="auth-field">
+              <label for="passwordConfirm">Confirm Password</label>
+              <div class="pw-field">
+                <input type="password" id="passwordConfirm" name="passwordConfirm"
+                       placeholder="••••••••" autocomplete="new-password">
+                <button type="button" class="pw-eye" data-target="passwordConfirm" title="Show / hide">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <span class="pw-hint" id="pwMatchHint"></span>
+            </div>
+          </div>
+
+          <!-- AGB + Submit -->
+          <div class="agb-row">
+            <input type="checkbox" name="agb" id="agb">
+            <label for="agb">
+              I agree to the <a href="/agb" target="_blank">Terms and Conditions</a>
+            </label>
+          </div>
+
+          <button type="submit" class="auth-btn-submit" id="submitBtn" disabled>
+            Create Account
+          </button>
+
+        </div><!-- /companyFields -->
+      </form>
+
+      <div class="auth-footer">
+        <p>Already have an account? <a href="/auth/login">Login here</a></p>
+      </div>
+
+    </div>
   </div>
 
   <script>
-    const radios        = document.querySelectorAll('input[name="companyType"]');
-    const companyFields = document.getElementById('companyFields');
-    const deptUniWrap   = document.getElementById('deptUniversity');
-    const deptBizWrap   = document.getElementById('deptBusiness');
-    const deptOther     = document.getElementById('deptOtherField');
-    const submitBtn     = document.getElementById('submitBtn');
-    const agbCheck      = document.getElementById('agb');
+    var eyeOpen   = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var eyeClosed = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
-    // --- Company type selection ---
-    radios.forEach(r => {
-      r.addEventListener('change', () => {
+    var radios        = document.querySelectorAll('input[name="companyType"]');
+    var companyFields = document.getElementById('companyFields');
+    var deptUniWrap   = document.getElementById('deptUniversity');
+    var deptBizWrap   = document.getElementById('deptBusiness');
+    var deptOther     = document.getElementById('deptOtherField');
+    var submitBtn     = document.getElementById('submitBtn');
+    var agbCheck      = document.getElementById('agb');
+
+    // Company type selection
+    radios.forEach(function(r) {
+      r.addEventListener('change', function() {
         companyFields.style.display = 'block';
-        document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('selected'));
-        r.closest('.type-btn').classList.add('selected');
+        document.querySelectorAll('.type-tab').forEach(function(b) { b.classList.remove('active'); });
+        r.closest('.type-tab').classList.add('active');
 
-        const isUni = r.value === 'university';
+        var isUni = r.value === 'university';
         document.getElementById('companySectionTitle').textContent =
           isUni ? 'University Details' : 'Company Details';
         document.getElementById('companyNameLabel').textContent =
@@ -196,31 +224,33 @@
       });
     });
 
-    // --- Department "Other" visibility ---
-    ['deptUni', 'deptBiz'].forEach(id => {
-      document.getElementById(id).addEventListener('change', () => {
+    // Department "Other" visibility
+    ['deptUni', 'deptBiz'].forEach(function(id) {
+      document.getElementById(id).addEventListener('change', function() {
         checkDeptOther();
         updateSubmitBtn();
       });
     });
 
     function checkDeptOther() {
-      const active = document.querySelector('select[name="department"]');
+      var active = document.querySelector('select[name="department"]');
       deptOther.style.display = (active && active.value === 'other') ? 'block' : 'none';
     }
 
-    // --- Password show/hide ---
-    document.querySelectorAll('.toggle-pw').forEach(btn => {
-      btn.addEventListener('click', function () {
-        var input = document.getElementById(this.dataset.target);
+    // Password show/hide
+    document.querySelectorAll('.pw-eye').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var targetId = this.dataset.target;
+        if (!targetId) return;
+        var input   = document.getElementById(targetId);
         var showing = input.type === 'text';
-        input.type = showing ? 'password' : 'text';
-        this.style.opacity = showing ? '1' : '0.4';
+        input.type  = showing ? 'password' : 'text';
+        this.innerHTML = showing ? eyeOpen : eyeClosed;
       });
     });
 
-    // --- Password match indicator ---
-    ['password', 'passwordConfirm'].forEach(id => {
+    // Password match indicator
+    ['password', 'passwordConfirm'].forEach(function(id) {
       document.getElementById(id).addEventListener('input', checkPasswordMatch);
     });
 
@@ -228,32 +258,35 @@
       var pw      = document.getElementById('password').value;
       var confirm = document.getElementById('passwordConfirm').value;
       var hint    = document.getElementById('pwMatchHint');
-      if (!confirm) { hint.textContent = ''; hint.className = 'pw-match-hint'; return; }
+      if (!confirm) { hint.textContent = ''; hint.className = 'pw-hint'; return; }
       if (pw === confirm) {
         hint.textContent = '✓ Passwords match';
-        hint.className   = 'pw-match-hint pw-match-ok';
+        hint.className   = 'pw-hint pw-hint--ok';
       } else {
         hint.textContent = '✗ Passwords do not match';
-        hint.className   = 'pw-match-hint pw-match-err';
+        hint.className   = 'pw-hint pw-hint--err';
       }
       updateSubmitBtn();
     }
 
-    // --- Submit button enable/disable ---
+    // Submit button state
     agbCheck.addEventListener('change', updateSubmitBtn);
     document.getElementById('registerForm').addEventListener('input', updateSubmitBtn);
 
     function updateSubmitBtn() {
-      const type = document.querySelector('input[name="companyType"]:checked');
-      const requiredFields = [
+      var type = document.querySelector('input[name="companyType"]:checked');
+      var requiredFields = [
         'companyName','street','housenumber','zip','city',
         'firstname','lastname','email','phone','username',
         'password','passwordConfirm'
       ];
-      const allFilled = requiredFields.every(id => document.getElementById(id).value.trim() !== '');
-      const pw      = document.getElementById('password').value;
-      const confirm = document.getElementById('passwordConfirm').value;
+      var allFilled = requiredFields.every(function(id) {
+        return document.getElementById(id).value.trim() !== '';
+      });
+      var pw      = document.getElementById('password').value;
+      var confirm = document.getElementById('passwordConfirm').value;
       submitBtn.disabled = !(type && allFilled && agbCheck.checked && pw === confirm);
     }
   </script>
+
 <%- include('../partials/footer') %>

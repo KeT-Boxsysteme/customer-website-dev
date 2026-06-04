@@ -1,0 +1,727 @@
+================================================================================
+  GLOVEBOX-MONITORING BY KeT – TECHNISCHE DOKUMENTATION
+================================================================================
+  Letzte Aktualisierung: 2026-06-04 (UI-Redesign Auth-Seiten)
+  Stack: Node.js + Express, EJS-Templates, MSSQL (Azure), Nodemailer
+  Einstiegspunkt: server.js | Port: 3000 (Standard)
+================================================================================
+
+
+════════════════════════════════════════════════════════════════════════════════
+  PROJEKTSTRUKTUR (ÜBERSICHT)
+════════════════════════════════════════════════════════════════════════════════
+
+  customer-website-dev/
+  ├── server.js               → Hauptserver, startet die Anwendung
+  ├── config/
+  │   └── database.js         → Datenbankverbindung (MSSQL-Pool)
+  ├── database/
+  │   └── schema.sql          → SQL-Schema aller Tabellen
+  ├── middleware/
+  │   ├── auth.js             → Prüft ob User eingeloggt ist
+  │   └── authorize.js        → Prüft ob User die nötige Rolle hat
+  ├── models/
+  │   ├── user.js             → Alle Datenbankoperationen für User
+  │   ├── box.js              → Alle Datenbankoperationen für Boxen
+  │   ├── company.js          → Alle Datenbankoperationen für Unternehmen
+  │   └── measurement.js      → Alle Datenbankoperationen für Messwerte
+  ├── routes/
+  │   ├── auth.js             → Login, Registrierung, Passwort zurücksetzen
+  │   ├── users.js            → Userverwaltung (nur Admin)
+  │   ├── boxes.js            → Boxenverwaltung (Admin + Controller)
+  │   ├── monitoring.js       → Werte eingeben + Wartungshinweise
+  │   └── diagrams.js         → Diagramme anzeigen
+  ├── services/
+  │   └── email.js            → Alle E-Mail-Funktionen (Nodemailer)
+  ├── views/
+  │   ├── auth/               → Login, Registrierung, Passwort-Views
+  │   ├── boxes/              → Boxenverwaltungs-Views
+  │   ├── dashboard/          → Startseite nach dem Login
+  │   ├── diagrams/           → Diagramm-Views
+  │   ├── errors/             → Fehlerseiten (403, 404, 500)
+  │   ├── monitoring/         → Monitoring-Views
+  │   ├── partials/           → Wiederverwendbare Bausteine (Nav, Head etc.)
+  │   └── users/              → Userverwaltungs-Views
+  ├── public/
+  │   ├── css/style.css       → Globales Stylesheet
+  │   ├── js/main.js          → Globales Frontend-JavaScript
+  │   └── fonts/              → Schriftart "Skyload | Modern Sense"
+  ├── scripts/
+  │   ├── setup-db.js         → Erstellt alle DB-Tabellen (einmalig ausführen)
+  │   └── seed-admin.js       → Legt einen Test-Admin-User an
+  ├── .env                    → Umgebungsvariablen (NICHT in Git einchecken!)
+  ├── .env.example            → Vorlage für .env
+  ├── Konzept.txt             → Fachliches Projektkonzept / Anforderungen
+  └── DOKUMENTATION.txt       → Diese Datei
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SERVER.JS – HAUPTSERVER
+════════════════════════════════════════════════════════════════════════════════
+
+  Startet die Express-Anwendung und verdrahtet alle Teile miteinander.
+
+  Was hier passiert (der Reihe nach):
+  1. Lädt alle Umgebungsvariablen aus .env
+  2. Setzt EJS als Template-Engine (alle Views sind .ejs-Dateien)
+  3. Aktiviert Middleware: Formular-Parser, JSON-Parser, statische Dateien (public/)
+  4. Session-Verwaltung: Nutzer bleibt 24 Stunden eingeloggt (Cookie)
+  5. Flash-Nachrichten: Kurze Erfolgs-/Fehlermeldungen zwischen Seitenaufrufen
+  6. Globale Variablen für alle Views: user (eingeloggter User), success, error
+  7. Routen werden eingebunden – alle außer /auth benötigen Login (requireAuth)
+
+  Routen-Übersicht:
+    GET  /              → Weiterleitung zu /auth/login oder /dashboard
+    GET  /dashboard     → Startseite nach Login (erfordert Login)
+    /auth/...           → Login, Registrierung, Passwort (routes/auth.js)
+    /users/...          → Userverwaltung (routes/users.js)
+    /boxes/...          → Boxenverwaltung (routes/boxes.js)
+    /monitoring/...     → Monitoring (routes/monitoring.js)
+    /diagrams/...       → Diagramme (routes/diagrams.js)
+
+  Fehlerseiten:
+    404 → views/errors/404.ejs (Seite nicht gefunden)
+    500 → views/errors/500.ejs (Serverfehler)
+
+
+════════════════════════════════════════════════════════════════════════════════
+  CONFIG/DATABASE.JS – DATENBANKVERBINDUNG
+════════════════════════════════════════════════════════════════════════════════
+
+  Stellt eine Verbindung zur MSSQL-Datenbank her (über AWS oder Azure).
+  Verwendet einen Connection-Pool (max. 10 gleichzeitige Verbindungen).
+  Die Verbindung wird nur einmal aufgebaut und danach wiederverwendet.
+
+  Funktionen:
+  ┌─────────────────┬────────────────────────────────────────────────────────┐
+  │ getPool()       │ Gibt den aktiven DB-Pool zurück, stellt Verbindung her  │
+  │                 │ falls noch keine besteht. Wird von allen Models genutzt.│
+  ├─────────────────┼────────────────────────────────────────────────────────┤
+  │ closePool()     │ Schließt den Pool sauber (z.B. beim Server-Shutdown).   │
+  └─────────────────┴────────────────────────────────────────────────────────┘
+
+  Benötigte .env-Variablen:
+    DB_SERVER    → Adresse des MSSQL-Servers
+    DB_DATABASE  → Name der Datenbank
+    DB_USERNAME  → Datenbankbenutzer
+    DB_PASSWORD  → Datenbankpasswort
+
+
+════════════════════════════════════════════════════════════════════════════════
+  MIDDLEWARE
+════════════════════════════════════════════════════════════════════════════════
+
+  ── middleware/auth.js ─────────────────────────────────────────────────────
+
+    requireAuth(req, res, next)
+      Prüft ob ein User in der Session eingeloggt ist.
+      → Wenn nicht: Weiterleitung zu /auth/login mit Fehlermeldung.
+      → Wenn ja: Anfrage wird durchgelassen (next()).
+      Wird in server.js auf alle geschützten Routen angewendet.
+
+  ── middleware/authorize.js ────────────────────────────────────────────────
+
+    Definiert 4 Rollen und ihre Berechtigungen:
+    ┌────────────────┬────────────────────────────────────────────────────┐
+    │ admin          │ Zugriff auf alles (inkl. Userverwaltung)            │
+    │ controller     │ Zugriff auf Boxen, Monitoring, Diagramme            │
+    │ user           │ Nur Monitoring und Diagramme                        │
+    │ box_user       │ Nur Monitoring und Diagramme (für Android-Tablet)   │
+    └────────────────┴────────────────────────────────────────────────────┘
+
+    authorize(...roles)
+      Gibt eine Middleware-Funktion zurück, die prüft ob der eingeloggte
+      User eine der erlaubten Rollen hat.
+      → Wenn nicht: HTTP 403 und views/errors/403.ejs wird angezeigt.
+      Beispiel: authorize(ROLES.ADMIN) erlaubt nur Admins.
+
+
+════════════════════════════════════════════════════════════════════════════════
+  MODELS – DATENBANKOPERATIONEN
+════════════════════════════════════════════════════════════════════════════════
+
+  Alle Models verwenden parametrisierte SQL-Queries (kein SQL-Injection-Risiko).
+  Alle Funktionen sind async/await.
+
+  ── models/user.js ────────────────────────────────────────────────────────
+
+  Tabelle: users
+  Felder: id, company_id, firstname, lastname, email, phone, username (max 4 Zeichen),
+          department, role, password_hash, is_active, created_at
+
+  ┌──────────────────────────────┬───────────────────────────────────────────┐
+  │ findByEmail(email)           │ Sucht aktiven User anhand E-Mail-Adresse  │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ findById(id)                 │ Sucht aktiven User anhand ID              │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ findAllByCompany(companyId)  │ Gibt alle aktiven User eines Unternehmens │
+  │                              │ zurück (sortiert nach Name)               │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ create({...})                │ Legt neuen User an, Passwort wird mit     │
+  │                              │ bcrypt (Kostenfaktor 12) gehasht          │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ update(id, {...})            │ Aktualisiert Userdaten (kein Passwort)    │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ softDelete(id)               │ Setzt is_active=0 statt echtem Löschen   │
+  │                              │ (Datensatz bleibt in DB erhalten)         │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ updatePassword(id, newPw)    │ Setzt neues Passwort (gehasht mit bcrypt) │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ verifyPassword(plain, hash)  │ Vergleicht eingegebenes Passwort mit Hash │
+  ├──────────────────────────────┼───────────────────────────────────────────┤
+  │ getUsernamesByCompany(cId)   │ Gibt alle Kürzel eines Unternehmens       │
+  │                              │ zurück (für Monitoring-Dropdown)          │
+  └──────────────────────────────┴───────────────────────────────────────────┘
+
+  ── models/box.js ─────────────────────────────────────────────────────────
+
+  Tabelle: boxes
+  Speichert alle technischen Konfigurationsdaten einer Glovebox.
+  Wichtige Felder: manufacturer, project_number (eindeutiger Schlüssel),
+  box_type, box_alias, has_o2_sensor, has_h2o_sensor, has_fridge,
+  has_oil_pump, has_solvent_filter, last_h2o_cleaning, last_charcoal_done,
+  last_sieve_done, last_solvent_test, last_oil_done (Wartungsdaten), is_active
+
+  ┌─────────────────────────────────────┬──────────────────────────────────────┐
+  │ findAllByCompany(companyId)         │ Alle aktiven Boxen eines Unternehmens │
+  ├─────────────────────────────────────┼──────────────────────────────────────┤
+  │ findById(id, companyId)             │ Eine Box (mit Firmenzugehörigkeits-   │
+  │                                     │ prüfung, damit kein fremder Zugriff)  │
+  ├─────────────────────────────────────┼──────────────────────────────────────┤
+  │ create(data)                        │ Legt neue Box an mit allen Konfig-    │
+  │                                     │ feldern. Setzt alle Wartungsdaten     │
+  │                                     │ initial auf GETDATE() (heute)         │
+  ├─────────────────────────────────────┼──────────────────────────────────────┤
+  │ update(id, companyId, data)         │ Aktualisiert Basisdaten der Box       │
+  │                                     │ (Hersteller, Typ, Alias, Notizen)     │
+  ├─────────────────────────────────────┼──────────────────────────────────────┤
+  │ softDelete(id, companyId)           │ Setzt is_active=0 (kein echtes        │
+  │                                     │ Löschen, Daten bleiben erhalten)      │
+  ├─────────────────────────────────────┼──────────────────────────────────────┤
+  │ updateMaintenanceDate(id, field)    │ Setzt ein Wartungsdatum-Feld auf      │
+  │                                     │ GETDATE() wenn Nutzer "Erledigt"      │
+  │                                     │ klickt (z.B. last_h2o_cleaning)       │
+  └─────────────────────────────────────┴──────────────────────────────────────┘
+
+  ── models/company.js ─────────────────────────────────────────────────────
+
+  Tabelle: companies
+  Speichert Unternehmensadresse und Typ (university / startup / company).
+
+  ┌────────────────────┬──────────────────────────────────────────────────────┐
+  │ create({...})      │ Legt neues Unternehmen an, gibt die neue ID zurück   │
+  ├────────────────────┼──────────────────────────────────────────────────────┤
+  │ findById(id)       │ Gibt ein Unternehmen anhand seiner ID zurück         │
+  └────────────────────┴──────────────────────────────────────────────────────┘
+
+  ── models/measurement.js ─────────────────────────────────────────────────
+
+  Tabelle: measurements
+  Speichert jeden Messwert-Eintrag mit Zeitstempel und User-Kürzel.
+  Felder: box_id, user_id, o2_value, h2o_value, fridge_temp, measured_at
+
+  ┌────────────────────────────┬────────────────────────────────────────────────┐
+  │ create({...})              │ Speichert neuen Messwert (O2, H2O, Kühlschrank)│
+  ├────────────────────────────┼────────────────────────────────────────────────┤
+  │ findByBox(boxId, months)   │ Gibt alle Messwerte einer Box der letzten X    │
+  │                            │ Monate zurück (Standard: 6), inkl. Username    │
+  ├────────────────────────────┼────────────────────────────────────────────────┤
+  │ findLatestByBox(boxId)     │ Gibt den neuesten Messwert einer Box zurück    │
+  │                            │ (wird für Ampelsystem im Monitoring genutzt)   │
+  └────────────────────────────┴────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+  ROUTES – CONTROLLER-LOGIK
+════════════════════════════════════════════════════════════════════════════════
+
+  ── routes/auth.js  (/auth/...) ───────────────────────────────────────────
+
+  Zugriff: Öffentlich (kein Login nötig), außer /logout
+
+  ┌────────────────────────────────┬──────────────────────────────────────────┐
+  │ GET  /auth/login               │ Zeigt Login-Formular an                  │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ POST /auth/login               │ Verarbeitet Login: prüft E-Mail und       │
+  │                                │ Passwort, schreibt User in Session,       │
+  │                                │ leitet zu /dashboard weiter               │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ GET  /auth/register            │ Zeigt Registrierungsformular an           │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ POST /auth/register            │ Verarbeitet Registrierung:                │
+  │                                │  1. Validierung (AGB, Passwörter, Kürzel) │
+  │                                │  2. Prüft ob E-Mail bereits existiert     │
+  │                                │  3. Legt Unternehmen in DB an             │
+  │                                │  4. Legt User mit Rolle "admin" an        │
+  │                                │  5. Sendet Willkommensmail an Kunden      │
+  │                                │  6. Sendet Info-Mail an KeT               │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ GET  /auth/forgot-password     │ Zeigt "Passwort vergessen"-Formular       │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ POST /auth/forgot-password     │ Generiert Reset-Token (64-stellig, hex),  │
+  │                                │ gültig 1 Stunde. Speichert Token im       │
+  │                                │ Arbeitsspeicher (resetTokens Map).        │
+  │                                │ Sendet Reset-Link per E-Mail.             │
+  │                                │ Zeigt immer Erfolgsmeldung (verhindert    │
+  │                                │ E-Mail-Enumeration durch Angreifer)       │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ GET  /auth/reset-password/:tok │ Prüft Token auf Gültigkeit, zeigt         │
+  │                                │ Formular für neues Passwort               │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ POST /auth/reset-password/:tok │ Setzt neues Passwort, löscht Token        │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ GET  /auth/logout              │ Zerstört Session, leitet zu Login         │
+  └────────────────────────────────┴──────────────────────────────────────────┘
+
+  HINWEIS: Reset-Tokens werden im RAM gespeichert (resetTokens Map).
+  Bei Server-Neustart gehen alle offenen Reset-Links verloren.
+  Für Produktion: Tokens in die Datenbank auslagern.
+
+  ── routes/users.js  (/users/...) ─────────────────────────────────────────
+
+  Zugriff: Nur Rolle "admin"
+
+  ┌────────────────────────────┬──────────────────────────────────────────────┐
+  │ GET  /users                │ Listet alle User des eigenen Unternehmens auf │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ GET  /users/create         │ Zeigt Formular zum Anlegen eines neuen Users  │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ POST /users                │ Legt neuen User an, sendet Info-Mail an       │
+  │                            │ dessen E-Mail-Adresse                         │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ GET  /users/:id/edit       │ Zeigt Bearbeitungsformular für einen User     │
+  │                            │ (nur User aus eigenem Unternehmen editierbar) │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ PUT  /users/:id            │ Speichert Änderungen (Admin kann sich selbst  │
+  │                            │ nicht bearbeiten als Schutz)                  │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ DELETE /users/:id          │ Soft-Delete (Admin kann sich selbst nicht     │
+  │                            │ löschen als Schutz)                           │
+  └────────────────────────────┴──────────────────────────────────────────────┘
+
+  ── routes/boxes.js  (/boxes/...) ─────────────────────────────────────────
+
+  Zugriff: Rollen "admin" und "controller"
+
+  ┌────────────────────────────┬──────────────────────────────────────────────┐
+  │ GET  /boxes                │ Listet alle Boxen des eigenen Unternehmens    │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ GET  /boxes/create         │ Zeigt Formular zum Anlegen einer neuen Box    │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ POST /boxes                │ Legt neue Box mit allen Konfigurationsfeldern │
+  │                            │ an (Sensoren, Filter, Pumpe etc.)             │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ GET  /boxes/:id/edit       │ Zeigt Bearbeitungsformular für eine Box       │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ PUT  /boxes/:id            │ Aktualisiert Basisdaten der Box               │
+  ├────────────────────────────┼──────────────────────────────────────────────┤
+  │ DELETE /boxes/:id          │ Soft-Delete einer Box                         │
+  └────────────────────────────┴──────────────────────────────────────────────┘
+
+  ── routes/monitoring.js  (/monitoring/...) ───────────────────────────────
+
+  Zugriff: Alle Rollen (admin, controller, user, box_user)
+
+  ┌──────────────────────────────────────┬──────────────────────────────────────┐
+  │ GET  /monitoring                     │ Kachelansicht aller Boxen zur         │
+  │                                      │ Auswahl                               │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ GET  /monitoring/:id                 │ Detail-Seite einer Box:               │
+  │                                      │  - Lädt letzten Messwert              │
+  │                                      │  - Berechnet Ampelstatus:             │
+  │                                      │    grün  = alles OK                   │
+  │                                      │    gelb  = O2/H2O >= 5 ppm            │
+  │                                      │    rot   = O2/H2O >= 10 ppm           │
+  │                                      │  - Lädt alle Kürzel für Dropdown      │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ POST /monitoring/:id/submit          │ Speichert neue Messwerte (O2, H2O,    │
+  │                                      │ Kühlschrank). Erfordert Kürzel-       │
+  │                                      │ Auswahl. Ermittelt User-ID anhand     │
+  │                                      │ des Kürzels aus der Datenbank.        │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ POST /monitoring/:id/resolve/:field  │ Setzt Wartungsdatum auf heute wenn    │
+  │                                      │ Nutzer "Erledigt" klickt. Erlaubte    │
+  │                                      │ Felder: last_h2o_cleaning,            │
+  │                                      │ last_charcoal_done, last_sieve_done,  │
+  │                                      │ last_solvent_test, last_oil_done      │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ POST /monitoring/:id/message         │ Sendet Freitext-Nachricht des Nutzers │
+  │                                      │ als Service-Anfrage per E-Mail an KeT │
+  │                                      │ (info@glovebox-monitoring.com)        │
+  └──────────────────────────────────────┴──────────────────────────────────────┘
+
+  ── routes/diagrams.js  (/diagrams/...) ───────────────────────────────────
+
+  Zugriff: Alle Rollen (admin, controller, user, box_user)
+
+  ┌────────────────────────────────┬──────────────────────────────────────────┐
+  │ GET  /diagrams                 │ Kachelansicht aller Boxen zur Auswahl     │
+  ├────────────────────────────────┼──────────────────────────────────────────┤
+  │ GET  /diagrams/:id?months=6    │ Diagramm einer Box:                       │
+  │                                │  - months-Parameter: 6, 9 oder 12         │
+  │                                │  - Lädt Messwerte aus DB                  │
+  │                                │  - Bereitet Daten für Chart.js auf:       │
+  │                                │    chartLabels (Zeitachse),               │
+  │                                │    o2Data (blau), h2oData (grün),         │
+  │                                │    fridgeData (Kühlschranktemp)           │
+  │                                │  - Y-Achse: 0–20 ppm                      │
+  └────────────────────────────────┴──────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SERVICES/EMAIL.JS – E-MAIL-VERSAND
+════════════════════════════════════════════════════════════════════════════════
+
+  Nutzt Nodemailer. Absender-Name: "Glovebox-Monitoring by KeT"
+  Alle E-Mail-Zugangsdaten kommen aus .env.
+
+  ┌──────────────────────────────────────┬──────────────────────────────────────┐
+  │ sendWelcomeEmail(email, companyName) │ Willkommensmail an neuen Kunden       │
+  │                                      │ nach erfolgreicher Registrierung      │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ sendNewRegistrationToKeT(name,       │ Benachrichtigung an KeT wenn sich ein │
+  │   type, email)                       │ neues Unternehmen registriert hat     │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ sendPasswordResetEmail(email, token) │ Passwort-Reset-Link per Mail          │
+  │                                      │ (Link läuft nach 1 Stunde ab)         │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ sendUserCreatedEmail(email,          │ Info-Mail an neuen User, dass ein     │
+  │   companyName)                       │ Account für ihn angelegt wurde        │
+  ├──────────────────────────────────────┼──────────────────────────────────────┤
+  │ sendContactMessage(projectNumber,    │ Service-Anfrage an KeT aus dem        │
+  │   userEmail, message)                │ Monitoring-Freitextfeld. Reply-To     │
+  │                                      │ ist auf die User-E-Mail gesetzt.      │
+  └──────────────────────────────────────┴──────────────────────────────────────┘
+
+  Benötigte .env-Variablen:
+    EMAIL_HOST    → SMTP-Server (z.B. smtp.ionos.de)
+    EMAIL_PORT    → SMTP-Port (587 Standard)
+    EMAIL_SECURE  → "true" für SSL/TLS, "false" für STARTTLS
+    EMAIL_USER    → E-Mail-Absenderadresse
+    EMAIL_PASS    → E-Mail-Passwort
+    KET_EMAIL     → KeT-interne Empfängeradresse
+    APP_URL       → Basis-URL der Website (für Links in Mails)
+
+
+════════════════════════════════════════════════════════════════════════════════
+  VIEWS – BENUTZEROBERFLÄCHE (EJS-TEMPLATES)
+════════════════════════════════════════════════════════════════════════════════
+
+  Alle Views sind EJS-Dateien (.ejs). EJS ist HTML mit eingebettetem
+  JavaScript: <%= variable %> gibt Werte aus, <% code %> führt Logik aus.
+
+  ── views/partials/ – Wiederverwendbare Bausteine ─────────────────────────
+
+  ┌──────────────────┬───────────────────────────────────────────────────────┐
+  │ head.ejs         │ HTML-Head: Meta-Tags, CSS-Links.                      │
+  │                  │ Lädt Google Fonts: "Plus Jakarta Sans" (400/500/600/  │
+  │                  │ 700) als UI-Schrift für alle Seiten. Skyload bleibt   │
+  │                  │ Marken-Schrift für den Hauptschriftzug.               │
+  ├──────────────────┼───────────────────────────────────────────────────────┤
+  │ nav.ejs          │ Linke Seitennavigation mit den 4 Hauptreitern.        │
+  │                  │ Hebt den aktiven Reiter hervor (currentPage-Variable) │
+  ├──────────────────┼───────────────────────────────────────────────────────┤
+  │ footer.ejs       │ Lädt main.js, schliesst body und html                 │
+  ├──────────────────┼───────────────────────────────────────────────────────┤
+  │ flash.ejs        │ Zeigt Erfolgs- (grün) und Fehlermeldungen (rot) an,   │
+  │                  │ die per req.flash() gesetzt wurden.                   │
+  │                  │ CSS-Klassen: .flash, .flash-success, .flash-error     │
+  └──────────────────┴───────────────────────────────────────────────────────┘
+
+  ── views/auth/ – Redesign 2026-06-04 ────────────────────────────────────
+
+  Alle 4 Auth-Seiten teilen dasselbe visuelle System:
+  - Hintergrund: Tiefes Dunkelblau (#07091a) mit blauen/lila Radialgradienten
+  - Doppelrahmenkarte (Double-Bezel): Äußere Glashülle (.auth-shell) +
+    weißes inneres Card (.auth-card)
+  - Markenname oben zentriert in Skyload-Schrift (.auth-brand)
+  - Eingaben: Hellgrauer Hintergrund, blaue Fokusringe, SVG-Chevron bei Selects
+  - Passwort-Toggle: SVG-Auge-Icon (kein Emoji mehr)
+  - Flash-Nachrichten erscheinen zwischen Markenname und Formular
+
+  Neue CSS-Klassen (nur für Auth-Seiten, in style.css nach den App-Styles):
+  ┌──────────────────────────┬────────────────────────────────────────────────┐
+  │ .auth-page               │ Seiten-Wrapper: dunkler Hintergrund mit        │
+  │                          │ Radialgradienten, align-items: flex-start      │
+  │                          │ (ermöglicht vertikales Scrollen bei Register)  │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .auth-shell              │ Äußere Glashülle (max-width: 480px)            │
+  │ .auth-shell--wide        │ Breite Variante für Register (max-width: 660px)│
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .auth-card               │ Inneres weißes Card (border-radius: 24px)      │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .auth-brand              │ Marken-Block oben zentriert                    │
+  │ .auth-brand__sub         │ Kleiner grauer Text "Welcome to"               │
+  │ .auth-brand__main        │ Skyload-Schrift für Haupttitel                 │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .auth-field              │ Eingabefeld-Gruppe (label + input/select)      │
+  │ .auth-row                │ Zweispaltiges Layout für Felder nebeneinander  │
+  │ .auth-row .auth-field--xs│ Schmales Feld in einer Zeile (z.B. PLZ, Nr.)  │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .pw-field                │ Wrapper für Passwortfeld mit Eye-Icon-Button   │
+  │ .pw-eye                  │ SVG-Auge-Button zum Ein-/Ausblenden            │
+  │ .pw-hint                 │ Passwort-Match-Hinweis unter Confirm-Feld      │
+  │ .pw-hint--ok             │ Grüner Hinweis "✓ Passwords match"             │
+  │ .pw-hint--err            │ Roter Hinweis "✗ Passwords do not match"       │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .auth-section-head       │ Abschnitts-Überschrift mit Linien links+rechts │
+  │                          │ (z.B. "Company Details", "Contact Person")     │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .type-tabs               │ Wrapper für die 3 Unternehmenstyp-Buttons      │
+  │ .type-tab                │ Einzelner Tab (University / Startup / Company) │
+  │ .type-tab.active         │ Aktiver Tab: blauer Hintergrund                │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .auth-btn-submit         │ Blauer Submit-Button, volle Breite,            │
+  │                          │ deaktiviert (opacity 0.35) bis alle Pflicht-   │
+  │                          │ felder + AGB-Checkbox ausgefüllt sind          │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .agb-row                 │ AGB-Checkbox-Zeile mit Link zu /agb            │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .auth-footer             │ Linkzeile unten ("Already have an account?")   │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .forgot-row / .forgot-link│ "Forgot password?" rechts unter Passwortfeld  │
+  ├──────────────────────────┼────────────────────────────────────────────────┤
+  │ .field-hint              │ Kleiner grauer Zusatztext bei Labels (max. 4)  │
+  │ .auth-desc-text          │ Beschreibungstext (z.B. auf Forgot-Password)   │
+  └──────────────────────────┴────────────────────────────────────────────────┘
+
+  ┌──────────────────────┬─────────────────────────────────────────────────────┐
+  │ login.ejs            │ Login: E-Mail + Passwort (mit SVG-Eye-Toggle)       │
+  │                      │ "Forgot password?"-Link rechts unter Passwortfeld   │
+  │                      │ Link zur Registrierung unten                        │
+  ├──────────────────────┼─────────────────────────────────────────────────────┤
+  │ register.ejs         │ Registrierung (scrollbar, kein Abschneiden mehr):   │
+  │                      │  - Schritt 1: 3 Type-Tabs (University/Startup/Co.)  │
+  │                      │  - Schritt 2: Felder erscheinen nach Tab-Auswahl    │
+  │                      │  - Sektionen: Unternehmen → Kontakt → Passwort      │
+  │                      │  - Abteilung-Dropdown je nach Unternehmenstyp       │
+  │                      │  - "Sonstiges" zeigt Freitext-Feld                  │
+  │                      │  - AGB-Checkbox + Submit-Button (deaktiviert bis    │
+  │                      │    alle Felder + AGB korrekt)                       │
+  │                      │  - Scroll-Fix: .auth-page nutzt flex-start statt   │
+  │                      │    center → kein Abschneiden bei großen Formularen  │
+  ├──────────────────────┼─────────────────────────────────────────────────────┤
+  │ forgot-password.ejs  │ Nur E-Mail-Eingabe + Beschreibungstext              │
+  ├──────────────────────┼─────────────────────────────────────────────────────┤
+  │ reset-password.ejs   │ Neues Passwort + Bestätigung, beide mit SVG-Eye-    │
+  │                      │ Toggle und Live-Match-Indikator                     │
+  └──────────────────────┴─────────────────────────────────────────────────────┘
+
+  ── views/dashboard/ ──────────────────────────────────────────────────────
+
+  ┌──────────────────┬─────────────────────────────────────────────────────────┐
+  │ index.ejs        │ Startseite nach dem Login. Zeigt Begrüßungstext:        │
+  │                  │ "Welcome to" (Plus Jakarta Sans) + "Glovebox-Monitoring  │
+  │                  │ by KeT" in Schriftart "Skyload | Modern Sense"          │
+  └──────────────────┴─────────────────────────────────────────────────────────┘
+
+  ── views/users/ ──────────────────────────────────────────────────────────
+
+  ┌──────────────────┬─────────────────────────────────────────────────────────┐
+  │ index.ejs        │ Tabelle aller User des Unternehmens mit                 │
+  │                  │ Bearbeiten- und Löschen-Button                          │
+  ├──────────────────┼─────────────────────────────────────────────────────────┤
+  │ form.ejs         │ Formular für Anlegen/Bearbeiten eines Users.            │
+  │                  │ Wird für beide Aktionen genutzt (editUser=null → neu)   │
+  └──────────────────┴─────────────────────────────────────────────────────────┘
+
+  ── views/boxes/ ──────────────────────────────────────────────────────────
+
+  ┌──────────────────┬─────────────────────────────────────────────────────────┐
+  │ index.ejs        │ Liste aller Boxen mit Bearbeiten/Löschen-Buttons        │
+  ├──────────────────┼─────────────────────────────────────────────────────────┤
+  │ form.ejs         │ Großes Formular zum Anlegen/Bearbeiten einer Box.       │
+  │                  │ Felder werden dynamisch ein-/ausgeblendet je nachdem    │
+  │                  │ ob z.B. "Lösungsmittelfilter vorhanden: Ja" gewählt     │
+  └──────────────────┴─────────────────────────────────────────────────────────┘
+
+  ── views/monitoring/ ─────────────────────────────────────────────────────
+
+  ┌──────────────────┬─────────────────────────────────────────────────────────┐
+  │ index.ejs        │ Kachelansicht aller Boxen (Boxname, Projektnummer,      │
+  │                  │ Hersteller). Klick führt zur Detail-Seite.              │
+  ├──────────────────┼─────────────────────────────────────────────────────────┤
+  │ detail.ejs       │ Monitoring-Detailseite einer Box:                       │
+  │                  │  - Bild der Box (eingefärbt nach Ampelstatus)           │
+  │                  │  - Kürzel-Dropdown (alle User des Unternehmens)         │
+  │                  │  - Eingabefelder: O2, H2O, Kühlschrank (nur wenn       │
+  │                  │    in der Boxconfig aktiviert)                          │
+  │                  │  - Rotes Ausrufezeichen → öffnet Wartungshinweis-Fenster│
+  │                  │  - Freitextfeld für Service-Nachricht an KeT            │
+  └──────────────────┴─────────────────────────────────────────────────────────┘
+
+  Wartungshinweise (werden im Ausrufezeichen-Fenster angezeigt):
+  ┌───────────────────────────────────┬────────────┬──────────────────────────┐
+  │ Hinweis                           │ Ampel      │ DB-Feld                  │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ H2O-Sensor reinigen (alle 2000h)  │ Gelb       │ last_h2o_cleaning        │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ Aktivkohle wechseln (X Monate)    │ Gelb       │ last_charcoal_done       │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ Molekolarsieb regenerieren (X Mo) │ Gelb       │ last_sieve_done          │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ Lösungsmittelsensor testen (6 Mo) │ Gelb       │ last_solvent_test        │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ Öl wechseln (6 Monate)            │ Gelb       │ last_oil_done            │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ O2 oder H2O >= 5 ppm              │ Gelb       │ (aus Messwert)           │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ O2 oder H2O >= 10 ppm             │ Rot        │ (aus Messwert)           │
+  └───────────────────────────────────┴────────────┴──────────────────────────┘
+
+  ── views/diagrams/ ───────────────────────────────────────────────────────
+
+  ┌──────────────────┬─────────────────────────────────────────────────────────┐
+  │ index.ejs        │ Kachelansicht aller Boxen zur Auswahl                   │
+  ├──────────────────┼─────────────────────────────────────────────────────────┤
+  │ detail.ejs       │ Diagramm-Detailseite:                                   │
+  │                  │  - Tabelle mit historischen Messwerten                  │
+  │                  │  - Chart.js-Liniendiagramm:                             │
+  │                  │    O2 = blau, H2O = grün, Kühlschrank = optional        │
+  │                  │  - Radiobuttons zur Zeitraumauswahl: 6 / 9 / 12 Monate │
+  │                  │  - Y-Achse: 0–20 ppm                                    │
+  └──────────────────┴─────────────────────────────────────────────────────────┘
+
+  ── views/errors/ ─────────────────────────────────────────────────────────
+
+  ┌──────────────────┬─────────────────────────────────────────────────────────┐
+  │ 403.ejs          │ "Kein Zugriff" – wird angezeigt bei fehlender Rolle     │
+  ├──────────────────┼─────────────────────────────────────────────────────────┤
+  │ 404.ejs          │ "Seite nicht gefunden"                                  │
+  ├──────────────────┼─────────────────────────────────────────────────────────┤
+  │ 500.ejs          │ "Serverfehler" – zeigt Fehlermeldung im Dev-Modus       │
+  └──────────────────┴─────────────────────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+  PUBLIC/ – FRONTEND-ASSETS
+════════════════════════════════════════════════════════════════════════════════
+
+  ── public/css/style.css ──────────────────────────────────────────────────
+
+  Globales Stylesheet für die gesamte Website.
+  Enthält: Layout, Navigation, Kacheldesign, Formulare, Ampelfarben,
+           Schriftart-Einbindung, responsive Anpassungen.
+
+  Wichtige CSS-Variablen:
+    --font-brand  → 'Skyload', Georgia (Marken-Schrift)
+    --font-main   → 'Plus Jakarta Sans', Segoe UI, system-ui (UI-Schrift)
+    --color-primary → #1565c0 (Blau für App-Bereiche)
+    (Auth-Seiten nutzen #2563eb als Primärfarbe direkt im CSS)
+
+  Struktur der CSS-Sektionen:
+    1. VARIABLES + RESET
+    2. AUTH LAYOUT          ← komplett neu (2026-06-04), enthält alle
+                               .auth-* Klassen für die 4 Login-Seiten
+    3. APP LAYOUT           (Sidebar, Main-Content)
+    4. FLASH MESSAGES
+    5. BUTTONS
+    6. FORMS                (für App-interne Formulare wie Boxen/User)
+    7. TABLES
+    8. TILES                (Kacheln auf Monitoring/Diagramm-Übersicht)
+    9. MONITORING           (Ampel-Visual, Sensor-Felder, Modals)
+   10. DIAGRAMS
+   11. ROLE BADGES
+   12. DASHBOARD
+   13. PASSWORD TOGGLE      (für App-interne Formulare)
+   14. UTILITIES
+
+  ── public/js/main.js ─────────────────────────────────────────────────────
+
+  Globales Frontend-JavaScript.
+  Enthält: Dynamische Formularlogik (Box-Konfigurationsfelder ein-/ausblenden),
+           Kürzel-Dropdown-Handling (Inaktivität nach 1 Stunde),
+           Wartungshinweis-Fenster (Modal), Ampel-Logik im Frontend.
+
+  ── public/fonts/ ─────────────────────────────────────────────────────────
+
+  Enthält die Schriftart "Skyload | Modern Sense", die für den Haupt-
+  Schriftzug "Glovebox-Monitoring by KeT" auf allen Seiten verwendet wird.
+
+
+════════════════════════════════════════════════════════════════════════════════
+  SCRIPTS – HILFSSKRIPTE (EINMALIG AUSFÜHREN)
+════════════════════════════════════════════════════════════════════════════════
+
+  ── scripts/setup-db.js ───────────────────────────────────────────────────
+
+  Befehl: npm run setup
+  Liest database/schema.sql und führt alle darin enthaltenen SQL-Statements
+  gegen die konfigurierte Datenbank aus. Erstellt alle Tabellen und Indizes.
+  Idempotent: Kann mehrfach ausgeführt werden ohne Fehler.
+  Muss einmalig ausgeführt werden bevor die App gestartet wird.
+
+  ── scripts/seed-admin.js ─────────────────────────────────────────────────
+
+  Legt einen initialen Test-Admin-User und ein Test-Unternehmen an.
+  Nützlich für lokale Entwicklung und erste Tests nach dem DB-Setup.
+
+
+════════════════════════════════════════════════════════════════════════════════
+  UMGEBUNGSVARIABLEN (.env)
+════════════════════════════════════════════════════════════════════════════════
+
+  Alle sensiblen Zugangsdaten stehen in .env (nicht in Git eingecheckt!).
+  Vorlage: .env.example
+
+  Variable          Beschreibung
+  ─────────────────────────────────────────────────────────────────────────
+  PORT              Server-Port (Standard: 3000)
+  NODE_ENV          "production" oder "development"
+  SESSION_SECRET    Geheimer Schlüssel für Session-Verschlüsselung
+  DB_SERVER         MSSQL-Serveradresse
+  DB_DATABASE       Datenbankname
+  DB_USERNAME       DB-Benutzername
+  DB_PASSWORD       DB-Passwort
+  EMAIL_HOST        SMTP-Serveradresse
+  EMAIL_PORT        SMTP-Port
+  EMAIL_SECURE      "true" / "false"
+  EMAIL_USER        Absender-E-Mail
+  EMAIL_PASS        E-Mail-Passwort
+  KET_EMAIL         Interne KeT-E-Mail (Empfänger für Registrierungen etc.)
+  APP_URL           Öffentliche URL der App (für Links in E-Mails)
+
+
+════════════════════════════════════════════════════════════════════════════════
+  DATENBANK – TABELLENÜBERSICHT
+════════════════════════════════════════════════════════════════════════════════
+
+  companies       → Unternehmen (name, type, adresse)
+  users           → User (company_id → companies, role, password_hash)
+  boxes           → Gloveboxen (company_id → companies, alle Konfigfelder)
+  measurements    → Messwerte (box_id → boxes, user_id → users, o2, h2o, fridge_temp)
+
+  Alle Löschvorgänge sind Soft-Deletes (is_active = 0).
+  Echte Daten werden nie gelöscht.
+
+  Schema-Datei: database/schema.sql
+
+
+════════════════════════════════════════════════════════════════════════════════
+  APP STARTEN (SCHNELLSTART)
+════════════════════════════════════════════════════════════════════════════════
+
+  1. .env anlegen (Vorlage: .env.example)
+  2. npm install
+  3. npm run setup     ← erstellt alle DB-Tabellen
+  4. npm start         ← startet den Server auf Port 3000
+
+
+════════════════════════════════════════════════════════════════════════════════
+  HINWEISE FÜR WEITERENTWICKLUNG
+════════════════════════════════════════════════════════════════════════════════
+
+  - Reset-Tokens (Passwort vergessen) sind aktuell im RAM (Map).
+    Bei Server-Neustart gehen offene Links verloren → für Produktion in DB.
+
+  - Die Ampellogik (grün/gelb/rot) wird im Backend (routes/monitoring.js)
+    berechnet und als "statusColor"-Variable an die View übergeben.
+
+  - Neue Routen immer in server.js einbinden und mit requireAuth schützen.
+
+  - Neue datenbankgebundene Funktionen gehören ins zugehörige Model,
+    nicht direkt in die Route.
+
+  - Diese Datei bei jeder neuen Funktion, Route oder View aktualisieren.
+
+================================================================================

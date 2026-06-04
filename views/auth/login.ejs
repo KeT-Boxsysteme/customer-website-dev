@@ -1,42 +1,60 @@
 <%- include('../partials/head', { title: 'Login' }) %>
 <body class="auth-page">
-  <div class="auth-container">
-    <h1 class="brand-title">
-      <span class="brand-sub">Welcome to</span>
-      <span class="brand-main">Glovebox-Monitoring by KeT</span>
-    </h1>
 
-    <%- include('../partials/flash') %>
+  <div class="auth-shell">
+    <div class="auth-card">
 
-    <form class="auth-form" action="/auth/login" method="POST">
-      <div class="form-group">
-        <label for="email">E-Mail Address</label>
-        <input type="email" id="email" name="email" required autocomplete="email">
+      <div class="auth-brand">
+        <span class="auth-brand__sub">Welcome to</span>
+        <span class="auth-brand__main">Glovebox-Monitoring by KeT</span>
       </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <div class="input-wrapper">
-          <input type="password" id="password" name="password" required autocomplete="current-password">
-          <button type="button" class="toggle-pw" id="togglePwBtn" title="Show / hide password">&#128065;</button>
+
+      <%- include('../partials/flash') %>
+
+      <form action="/auth/login" method="POST">
+
+        <div class="auth-field">
+          <label for="email">E-Mail Address</label>
+          <input type="email" id="email" name="email"
+                 placeholder="you@company.com" required autocomplete="email">
         </div>
-      </div>
-      <button type="submit" class="btn btn-primary btn-full">Login</button>
-    </form>
 
-    <p class="auth-link">
-      <a href="/auth/forgot-password">Forgot your password?</a>
-    </p>
-    <p class="auth-link">
-      Don't have an account? <a href="/auth/register">Register here</a>
-    </p>
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <div class="pw-field">
+            <input type="password" id="password" name="password"
+                   placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" class="pw-eye" id="togglePwBtn" title="Show / hide password">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="forgot-row">
+          <a href="/auth/forgot-password" class="forgot-link">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="auth-btn-submit">Login</button>
+      </form>
+
+      <div class="auth-footer">
+        <p>Don't have an account? <a href="/auth/register">Register here</a></p>
+      </div>
+
+    </div>
   </div>
 
   <script>
-    document.getElementById('togglePwBtn').addEventListener('click', function () {
-      var input = document.getElementById('password');
-      var showing = input.type === 'text';
-      input.type = showing ? 'password' : 'text';
-      this.style.opacity = showing ? '1' : '0.4';
+    var toggleBtn = document.getElementById('togglePwBtn');
+    var pwInput   = document.getElementById('password');
+    var eyeOpen   = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var eyeClosed = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+    toggleBtn.addEventListener('click', function () {
+      var showing = pwInput.type === 'text';
+      pwInput.type = showing ? 'password' : 'text';
+      this.innerHTML = showing ? eyeOpen : eyeClosed;
     });
   </script>
+
 <%- include('../partials/footer') %>
