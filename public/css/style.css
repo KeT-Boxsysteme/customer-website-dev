@@ -224,6 +224,12 @@ textarea { resize: vertical; }
 /* === DASHBOARD === */
 .dashboard-greeting { background: var(--color-card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
 
+/* === PASSWORD TOGGLE === */
+.input-wrapper { position: relative; display: flex; align-items: center; }
+.input-wrapper input { width: 100%; padding-right: 40px; }
+.toggle-pw { position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 17px; padding: 0; line-height: 1; transition: opacity 0.15s; }
+.toggle-pw:hover { color: var(--color-text); }
+
 /* === UTILITIES === */
 .mono        { font-family: 'Courier New', monospace; }
 .text-muted  { color: var(--color-text-muted); }

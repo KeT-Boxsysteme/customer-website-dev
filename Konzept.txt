@@ -1,0 +1,151 @@
+Glovebox-Monitoring by KeT
+
+1. Zielbestimmung
+Was ist das Ziel des Projekts?
+Ziel ist es, dass Kunden verschiedene Werter ihrer Glovebox/en über einen längeren Zeitraum monitoren können, im Falle eines nötigen Services direkten Kontakt mit KeT aufbauen können, um Ausfälle oder schwerwiegende Probleme zu vermeiden.
+
+2. Ausgangssituation
+Wie arbeiten die Kunden heute?
+Die Kunden haben ein physisches Buch neben der Box liegen, in dem sie die Werte handschriftlich eintragen. Zudem wissen die Kunden nach Jahren auch gar nicht mehr, welche Substanzen sich in der Glovebox befinden.
+
+Gründe für das Projekt?
+Vereinfachung und Digitalisierung der bisherigen Buchführung.Möglichkeiten auf direkte Serviceaufträge sind somit vorhanden.
+
+3. Produktübersicht
+Kurze Beschreibung der geplanten Lösung?
+Ein Unternehmen kann über das Glovebox-Monitoring by KeT sowohl User als auch Boxen verwalten. Die User, die mit der Glovebox arbeiten, können über ein Android-Tablet verschiedene wichtige Werte einer Glovebox in ihr bestehendes System speichern. Über die Zeit häufen sich Werte an, an denen man dann an Diagrammen einen Anstieg oder Abfall der Werte feststellen kann und schnell reagieren kann. Zudem soll das komplette Frontend auf Englisch sein, damit auch internationale Kunden dies nutzen können.
+
+Grobe Funktionsbeschreibung?
+Gelöst wird es mit einer MSSQL Datenbank über AWS (Amazon Web Service), also cloudbasiert.
+Das Backend wird in C# geschrieben und Modular im MVC-Pattern sein, damit eine Weiterentwicklung gewährleistet ist.
+Das Frontend wird gängigerweise in HTML und/oder CSS geschrieben.
+Die Android-App wird, wie besprochen, in Flutter geschrieben, ebenfalls Modular.
+
+4. Anforderungen
+Must have (Website “KeT-gloveboxmonitoring.com”)
+Anmeldungs-/Registrierungsseseite: Auf der Anmeldeseite steht am oberen Rand Glovebox-Monitoring by KeT in der Schriftart “Skyload | Modern Sense”. Unter der Überschrift kommen 3 Schaltflächen horizontal zur Auswahl, ob der Kunde eine Universität, ein Startup oder eine Firma ist. Unter der Entscheidung welche Unternehmensform man ist werden Eckdaten des Unternehmens angefragt:
+Universität: Name der Universität, Ort der Universität, Straße und Hausnummer der Universität, PLZ der Universität, Vor- und Zuname des Accounterstellers, E-Mail Adresse des Accounterstellers, Tel. Nr. des Accounterstellers, Benutzerkürzel (max. 4 Zeichen), Abteilung des Accounterstellers und das Passwort, welches nochmal wiederholt werden muss.
+Die Abteilung wird mit einem Dropdown gelöst mit folgenden Werten:
+Universitätsleitung, Projektleitung oder Anlagenbeauftragter, falls der Nutzer davon nichts ist, gibt es Sonstiges zur Auswahl, bei dem der Nutzer selber seine Position eintragen kann.
+Startup und Firma: Name des Startups/Firma, Ort des Startups/Firma, Straße und Hausnummer des Startups/Firma, PLZ des Startups/Firma, Vor- und Zuname des Accounterstellers, E-Mail Adresse des Accounterstellers, Tel. Nr. des Accounterstellers, Benutzerkürzel (max. 4 Zeichen),  Abteilung des Accounterstellers und das Passwort, welches nochmal wiederholt werden muss.
+Die Abteilung wird mit einem Dropdown gelöst mit folgenden Werten:
+Geschäftsführung, Abteilungsleiter oder Anlagenbeauftragter, falls der Nutzer davon nichts ist, gibt es Sonstiges zur Auswahl, bei dem der Nutzer selber seine Position eintragen kann.
+Unter dieser Abfrage ist eine Checkbox, mit der man die AGB zustimmen kann, der Text neben dieser Checkbox ist ein Hyperlink, welcher auf die Website mit den AGB führt.
+Unter dieser Checkbox ist ein Registrierungsbutton, der ausgegraut ist, solange man die Daten nicht eingetragen und die Checkbox nicht gesetzt hat. Ist alles ausgefüllt und die Checkbox gesetzt, wird dieser klickbar und der Account wird erstellt.
+Wenn sich der Kunde registriert, wird eine Willkommensmail an die eingegebene E-Mail Adresse geschickt und eine E-Mail mit einer neuen Registrierung mit dem Unternehmensnamen an KeT.
+Ganz unten auf der Seite wird gefragt, ob man bereits einen Account hat mit der Aufforderung, sich dann einzuloggen. Diese Aufforderung ist ein Hyperlink, der auf die Loginseite führt.
+Die Loginseite hat ebenfalls Glovebox-Monitoring by KeT ganz oben auf der Seite stehen, darunter werden folgende Daten abgefragt: 
+- E-Mail Adresse
+- Passwort
+Anhand der eingegebenen E-Mail Adresse mit dem richtigen Passwort wird der Nutzer automatisch in sein Unternehmen, Startup oder Universität eingeloggt, wenn er den Loginbutton unter diesen Eingaben drückt.
+Unter dem Loginbutton gibt es die Möglichkeit, mit einem Hyperlink auf einem Passwort vergessen Text sein Passwort zurückzusetzen. Hier gibt der User seine E-Mail Adresse an. An diese E-Mail Adresse wird eine E-Mail gesendet mit einem weiteren Link welcher die Passwort Vergessen Seite aufruft, damit sich der Nutzer ein neues Passwort setzen kann. Voraussetzung ist, dass die E-Mail bereits existiert.
+
+Ist der Kunde eingeloggt, landet er auf einer Landingpage mit einem Willkommenstext, ähnlich wie “Welcome to Glovebox-Monitoring by KeT”.
+Wichtig ist hier, dass “Welcome to” in Standartschriftart (Arial) geschrieben ist und “Glovebox-Monitoring by KeT” besitzt folgende Schriftart; “Skyload | Modern Sense”.
+Am linken Rand gibt es Vertikal mittig zentriert gelistet folgende Reiter zur Auswahl:
+Userverwaltung
+Boxenverwaltung
+Monitoring
+Diagramme
+
+Userverwaltung:
+In der Userverwaltung kann man User anlegen, löschen und bearbeiten
+Ein Nutzer wird mit folgenden Daten angelegt:
+Vor- und Zuname, E-Mail Adresse, Benutzerkürzel (max. 4 Zeichen),  Passwort und Rechtegruppe
+Wird ein User angelegt, bekommt die angegebene E-Mail Adresse eine Mail mit der Information, dass ein Nutzer angelegt wurde und das er sich bei dem Administrator bezüglich der Kommunikation mit dem Passwort melden soll.
+Der Nutzer der zuerst den Account und die Firma registriert hat ist automatisch ein Adminuser. 
+Es gibt 4 Rechtegruppen: Administrator, Controller, User und Box-User.
+Der Administrator hat uneingeschränkten Zugriff.
+Der Controller hat bis auf die Userverwaltung uneingeschränkten Zugriff.
+Der User hat lediglich Zugriff auf das Monitoring und die Diagramme.
+Der Box-User, der dann später dauerhaft auf dem Android-System angemeldet bleibt, hat über die Android-App Zugriff auf das Monitoring und die Diagramme.
+Ist ein User angelegt wird er in Zukunft hier gelistet und kann bearbeitet und gelöscht werden.
+
+Boxenverwaltung:
+Administrator und Controller können in der Boxenverwaltung Boxen anlegen, bearbeiten und löschen. Beim anlegen einer Box hat man ebenfalls am oberen Rand “Glovebox-Monitoring by KeT” stehen mit der gleichen Schriftart “Skyload | Modern Sense”. Darunter sind Vertikal mehrere Abfragen zu einer Box.
+Als erstes wird der Hersteller der Box abgefragt in einem Drop-Down, folgende Hersteller sind vertreten:
+MBraun
+Jacomex
+Inert
+GS Boxsysteme
+MTI
+Sylatec
+Andere
+Darunter folgt die Eingabe einer eindeutigen Projektnummer, diese dient später als Schlüssel zur Anmeldung an einer Box über das Tablet. Darauf folgt die Eingabe des Boxtypen und des Boxnamen/Alias (Manche Kunden geben ihren Boxen einen Namen zur Unterscheidung), beides im Freitext Format.
+Nach den Angaben werden Box Spezifische Eigenschaften abgefragt:
+Ein- oder Zweifilteranlage (Auswählbar durch Checkbox)
+Lösungsmittelfilter vorhanden (Ja/Nein)
+Wenn Ja:
+Aktivkohle oder Molekolarsieb (Auswählbar durch Checkbox)
+In welchem Zyklus wird die Aktivkohlebeladung gewechselt (Nummerische Angabe, die wir in Monaten interpretieren)
+In welchem Zyklus wird das Molekolarsieb regeneriert (Nummerische Angabe, die wir in Monaten interpretieren)
+Lösungsmittelsensor vorhanden (Ja/Nein)
+Wenn Ja:
+Wann zuletzt kalibriert (Jahresangabe)
+O2 vorhanden (Ja/Nein)
+Wenn Ja:
+Wann zuletzt kalibriert (Jahresangabe)
+H2O vorhanden (Ja/Nein)
+Wenn Ja:
+Wann zuletzt kalibriert (Jahresangabe)
+Wann zuletzt gereinigt (DD/MM/YYYY)
+Kühlschrank vorhanden (Ja/Nein)
+Wenn Ja:
+Temperatur (Nummerisch in °C)
+Vakuumpumpe mit Öl (Ja/Nein)
+Wann zuletzt Öl gewechselt (DD/MM/YYYY)
+Anzahl Handschuhdurchführung (Auswahl von 2, 4, 6 und 8 oder nummerische Selbsteingabe)
+Boxnutzung (Auswahl von Personenschutz (Unterdruck) oder Produktschutz (Überdruck))
+Baujahr der Box (Jahresangabe)
+Weitere sonstige relevante Anbauten (Freitext Feld)
+Ganz am Ende ist dann der Registrierungsbutton, der anfangs ausgegraut ist und erst nach erfolgreicher Eingabe von allen Angaben klickbar wird.
+Ist eine Box angelegt, wird diese in Zukunft hier gelistet und kann bearbeitet und gelöscht werden.
+
+
+Monitoring:
+Als erste Stelle auf der Seite ist oben wieder Glovebox-Monitoring by KeT mit der gleichen Schriftart “Skyload | Modern Sense”
+Unter dem Schriftzug sind im “Kacheldesign” alle angelegten Boxen aufgelistet, hier kann sich der Kunde eine Box raussuchen; In der Kachel stehen als Information der Boxname/Alias, die Projektnummer und der Hersteller
+Die Monitoring-Seite, nach auswahl einer Box sieht so aus:
+Ganz oben bleibt der Schriftzug bestehen
+Darunter kommen Horizontal als erstes 2 nicht editierbare Felder mit Projektnummer und Hersteller
+Darunter kommt das Bild einer Box, welches farblich bearbeitet wurde, je nachdem in welchem Zustand sich die Box befindet
+Grün: Alles okay
+Gelb: Auffälliger An-/Abstieg von Werten
+Rot: Sofortige Wartung nötig
+Dieses “Ampelsystem” ergibt sich aus einer Auswertung der nachfolgenden Werte, die der Kunde eingibt (Sicherheitshinweise (Kritische, also rote Fehler sind priorisiert und werden immer als erstes angezeigt, bis dieser gelöst wurde, danach kann die Box wieder auf gelb springen, wenn weiterhin gelbe Fehler bestehen))
+Unter der Box ist linksbündig ein Dropdown, der automatisch alle Kürzel aus den angelegten Usern zieht und diese auflistet, damit beim speichern der Daten das Kürzel mitgegeben werden kann
+Wenn die App eine Stunde inaktiv ist, dann wird, sofern ein Kürzel eingetragen ist dieses automatisch raus genommen
+Rechts daneben auf dem Rest der Seite sind Felder zum eintragen von Werten, allerdings nur die bei denen der Boxersteller in der Konfiguration mitgegeben hat, dass die Box dieses besitzt. Sprich hat die Box keinen Kühlschrank, dann muss der Kunde auch keine Kühlschranktemperatur eingeben
+So kommen Horizontal nebeneinander 3 Werte; O2, H2O und Kühlschranktemperatur
+Mit einem “Übermitteln” Button werden dann die Daten an die DB übermittelt, wenn ein Kürzel ausgewählt wurde. Wurde kein Kürzel ausgewählt wird der Kunde aufgefordert sein Kürzen zu wählen
+Darunter kommt mittig von den 3 Werteingaben ein rot warnendes Ausrufezeichen, klickt man auf dieses öffnet sich in der Mitte des Bildschirms ein Fenster im Vordergrund für mögliche Sicherheitshinweise oder Fehlermeldungen
+In dieses Fenster kommt unter anderem alle 2.000 Stunden die Aufforderung den H2O-Sensor zu reinigen, diese muss dann mit einem Bestätigungsklick auf “Erledigt” als abgeschlossen gekennzeichnet sein. Die Ampel springt bei der Nachricht auf Gelb
+Alle X Monate, je nach eingabe des Kunden, wird der Kunde aufgefordert die Aktivkohlebeldaung zu wechseln oder das Molekolarsieb zu regenerieren, diese muss dann mit einem Bestätigungsklick auf “Erledigt” als abgeschlossen gekennzeichnet sein
+Ampel springt bei der Nachricht auf Gelb
+Alle 6 Monate muss der Kunde den Lösungsmittelsensor testen, diese muss dann mit einem Bestätigungsklick auf “Erledigt” als abgeschlossen gekennzeichnet sein
+Ampel springt bei der Nachricht auf Gelb
+Alle 6 Monate, wenn der Kunde eine Vakuumpumpe mit Öl in der Box verbaut hat, kommt die Nachricht, dass das Öl gewechselt werden muss, diese muss dann mit einem Bestätigungsklick auf “Erledigt” als abgeschlossen gekennzeichnet sein
+Ampel springt bei der Nachricht auf Gelb 
+Wenn der O2 und oder H2O Wert höher/gleich 5ppm ist, dann erscheint die Nachricht, dass sich in der Box ein erhöhter O2 und oder H2O Wert befindet, diese muss dann mit einem Bestätigungsklick auf “Erledigt” als abgeschlossen gekennzeichnet sein
+Ampel springt bei beiden Nachrichten auf Gelb 
+Wenn der O2 und oder H2O Wert höher/gleich 10ppm ist, dann erscheint die Nachricht, dass sich in der Box ein erhöhter O2 und oder H2O Wert befindet und das die Box gespült/regeneriert werden muss, diese muss dann mit einem Bestätigungsklick auf “Erledigt” als abgeschlossen gekennzeichnet sein 
+Ampel springt bei beiden Nachrichten auf Rot
+(Sobald der Kunde bei einer Meldung auf “Erledigt” gedrückt hat, so wird das heutige Datum in der Tabelle der angelegten Boxen ausgetauscht, damit die automatisierung ohne Probleme weiter laufen kann)
+Unter diesem roten Ausrufezeichen hat der Kunde die Möglichkeit in einem größeren Freitextfeld eine Nachricht zu hinterlassen, wenn er diese abgeschickt hat wird aus dieser Nachricht mit der Projektnummer der Box und der E-Mail Adresse des Bearbeiters, deíe aus dem User anhand des Kürzels gelesen wird, an folgende Mail gesendet als Kontaktaufnahme: info@glovebox-monitoring.com
+
+
+
+
+
+
+
+Diagramme:
+Als erste Stelle auf der Seite ist oben wieder Glovebox-Monitoring by KeT mit der gleichen Schriftart “Skyload | Modern Sense”
+Unter dem Schriftzug sind im “Kacheldesign” alle angelegten Boxen aufgelistet, hier kann sich der Kunde eine Box raussuchen; In der Kachel stehen als Information der Boxname/Alias, die Projektnummer und der Hersteller
+Die Diagramm-Seite, nach auswahl einer Box sieht so aus:
+Ganz oben bleibt der Schriftzug bestehen
+Darunter ist tabellarisch eine Auflistung von folgenden Werten
+O2, H2O, ggf Kühlschrank (wenn in der Boxconfig ausgewählt) mit den Daten der Vergangenheit und Gegenwart
+Darunter wird ein Diagramm angezeigt welches alle Werte in einer eigenen Sinuskurve innerhalb dieses Diagramms angezeigt werden
+Das Diagramm ist von der X-Achse (Zeit)  manuell anpassbar über Radiobuttons mit 6 Monaten, 9 Monaten und einem Jahr. Die Y-Achse startet bei 0 und geht hoch bis 20
+O2 hat die Farbe Blau und H2O hat die Farbe Grün
