@@ -458,7 +458,158 @@ textarea { resize: vertical; }
 .role-box_user   { background: #fff3e0; color: #e65100; }
 
 /* === DASHBOARD === */
-.dashboard-greeting { background: var(--color-card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+
+/* Hero banner */
+.dash-hero {
+  background: linear-gradient(135deg, #0c1428 0%, #0f2044 55%, #0c1428 100%);
+  border-radius: 20px;
+  padding: 40px 44px;
+  color: #fff;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.dash-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 55% 80% at 100% 50%, rgba(37,99,235,0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 60% at 0% 0%,   rgba(109,40,217,0.12) 0%, transparent 55%);
+  pointer-events: none;
+}
+.dash-hero__inner { position: relative; z-index: 1; }
+.dash-hero__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 8px;
+}
+.dash-hero__name {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #fff;
+  line-height: 1.2;
+}
+.dash-hero__name span { color: rgba(255,255,255,0.9); }
+.dash-hero__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.dash-hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.dash-badge--admin      { background: rgba(37,99,235,0.25);  color: #93c5fd; border: 1px solid rgba(37,99,235,0.35); }
+.dash-badge--controller { background: rgba(109,40,217,0.25); color: #c4b5fd; border: 1px solid rgba(109,40,217,0.35); }
+.dash-badge--user       { background: rgba(16,185,129,0.2);  color: #6ee7b7; border: 1px solid rgba(16,185,129,0.3); }
+.dash-badge--box_user   { background: rgba(245,158,11,0.2);  color: #fcd34d; border: 1px solid rgba(245,158,11,0.3); }
+.dash-hero__dept {
+  font-size: 13px;
+  color: rgba(255,255,255,0.38);
+  font-weight: 500;
+}
+
+/* Quick-access card grid */
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.dash-card {
+  background: var(--color-card);
+  border-radius: 16px;
+  padding: 26px 26px 22px;
+  border: 1px solid #eef0f4;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--color-text);
+  transition: all 0.28s cubic-bezier(0.32,0.72,0,1);
+  position: relative;
+  overflow: hidden;
+}
+.dash-card::before {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--dash-card-color, #2563eb), transparent);
+  opacity: 0;
+  transition: opacity 0.28s cubic-bezier(0.32,0.72,0,1);
+}
+.dash-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06);
+  border-color: var(--dash-card-color, #2563eb);
+  text-decoration: none;
+  color: var(--color-text);
+}
+.dash-card:hover::before { opacity: 1; }
+
+.dash-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dash-card__title {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+.dash-card__desc {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.55;
+  flex: 1;
+}
+.dash-card__cta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Account info strip */
+.dash-info-strip {
+  background: var(--color-card);
+  border-radius: 14px;
+  padding: 20px 28px;
+  border: 1px solid #eef0f4;
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.dash-info-item { display: flex; flex-direction: column; gap: 3px; }
+.dash-info-item__label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+}
+.dash-info-item__value {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111827;
+}
 
 /* === PASSWORD TOGGLE === */
 .input-wrapper { position: relative; display: flex; align-items: center; }

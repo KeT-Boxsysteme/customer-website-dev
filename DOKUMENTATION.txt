@@ -507,12 +507,20 @@
   │                      │ Toggle und Live-Match-Indikator                     │
   └──────────────────────┴─────────────────────────────────────────────────────┘
 
-  ── views/dashboard/ ──────────────────────────────────────────────────────
+  ── views/dashboard/ – Redesign 2026-06-04 ────────────────────────────────
 
   ┌──────────────────┬─────────────────────────────────────────────────────────┐
-  │ index.ejs        │ Startseite nach dem Login. Zeigt Begrüßungstext:        │
-  │                  │ "Welcome to" (Plus Jakarta Sans) + "Glovebox-Monitoring  │
-  │                  │ by KeT" in Schriftart "Skyload | Modern Sense"          │
+  │ index.ejs        │ Startseite nach dem Login. Aufbau:                      │
+  │                  │  1. Hero-Banner (.dash-hero): dunkles Gradient-Panel,   │
+  │                  │     tageszeit-abhängige Begrüßung (JS), Vorname +        │
+  │                  │     Nachname, Rollen-Badge farblich je Rolle, Abteilung  │
+  │                  │  2. Quick-Access-Grid (.dash-grid): 2–4 Karten je Rolle  │
+  │                  │     – Monitoring + Diagrams: alle Rollen                │
+  │                  │     – Box Management: admin + controller                │
+  │                  │     – User Management: nur admin                        │
+  │                  │     Hover: Karte hebt sich an, farbiger Unterstrich     │
+  │                  │  3. Account-Info-Strip (.dash-info-strip): Kürzel,      │
+  │                  │     E-Mail, Abteilung, Telefon                          │
   └──────────────────┴─────────────────────────────────────────────────────────┘
 
   ── views/users/ ──────────────────────────────────────────────────────────
