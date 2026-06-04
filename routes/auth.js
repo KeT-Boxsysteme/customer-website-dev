@@ -49,8 +49,11 @@ router.post('/login', async (req, res) => {
 
     res.redirect('/dashboard');
   } catch (err) {
-    console.error(err);
-    req.flash('error', 'Login failed. Please try again.');
+    console.error('[Login Error]', err.message);
+    const msg = (err.message || '').toLowerCase().includes('not currently available')
+      ? 'Database is temporarily unavailable. Please try again in a moment.'
+      : 'Login failed. Please try again.';
+    req.flash('error', msg);
     res.redirect('/auth/login');
   }
 });
