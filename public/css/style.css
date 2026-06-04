@@ -230,6 +230,11 @@ textarea { resize: vertical; }
 .toggle-pw { position: absolute; right: 10px; background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 17px; padding: 0; line-height: 1; transition: opacity 0.15s; }
 .toggle-pw:hover { color: var(--color-text); }
 
+/* Password match hint */
+.pw-match-hint  { font-size: 12px; margin-top: 3px; min-height: 16px; display: block; }
+.pw-match-ok  { color: var(--color-success); }
+.pw-match-err { color: var(--color-danger); }
+
 /* === UTILITIES === */
 .mono        { font-family: 'Courier New', monospace; }
 .text-muted  { color: var(--color-text-muted); }

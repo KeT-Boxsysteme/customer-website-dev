@@ -98,6 +98,7 @@ router.post('/register', async (req, res) => {
       companyId,
       firstname, lastname,
       email: email.trim().toLowerCase(),
+      phone: phone ? phone.trim() : null,
       username: username.toUpperCase(),
       department: finalDepartment,
       role: 'admin',

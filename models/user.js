@@ -27,7 +27,7 @@ async function findAllByCompany(companyId) {
   return result.recordset;
 }
 
-async function create({ companyId, firstname, lastname, email, username, department, role, password }) {
+async function create({ companyId, firstname, lastname, email, phone, username, department, role, password }) {
   const pool = await getPool();
   const passwordHash = await bcrypt.hash(password, 12);
   const result = await pool.request()
@@ -35,13 +35,14 @@ async function create({ companyId, firstname, lastname, email, username, departm
     .input('firstname', sql.NVarChar(100), firstname)
     .input('lastname', sql.NVarChar(100), lastname)
     .input('email', sql.NVarChar(255), email)
+    .input('phone', sql.NVarChar(50), phone || null)
     .input('username', sql.NVarChar(4), username)
     .input('department', sql.NVarChar(100), department)
     .input('role', sql.NVarChar(20), role)
     .input('passwordHash', sql.NVarChar(255), passwordHash)
-    .query(`INSERT INTO users (company_id, firstname, lastname, email, username, department, role, password_hash, is_active)
+    .query(`INSERT INTO users (company_id, firstname, lastname, email, phone, username, department, role, password_hash, is_active)
             OUTPUT INSERTED.id
-            VALUES (@companyId, @firstname, @lastname, @email, @username, @department, @role, @passwordHash, 1)`);
+            VALUES (@companyId, @firstname, @lastname, @email, @phone, @username, @department, @role, @passwordHash, 1)`);
   return result.recordset[0].id;
 }
 

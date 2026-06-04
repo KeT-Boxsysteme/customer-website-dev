@@ -20,6 +20,7 @@ IF OBJECT_ID('dbo.users', 'U') IS NULL
     firstname     NVARCHAR(100)  NOT NULL,
     lastname      NVARCHAR(100)  NOT NULL,
     email         NVARCHAR(255)  NOT NULL,
+    phone         NVARCHAR(50),
     username      NVARCHAR(4)    NOT NULL,
     department    NVARCHAR(100),
     role          NVARCHAR(20)   NOT NULL CHECK (role IN ('admin','controller','user','box_user')),
