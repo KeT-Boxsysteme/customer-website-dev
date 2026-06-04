@@ -41,7 +41,9 @@ router.post('/login', async (req, res) => {
       firstname: user.firstname,
       lastname: user.lastname,
       email: user.email,
+      phone: user.phone || null,
       username: user.username,
+      department: user.department || null,
       role: user.role
     };
 
