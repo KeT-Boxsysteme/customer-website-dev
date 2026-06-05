@@ -14,6 +14,8 @@ const { requireAuth } = require('./middleware/auth');
 
 const app = express();
 
+app.set('trust proxy', 1); // Render / reverse proxy: HTTPS cookies funktionieren korrekt
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
