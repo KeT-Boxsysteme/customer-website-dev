@@ -1,6 +1,7 @@
 node_modules/
 .env
 CLAUDE_PROMPT.txt
+*.zip
 .vs/
 *.log
 npm-debug.log*

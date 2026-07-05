@@ -2,28 +2,35 @@
 <body class="auth-page">
 
   <div class="auth-shell auth-shell--wide">
-    <div class="auth-card">
 
-      <div class="auth-brand">
-        <span class="auth-brand__main">Glovebox-Monitoring by KeT</span>
-      </div>
+    <div class="auth-brand">
+      <span class="auth-brand__mark" aria-hidden="true">KeT</span>
+      <span class="auth-brand__main">Glovebox-Monitoring by KeT</span>
+      <span class="auth-brand__sub">Create your organization's account</span>
+    </div>
+
+    <div class="auth-card">
 
       <%- include('../partials/flash') %>
 
       <form id="registerForm" action="/auth/register" method="POST">
 
         <!-- Step 1: Company type -->
+        <div class="auth-section-head">Choose Your Profile</div>
         <div class="type-tabs">
           <label class="type-tab" id="tab-university">
             <input type="radio" name="companyType" value="university" required>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2 9l10 5 10-5-10-5z"/><path d="M6 11.5V16c0 1.4 2.7 2.8 6 2.8s6-1.4 6-2.8v-4.5"/></svg>
             University
           </label>
           <label class="type-tab" id="tab-startup">
             <input type="radio" name="companyType" value="startup">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
             Startup
           </label>
           <label class="type-tab" id="tab-company">
             <input type="radio" name="companyType" value="company">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 7h2m2 0h2M9 11h2m2 0h2M9 15h2m2 0h2"/></svg>
             Company
           </label>
         </div>

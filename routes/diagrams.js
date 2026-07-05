@@ -23,13 +23,16 @@ router.get('/', async (req, res) => {
 // GET /diagrams/:id?months=6
 router.get('/:id', async (req, res) => {
   try {
-    const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
-    if (!box) return res.status(404).render('errors/404');
-
     const months = parseInt(req.query.months) || 6;
     if (![6, 9, 12].includes(months)) return res.redirect(`/diagrams/${req.params.id}?months=6`);
 
-    const measurements = await Measurement.findByBox(box.id, months);
+    // Box-Check und Messwerte parallel; Messwerte werden nur ausgegeben, wenn die Box zur Firma gehoert
+    const boxId = parseInt(req.params.id);
+    const [box, measurements] = await Promise.all([
+      Box.findById(boxId, req.session.user.companyId),
+      Measurement.findByBox(boxId, months)
+    ]);
+    if (!box) return res.status(404).render('errors/404');
 
     const chartLabels = measurements.map(m => new Date(m.measured_at).toLocaleDateString('en-GB')).reverse();
     const o2Data    = measurements.map(m => m.o2_value).reverse();

@@ -21,33 +21,11 @@
       </div>
     </div>
 
-    <!-- Status indicator (glovebox illustration, tinted by traffic-light status) -->
+    <!-- Status indicator (glovebox photo, interior tinted per traffic-light status) -->
     <div class="box-status-container">
       <div class="box-visual status-<%= statusColor %>">
-        <svg class="glovebox-svg" viewBox="0 0 220 130" width="220" height="130"
-             role="img" aria-label="Glovebox status illustration">
-          <!-- chamber body -->
-          <rect class="gb-surface" x="10" y="18" width="200" height="86" rx="8"/>
-          <!-- chamber window -->
-          <rect class="gb-window" x="26" y="30" width="130" height="46" rx="5"/>
-          <line class="gb-line" x1="26" y1="53" x2="156" y2="53"/>
-          <!-- control panel -->
-          <rect class="gb-panel" x="166" y="30" width="34" height="62" rx="4"/>
-          <circle class="gb-knob" cx="183" cy="42" r="4"/>
-          <circle class="gb-knob" cx="183" cy="56" r="4"/>
-          <rect class="gb-display" x="173" y="68" width="20" height="8" rx="2"/>
-          <rect class="gb-display" x="173" y="80" width="20" height="5" rx="2"/>
-          <!-- glove ports -->
-          <circle class="gb-port" cx="66" cy="88" r="13"/>
-          <circle class="gb-port-inner" cx="66" cy="88" r="7"/>
-          <circle class="gb-port" cx="118" cy="88" r="13"/>
-          <circle class="gb-port-inner" cx="118" cy="88" r="7"/>
-          <!-- stand -->
-          <rect class="gb-leg" x="28" y="104" width="8" height="18"/>
-          <rect class="gb-leg" x="184" y="104" width="8" height="18"/>
-          <rect class="gb-leg" x="20" y="120" width="24" height="4" rx="2"/>
-          <rect class="gb-leg" x="176" y="120" width="24" height="4" rx="2"/>
-        </svg>
+        <img class="glovebox-img" src="/img/glovebox-<%= statusColor %>.webp"
+             alt="Glovebox status: <%= statusColor %>" width="900" height="512">
         <div class="status-label status-<%= statusColor %>">
           <% if (statusColor === 'green') { %>All systems normal
           <% } else if (statusColor === 'yellow') { %>Attention required

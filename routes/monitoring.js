@@ -40,9 +40,12 @@ router.get('/:id', async (req, res) => {
     const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
     if (!box) return res.status(404).render('errors/404');
 
-    const usernames = await User.getUsernamesByCompany(req.session.user.companyId);
-    const latestMeasurement = await Measurement.findLatestByBox(box.id);
-    const acks = await AlertAck.latestAcks(box.id);
+    // Unabhaengige Queries parallel statt nacheinander (spart 2 DB-Roundtrips)
+    const [usernames, latestMeasurement, acks] = await Promise.all([
+      User.getUsernamesByCompany(req.session.user.companyId),
+      Measurement.findLatestByBox(box.id),
+      AlertAck.latestAcks(box.id)
+    ]);
 
     // Ampel-Status aus der Alert-Engine (Wartungszyklen + ppm-Werte + Acks)
     const alerts = buildAlerts({ box, latestMeasurement, acks });

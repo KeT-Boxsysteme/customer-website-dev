@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');
 const methodOverride = require('method-override');
+const compression = require('compression');
 const path = require('path');
 
 const authRoutes = require('./routes/auth');
@@ -18,11 +19,23 @@ app.set('trust proxy', 1); // Render / reverse proxy: HTTPS cookies funktioniere
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+// EJS-Templates in Produktion cachen (sonst wird jede View pro Request neu kompiliert)
+if (process.env.NODE_ENV === 'production') app.set('view cache', true);
 
+app.use(compression()); // gzip fuer HTML/CSS/JS (CSS ~85% kleiner, spuerbar auf Render)
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
-app.use(express.static(path.join(__dirname, 'public')));
+// Statische Assets mit Browser-Cache: CSS/JS 1 Tag (aendert sich bei Deploys),
+// Bilder/Fonts 7 Tage; ETag sorgt fuer 304 statt Volltransfer
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
+  setHeaders(res, filePath) {
+    if (/\.(png|jpe?g|webp|woff2?|ttf|otf)$/i.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    }
+  }
+}));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
