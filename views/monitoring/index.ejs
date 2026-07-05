@@ -9,10 +9,18 @@
 
     <%- include('../partials/flash') %>
 
-    <h2 class="section-title">Select a Box</h2>
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">Select a Box</h2>
+        <p class="section-desc">Select a box to record values and check its status.</p>
+      </div>
+    </div>
 
     <% if (boxes.length === 0) { %>
-      <p class="empty-state">No boxes configured yet.</p>
+      <div class="empty-state">
+        <p class="empty-state__title">No boxes configured yet.</p>
+        <p class="empty-state__hint">Once a glovebox has been added in Box Management, it will appear here.</p>
+      </div>
     <% } else { %>
     <div class="tile-grid">
       <% boxes.forEach(b => { %>

@@ -9,48 +9,81 @@
 
     <%- include('../partials/flash') %>
 
-    <h2 class="section-title"><%= editUser ? 'Edit User' : 'Create User' %></h2>
-
     <form class="card-form" action="<%= editUser ? '/users/' + editUser.id + '?_method=PUT' : '/users' %>" method="POST">
-      <div class="form-row">
-        <div class="form-group">
-          <label for="firstname">First Name</label>
-          <input type="text" id="firstname" name="firstname" value="<%= editUser ? editUser.firstname : '' %>" required>
-        </div>
-        <div class="form-group">
-          <label for="lastname">Last Name</label>
-          <input type="text" id="lastname" name="lastname" value="<%= editUser ? editUser.lastname : '' %>" required>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="email">E-Mail Address</label>
-        <input type="email" id="email" name="email" value="<%= editUser ? editUser.email : '' %>" required>
-      </div>
-      <div class="form-group">
-        <label for="username">User Abbreviation <span class="hint">(max. 4 characters)</span></label>
-        <input type="text" id="username" name="username" maxlength="4" value="<%= editUser ? editUser.username : '' %>" required style="text-transform:uppercase">
-      </div>
-      <div class="form-group">
-        <label for="department">Department / Position <span class="hint">(optional)</span></label>
-        <input type="text" id="department" name="department" value="<%= editUser ? editUser.department || '' : '' %>">
-      </div>
-      <div class="form-group">
-        <label for="role">Role</label>
-        <select id="role" name="role" required>
-          <option value="admin"      <%= editUser && editUser.role === 'admin'      ? 'selected' : '' %>>Administrator</option>
-          <option value="controller" <%= editUser && editUser.role === 'controller' ? 'selected' : '' %>>Controller</option>
-          <option value="user"       <%= editUser && editUser.role === 'user'       ? 'selected' : '' %>>User</option>
-          <option value="box_user"   <%= editUser && editUser.role === 'box_user'   ? 'selected' : '' %>>Box-User</option>
-        </select>
-      </div>
-      <% if (!editUser) { %>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" name="password" required>
-      </div>
-      <% } %>
 
-      <div class="form-actions">
+      <div class="card-form__head">
+        <h2 class="card-form__title"><%= editUser ? 'Edit User' : 'Create User' %></h2>
+        <p class="card-form__sub">
+          <%= editUser
+            ? 'Update this team member and their access level.'
+            : 'Create an account for a team member and set their access level.' %>
+        </p>
+      </div>
+
+      <div class="card-form__body">
+
+        <!-- Gruppe 1: Stammdaten -->
+        <section class="form-block">
+          <div class="form-block__head">
+            <span class="form-block__index">1</span>
+            <h3 class="form-block__title">Account</h3>
+          </div>
+          <div class="form-block__panel">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="firstname">First Name</label>
+                <input type="text" id="firstname" name="firstname" value="<%= editUser ? editUser.firstname : '' %>" required>
+              </div>
+              <div class="form-group">
+                <label for="lastname">Last Name</label>
+                <input type="text" id="lastname" name="lastname" value="<%= editUser ? editUser.lastname : '' %>" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="email">E-Mail Address</label>
+              <input type="email" id="email" name="email" value="<%= editUser ? editUser.email : '' %>" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="username">User Abbreviation <span class="hint">(max. 4 characters)</span></label>
+                <input type="text" id="username" name="username" maxlength="4" value="<%= editUser ? editUser.username : '' %>" required style="text-transform:uppercase">
+              </div>
+              <div class="form-group">
+                <label for="department">Department / Position <span class="hint">(optional)</span></label>
+                <input type="text" id="department" name="department" value="<%= editUser ? editUser.department || '' : '' %>">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Gruppe 2: Zugriff -->
+        <section class="form-block">
+          <div class="form-block__head">
+            <span class="form-block__index">2</span>
+            <h3 class="form-block__title">Access</h3>
+          </div>
+          <div class="form-block__panel">
+            <div class="form-group">
+              <label for="role">Role</label>
+              <select id="role" name="role" required>
+                <option value="admin"      <%= editUser && editUser.role === 'admin'      ? 'selected' : '' %>>Administrator</option>
+                <option value="controller" <%= editUser && editUser.role === 'controller' ? 'selected' : '' %>>Controller</option>
+                <option value="user"       <%= editUser && editUser.role === 'user'       ? 'selected' : '' %>>User</option>
+                <option value="box_user"   <%= editUser && editUser.role === 'box_user'   ? 'selected' : '' %>>Box-User</option>
+              </select>
+            </div>
+            <% if (!editUser) { %>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" id="password" name="password" required>
+            </div>
+            <% } %>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="card-form__footer">
         <a href="/users" class="btn btn-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary"><%= editUser ? 'Save Changes' : 'Create User' %></button>
       </div>

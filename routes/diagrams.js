@@ -37,7 +37,7 @@ router.get('/:id', async (req, res) => {
     const fridgeData = measurements.map(m => m.fridge_temp).reverse();
 
     res.render('diagrams/detail', {
-      title: `Diagrams – ${box.box_alias}`,
+      title: `Diagrams: ${box.box_alias}`,
       currentPage: 'diagrams',
       box,
       measurements,

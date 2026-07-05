@@ -34,10 +34,10 @@
     <!-- Quick Access -->
     <div class="dash-grid">
 
-      <!-- Monitoring — all roles -->
-      <a href="/monitoring" class="dash-card" style="--dash-card-color: #2563eb">
-        <div class="dash-card__icon" style="background: #eff6ff">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Monitoring: all roles -->
+      <a href="/monitoring" class="dash-card">
+        <div class="dash-card__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
         </div>
@@ -45,7 +45,7 @@
           <p class="dash-card__title">Monitoring</p>
           <p class="dash-card__desc">Record O₂, H₂O and temperature values for your gloveboxes and track their current status.</p>
         </div>
-        <div class="dash-card__cta" style="color: #2563eb">
+        <div class="dash-card__cta">
           Open Monitoring
           <span class="dash-card__cta-arrow">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -53,19 +53,19 @@
         </div>
       </a>
 
-      <!-- Diagrams — all roles -->
-      <a href="/diagrams" class="dash-card" style="--dash-card-color: #059669">
-        <div class="dash-card__icon" style="background: #ecfdf5">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <!-- Diagrams: all roles -->
+      <a href="/diagrams" class="dash-card">
+        <div class="dash-card__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
             <line x1="6"  y1="20" x2="6"  y2="14"/>
           </svg>
         </div>
         <div>
           <p class="dash-card__title">Diagrams</p>
-          <p class="dash-card__desc">View time-series charts for O₂, H₂O and fridge temperature over the last 6–12 months.</p>
+          <p class="dash-card__desc">View time-series charts for O₂, H₂O and fridge temperature over the last 6 to 12 months.</p>
         </div>
-        <div class="dash-card__cta" style="color: #059669">
+        <div class="dash-card__cta">
           View Diagrams
           <span class="dash-card__cta-arrow">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -73,11 +73,11 @@
         </div>
       </a>
 
-      <!-- Box Management — admin + controller -->
+      <!-- Box Management: admin + controller -->
       <% if (user.role === 'admin' || user.role === 'controller') { %>
-      <a href="/boxes" class="dash-card" style="--dash-card-color: #7c3aed">
-        <div class="dash-card__icon" style="background: #f5f3ff">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <a href="/boxes" class="dash-card">
+        <div class="dash-card__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
             <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
           </svg>
@@ -86,7 +86,7 @@
           <p class="dash-card__title">Box Management</p>
           <p class="dash-card__desc">Add, edit and configure gloveboxes including sensors, maintenance intervals and equipment.</p>
         </div>
-        <div class="dash-card__cta" style="color: #7c3aed">
+        <div class="dash-card__cta">
           Manage Boxes
           <span class="dash-card__cta-arrow">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -95,11 +95,11 @@
       </a>
       <% } %>
 
-      <!-- User Management — admin only -->
+      <!-- User Management: admin only -->
       <% if (user.role === 'admin') { %>
-      <a href="/users" class="dash-card" style="--dash-card-color: #dc2626">
-        <div class="dash-card__icon" style="background: #fef2f2">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <a href="/users" class="dash-card">
+        <div class="dash-card__icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
             <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
@@ -109,7 +109,7 @@
           <p class="dash-card__title">User Management</p>
           <p class="dash-card__desc">Create accounts for team members, assign roles and manage access to this platform.</p>
         </div>
-        <div class="dash-card__cta" style="color: #dc2626">
+        <div class="dash-card__cta">
           Manage Users
           <span class="dash-card__cta-arrow">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -124,7 +124,7 @@
     <div class="dash-info-strip">
       <div class="dash-info-item">
         <span class="dash-info-item__label">Abbreviation</span>
-        <span class="dash-info-item__value"><%= user.username || '—' %></span>
+        <span class="dash-info-item__value"><%= user.username || '-' %></span>
       </div>
       <div class="dash-info-item">
         <span class="dash-info-item__label">E-Mail</span>

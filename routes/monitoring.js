@@ -49,7 +49,7 @@ router.get('/:id', async (req, res) => {
     const statusColor = overallStatus(alerts);
 
     res.render('monitoring/detail', {
-      title: `Monitoring – ${box.box_alias}`,
+      title: `Monitoring: ${box.box_alias}`,
       currentPage: 'monitoring',
       box,
       usernames,

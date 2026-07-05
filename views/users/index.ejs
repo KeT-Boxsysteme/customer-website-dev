@@ -5,17 +5,26 @@
   <main class="main-content">
     <div class="page-header">
       <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">User Management</h2>
+        <p class="section-desc">Manage who can access your organization's monitoring.</p>
+      </div>
       <div class="page-actions">
         <a href="/users/create" class="btn btn-primary">+ Add User</a>
       </div>
     </div>
 
-    <%- include('../partials/flash') %>
-
-    <h2 class="section-title">User Management</h2>
-
     <% if (users.length === 0) { %>
-      <p class="empty-state">No users found. Create your first user.</p>
+      <div class="empty-state">
+        <p class="empty-state__title">No users yet</p>
+        <p class="empty-state__hint">Create the first account for your team to get started.</p>
+        <a href="/users/create" class="btn btn-primary">+ Add User</a>
+      </div>
     <% } else { %>
     <table class="data-table">
       <thead>

@@ -1,4 +1,4 @@
-<%- include('../partials/head', { title: 'Monitoring – ' + box.box_alias }) %>
+<%- include('../partials/head', { title: 'Monitoring: ' + box.box_alias }) %>
 <body class="app-layout">
   <%- include('../partials/nav', { currentPage: 'monitoring' }) %>
 
@@ -63,7 +63,7 @@
         <div class="form-group abbrev-group">
           <label for="username">User Abbreviation</label>
           <select id="username" name="username" required>
-            <option value="">– Select –</option>
+            <option value="">Select...</option>
             <% usernames.forEach(u => { %>
             <option value="<%= u %>"><%= u %></option>
             <% }) %>
@@ -122,7 +122,7 @@
         </div>
         <div class="modal-body" id="alertList">
           <% if (alerts.length === 0) { %>
-          <p class="empty-state">No active alerts.</p>
+          <p class="empty-state empty-state--plain">No active alerts.</p>
           <% } else { %>
           <ul class="alert-list">
             <% alerts.forEach(a => { %>

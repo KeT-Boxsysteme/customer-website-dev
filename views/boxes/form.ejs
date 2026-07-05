@@ -25,195 +25,245 @@
 
     <%- include('../partials/flash') %>
 
-    <h2 class="section-title"><%= isEdit ? 'Edit Box' : 'Add Glovebox' %></h2>
-
     <form class="card-form" id="boxForm"
           action="<%= isEdit ? '/boxes/' + editBox.id + '?_method=PUT' : '/boxes' %>"
           method="POST">
 
-      <!-- Manufacturer -->
-      <div class="form-group">
-        <label for="manufacturer">Manufacturer</label>
-        <select id="manufacturer" name="manufacturer" required>
-          <option value="">– Select –</option>
-          <% ['MBraun','Jacomex','Inert','GS Boxsysteme','MTI','Sylatec','Other'].forEach(m => { %>
-          <option value="<%= m %>" <%= editBox && editBox.manufacturer === m ? 'selected' : '' %>><%= m %></option>
-          <% }) %>
-        </select>
+      <div class="card-form__head">
+        <h2 class="card-form__title"><%= isEdit ? 'Edit Box' : 'Add Glovebox' %></h2>
+        <p class="card-form__sub">
+          <%= isEdit
+            ? 'Update this glovebox and its technical configuration.'
+            : 'Register a glovebox and its technical configuration. Detail fields appear once a feature is checked.' %>
+        </p>
       </div>
 
-      <div class="form-row">
-        <div class="form-group">
-          <label for="projectNumber">Project Number <span class="hint">(unique)</span></label>
-          <input type="text" id="projectNumber" name="projectNumber"
-                 value="<%= editBox ? editBox.project_number : '' %>" required>
-        </div>
-        <div class="form-group">
-          <label for="buildYear">Build Year</label>
-          <input type="number" id="buildYear" name="buildYear" min="1970" max="2100"
-                 value="<%= editBox ? editBox.build_year : '' %>" required>
-        </div>
-      </div>
+      <div class="card-form__body">
 
-      <div class="form-row">
-        <div class="form-group">
-          <label for="boxType">Box Type</label>
-          <input type="text" id="boxType" name="boxType" value="<%= editBox ? editBox.box_type : '' %>" required>
-        </div>
-        <div class="form-group">
-          <label for="boxAlias">Box Name / Alias</label>
-          <input type="text" id="boxAlias" name="boxAlias" value="<%= editBox ? editBox.box_alias : '' %>" required>
-        </div>
-      </div>
-
-      <hr class="form-divider">
-      <h3 class="form-section-title">Technical Configuration</h3>
-
-      <!-- Filtersystem: explizite Wahl Ein- vs. Zwei-Filter-System (Konzept Z. 79),
-           wird serverseitig auf das bestehende Boolean-Feld has_dual_filter abgebildet -->
-      <div class="form-group">
-        <label>Filter System</label>
-        <div class="checkbox-row">
-          <label><input type="radio" name="filterSystem" value="single" required
-            <%= filterSystem === 'single' ? 'checked' : '' %>> Single-filter system</label>
-          <label><input type="radio" name="filterSystem" value="dual"
-            <%= filterSystem === 'dual' ? 'checked' : '' %>> Dual-filter system</label>
-        </div>
-      </div>
-      <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasSolventFilter" id="hasSolventFilter" value="1"
-          <%= editBox && editBox.has_solvent_filter ? 'checked' : '' %>> Solvent Filter</label>
-      </div>
-      <div id="solventFilterSection" class="conditional-section" style="<%= editBox && editBox.has_solvent_filter ? '' : 'display:none' %>">
-        <div class="form-group">
-          <label>Filter Type</label>
-          <!-- Exklusive Wahl (Radio statt Checkbox): genau EIN Filtertyp.
-               Nur das zum gewählten Typ passende Zyklus-Feld ist Pflicht,
-               das jeweils andere bleibt sichtbar und optional. -->
-          <div class="checkbox-row">
-            <label><input type="radio" name="solventFilterType" value="charcoal"
-              <%= editBox && editBox.solvent_filter_type === 'charcoal' ? 'checked' : '' %>> Activated Carbon</label>
-            <label><input type="radio" name="solventFilterType" value="molecular_sieve"
-              <%= editBox && editBox.solvent_filter_type === 'molecular_sieve' ? 'checked' : '' %>> Molecular Sieve</label>
+        <!-- Gruppe 1: Stammdaten -->
+        <section class="form-block">
+          <div class="form-block__head">
+            <span class="form-block__index">1</span>
+            <h3 class="form-block__title">General</h3>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="charcoalCycleMonths">Carbon Replacement Cycle <span class="hint">(months)</span></label>
-            <input type="number" id="charcoalCycleMonths" name="charcoalCycleMonths"
-                   value="<%= editBox ? editBox.charcoal_cycle_months : '' %>">
+          <div class="form-block__panel">
+            <div class="form-group">
+              <label for="manufacturer">Manufacturer</label>
+              <select id="manufacturer" name="manufacturer" required>
+                <option value="">Select...</option>
+                <% ['MBraun','Jacomex','Inert','GS Boxsysteme','MTI','Sylatec','Other'].forEach(m => { %>
+                <option value="<%= m %>" <%= editBox && editBox.manufacturer === m ? 'selected' : '' %>><%= m %></option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="projectNumber">Project Number <span class="hint">(unique)</span></label>
+                <input type="text" id="projectNumber" name="projectNumber"
+                       value="<%= editBox ? editBox.project_number : '' %>" required>
+              </div>
+              <div class="form-group">
+                <label for="buildYear">Build Year</label>
+                <input type="number" id="buildYear" name="buildYear" min="1970" max="2100"
+                       value="<%= editBox ? editBox.build_year : '' %>" required>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="boxType">Box Type</label>
+                <input type="text" id="boxType" name="boxType" value="<%= editBox ? editBox.box_type : '' %>" required>
+              </div>
+              <div class="form-group">
+                <label for="boxAlias">Box Name / Alias</label>
+                <input type="text" id="boxAlias" name="boxAlias" value="<%= editBox ? editBox.box_alias : '' %>" required>
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="molecularSieveCycleMonths">Sieve Regeneration Cycle <span class="hint">(months)</span></label>
-            <input type="number" id="molecularSieveCycleMonths" name="molecularSieveCycleMonths"
-                   value="<%= editBox ? editBox.molecular_sieve_cycle_months : '' %>">
+        </section>
+
+        <!-- Gruppe 2: Filtersystem -->
+        <section class="form-block">
+          <div class="form-block__head">
+            <span class="form-block__index">2</span>
+            <h3 class="form-block__title">Filter System</h3>
           </div>
-        </div>
+          <div class="form-block__panel">
+            <!-- Filtersystem: explizite Wahl Ein- vs. Zwei-Filter-System (Konzept Z. 79),
+                 wird serverseitig auf das bestehende Boolean-Feld has_dual_filter abgebildet -->
+            <div class="form-group">
+              <label>Filter System</label>
+              <div class="checkbox-row">
+                <label><input type="radio" name="filterSystem" value="single" required
+                  <%= filterSystem === 'single' ? 'checked' : '' %>> Single-filter system</label>
+                <label><input type="radio" name="filterSystem" value="dual"
+                  <%= filterSystem === 'dual' ? 'checked' : '' %>> Dual-filter system</label>
+              </div>
+            </div>
+            <div class="form-group form-group--checkbox">
+              <label><input type="checkbox" name="hasSolventFilter" id="hasSolventFilter" value="1"
+                <%= editBox && editBox.has_solvent_filter ? 'checked' : '' %>> Solvent Filter</label>
+            </div>
+            <div id="solventFilterSection" class="conditional-section" style="<%= editBox && editBox.has_solvent_filter ? '' : 'display:none' %>">
+              <div class="form-group">
+                <label>Filter Type</label>
+                <!-- Exklusive Wahl (Radio statt Checkbox): genau EIN Filtertyp.
+                     Nur das zum gewählten Typ passende Zyklus-Feld ist Pflicht,
+                     das jeweils andere bleibt sichtbar und optional. -->
+                <div class="checkbox-row">
+                  <label><input type="radio" name="solventFilterType" value="charcoal"
+                    <%= editBox && editBox.solvent_filter_type === 'charcoal' ? 'checked' : '' %>> Activated Carbon</label>
+                  <label><input type="radio" name="solventFilterType" value="molecular_sieve"
+                    <%= editBox && editBox.solvent_filter_type === 'molecular_sieve' ? 'checked' : '' %>> Molecular Sieve</label>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="charcoalCycleMonths">Carbon Replacement Cycle <span class="hint">(months)</span></label>
+                  <input type="number" id="charcoalCycleMonths" name="charcoalCycleMonths"
+                         value="<%= editBox ? editBox.charcoal_cycle_months : '' %>">
+                </div>
+                <div class="form-group">
+                  <label for="molecularSieveCycleMonths">Sieve Regeneration Cycle <span class="hint">(months)</span></label>
+                  <input type="number" id="molecularSieveCycleMonths" name="molecularSieveCycleMonths"
+                         value="<%= editBox ? editBox.molecular_sieve_cycle_months : '' %>">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Gruppe 3: Sensorik -->
+        <section class="form-block">
+          <div class="form-block__head">
+            <span class="form-block__index">3</span>
+            <h3 class="form-block__title">Sensors</h3>
+          </div>
+          <div class="form-block__panel">
+            <div class="form-group form-group--checkbox">
+              <label><input type="checkbox" name="hasSolventSensor" id="hasSolventSensor" value="1"
+                <%= editBox && editBox.has_solvent_sensor ? 'checked' : '' %>> Solvent Sensor</label>
+            </div>
+            <div id="solventSensorSection" class="conditional-section" style="<%= editBox && editBox.has_solvent_sensor ? '' : 'display:none' %>">
+              <div class="form-group">
+                <label for="solventSensorCalibrated">Last Calibrated <span class="hint">(year)</span></label>
+                <input type="number" id="solventSensorCalibrated" name="solventSensorCalibrated"
+                       value="<%= editBox ? editBox.solvent_sensor_calibrated : '' %>">
+              </div>
+            </div>
+
+            <div class="form-group form-group--checkbox">
+              <label><input type="checkbox" name="hasO2Sensor" id="hasO2Sensor" value="1"
+                <%= editBox && editBox.has_o2_sensor ? 'checked' : '' %>> O₂ Sensor</label>
+            </div>
+            <div id="o2SensorSection" class="conditional-section" style="<%= editBox && editBox.has_o2_sensor ? '' : 'display:none' %>">
+              <div class="form-group">
+                <label for="o2SensorCalibrated">Last Calibrated <span class="hint">(year)</span></label>
+                <input type="number" id="o2SensorCalibrated" name="o2SensorCalibrated"
+                       value="<%= editBox ? editBox.o2_sensor_calibrated : '' %>">
+              </div>
+            </div>
+
+            <div class="form-group form-group--checkbox">
+              <label><input type="checkbox" name="hasH2oSensor" id="hasH2oSensor" value="1"
+                <%= editBox && editBox.has_h2o_sensor ? 'checked' : '' %>> H₂O Sensor</label>
+            </div>
+            <div id="h2oSensorSection" class="conditional-section" style="<%= editBox && editBox.has_h2o_sensor ? '' : 'display:none' %>">
+              <div class="form-group">
+                <label for="h2oSensorCalibrated">Last Calibrated <span class="hint">(year)</span></label>
+                <input type="number" id="h2oSensorCalibrated" name="h2oSensorCalibrated"
+                       value="<%= editBox ? editBox.h2o_sensor_calibrated : '' %>">
+              </div>
+              <!-- Konzept: "Wann zuletzt gereinigt" nur wenn H2O vorhanden -->
+              <div class="form-group">
+                <label for="lastCleaned">Last Cleaned</label>
+                <input type="date" id="lastCleaned" name="lastCleaned"
+                       value="<%= editBox && editBox.last_cleaned ? editBox.last_cleaned.toISOString().split('T')[0] : '' %>">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Gruppe 4: Ausstattung -->
+        <section class="form-block">
+          <div class="form-block__head">
+            <span class="form-block__index">4</span>
+            <h3 class="form-block__title">Equipment</h3>
+          </div>
+          <div class="form-block__panel">
+            <div class="form-group form-group--checkbox">
+              <label><input type="checkbox" name="hasFridge" id="hasFridge" value="1"
+                <%= editBox && editBox.has_fridge ? 'checked' : '' %>> Refrigerator</label>
+            </div>
+            <div id="fridgeSection" class="conditional-section" style="<%= editBox && editBox.has_fridge ? '' : 'display:none' %>">
+              <div class="form-group">
+                <label for="fridgeTemp">Temperature <span class="hint">(°C)</span></label>
+                <input type="number" id="fridgeTemp" name="fridgeTemp"
+                       value="<%= editBox ? editBox.fridge_temp : '' %>">
+              </div>
+            </div>
+
+            <div class="form-group form-group--checkbox">
+              <label><input type="checkbox" name="hasOilPump" id="hasOilPump" value="1"
+                <%= editBox && editBox.has_oil_pump ? 'checked' : '' %>> Vacuum Pump with Oil</label>
+            </div>
+            <div id="oilSection" class="conditional-section" style="<%= editBox && editBox.has_oil_pump ? '' : 'display:none' %>">
+              <div class="form-group">
+                <label for="lastOilChange">Last Oil Change</label>
+                <input type="date" id="lastOilChange" name="lastOilChange"
+                       value="<%= editBox && editBox.last_oil_change ? editBox.last_oil_change.toISOString().split('T')[0] : '' %>">
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Gruppe 5: Nutzung -->
+        <section class="form-block">
+          <div class="form-block__head">
+            <span class="form-block__index">5</span>
+            <h3 class="form-block__title">Usage</h3>
+          </div>
+          <div class="form-block__panel">
+            <!-- Handschuh-Ports: feste Auswahl 2/4/6/8 ODER eigene Anzahl (Konzept Z. 100) -->
+            <div class="form-group">
+              <label for="glovePorts">Number of Glove Ports</label>
+              <select id="glovePorts" name="glovePorts" required>
+                <option value="">Select...</option>
+                <% gpStandard.forEach(n => { %>
+                <option value="<%= n %>" <%= gpValue === n ? 'selected' : '' %>><%= n %></option>
+                <% }) %>
+                <option value="custom" <%= gpIsCustom ? 'selected' : '' %>>Custom&hellip;</option>
+              </select>
+            </div>
+            <div class="form-group" id="glovePortsCustomWrap" style="<%= gpIsCustom ? '' : 'display:none' %>">
+              <label for="glovePortsCustom">Custom Number of Glove Ports</label>
+              <input type="number" id="glovePortsCustom" name="glovePortsCustom" min="1" max="99" step="1"
+                     value="<%= gpIsCustom ? gpValue : '' %>">
+            </div>
+
+            <div class="form-group">
+              <label>Box Usage</label>
+              <div class="checkbox-row">
+                <label><input type="radio" name="usageType" value="underpressure" required
+                  <%= editBox && editBox.usage_type === 'underpressure' ? 'checked' : '' %>>
+                  Person Protection (Underpressure)</label>
+                <label><input type="radio" name="usageType" value="overpressure"
+                  <%= editBox && editBox.usage_type === 'overpressure' ? 'checked' : '' %>>
+                  Product Protection (Overpressure)</label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="additionalNotes">Additional Notes</label>
+              <textarea id="additionalNotes" name="additionalNotes" rows="3"><%= editBox ? editBox.additional_notes || '' : '' %></textarea>
+            </div>
+          </div>
+        </section>
+
       </div>
 
-      <!-- Sensors -->
-      <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasSolventSensor" id="hasSolventSensor" value="1"
-          <%= editBox && editBox.has_solvent_sensor ? 'checked' : '' %>> Solvent Sensor</label>
-      </div>
-      <div id="solventSensorSection" class="conditional-section" style="<%= editBox && editBox.has_solvent_sensor ? '' : 'display:none' %>">
-        <div class="form-group">
-          <label for="solventSensorCalibrated">Last Calibrated <span class="hint">(year)</span></label>
-          <input type="number" id="solventSensorCalibrated" name="solventSensorCalibrated"
-                 value="<%= editBox ? editBox.solvent_sensor_calibrated : '' %>">
-        </div>
-      </div>
-
-      <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasO2Sensor" id="hasO2Sensor" value="1"
-          <%= editBox && editBox.has_o2_sensor ? 'checked' : '' %>> O₂ Sensor</label>
-      </div>
-      <div id="o2SensorSection" class="conditional-section" style="<%= editBox && editBox.has_o2_sensor ? '' : 'display:none' %>">
-        <div class="form-group">
-          <label for="o2SensorCalibrated">Last Calibrated <span class="hint">(year)</span></label>
-          <input type="number" id="o2SensorCalibrated" name="o2SensorCalibrated"
-                 value="<%= editBox ? editBox.o2_sensor_calibrated : '' %>">
-        </div>
-      </div>
-
-      <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasH2oSensor" id="hasH2oSensor" value="1"
-          <%= editBox && editBox.has_h2o_sensor ? 'checked' : '' %>> H₂O Sensor</label>
-      </div>
-      <div id="h2oSensorSection" class="conditional-section" style="<%= editBox && editBox.has_h2o_sensor ? '' : 'display:none' %>">
-        <div class="form-group">
-          <label for="h2oSensorCalibrated">Last Calibrated <span class="hint">(year)</span></label>
-          <input type="number" id="h2oSensorCalibrated" name="h2oSensorCalibrated"
-                 value="<%= editBox ? editBox.h2o_sensor_calibrated : '' %>">
-        </div>
-        <!-- Konzept: "Wann zuletzt gereinigt" nur wenn H2O vorhanden -->
-        <div class="form-group">
-          <label for="lastCleaned">Last Cleaned</label>
-          <input type="date" id="lastCleaned" name="lastCleaned"
-                 value="<%= editBox && editBox.last_cleaned ? editBox.last_cleaned.toISOString().split('T')[0] : '' %>">
-        </div>
-      </div>
-
-      <!-- Fridge, Oil Pump -->
-      <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasFridge" id="hasFridge" value="1"
-          <%= editBox && editBox.has_fridge ? 'checked' : '' %>> Refrigerator</label>
-      </div>
-      <div id="fridgeSection" class="conditional-section" style="<%= editBox && editBox.has_fridge ? '' : 'display:none' %>">
-        <div class="form-group">
-          <label for="fridgeTemp">Temperature <span class="hint">(°C)</span></label>
-          <input type="number" id="fridgeTemp" name="fridgeTemp"
-                 value="<%= editBox ? editBox.fridge_temp : '' %>">
-        </div>
-      </div>
-
-      <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasOilPump" id="hasOilPump" value="1"
-          <%= editBox && editBox.has_oil_pump ? 'checked' : '' %>> Vacuum Pump with Oil</label>
-      </div>
-      <div id="oilSection" class="conditional-section" style="<%= editBox && editBox.has_oil_pump ? '' : 'display:none' %>">
-        <div class="form-group">
-          <label for="lastOilChange">Last Oil Change</label>
-          <input type="date" id="lastOilChange" name="lastOilChange"
-                 value="<%= editBox && editBox.last_oil_change ? editBox.last_oil_change.toISOString().split('T')[0] : '' %>">
-        </div>
-      </div>
-
-      <!-- Glove Ports: feste Auswahl 2/4/6/8 ODER eigene Anzahl (Konzept Z. 100) -->
-      <div class="form-group">
-        <label for="glovePorts">Number of Glove Ports</label>
-        <select id="glovePorts" name="glovePorts" required>
-          <option value="">&ndash; Select &ndash;</option>
-          <% gpStandard.forEach(n => { %>
-          <option value="<%= n %>" <%= gpValue === n ? 'selected' : '' %>><%= n %></option>
-          <% }) %>
-          <option value="custom" <%= gpIsCustom ? 'selected' : '' %>>Custom&hellip;</option>
-        </select>
-      </div>
-      <div class="form-group" id="glovePortsCustomWrap" style="<%= gpIsCustom ? '' : 'display:none' %>">
-        <label for="glovePortsCustom">Custom Number of Glove Ports</label>
-        <input type="number" id="glovePortsCustom" name="glovePortsCustom" min="1" max="99" step="1"
-               value="<%= gpIsCustom ? gpValue : '' %>">
-      </div>
-
-      <div class="form-group">
-        <label>Box Usage</label>
-        <div class="checkbox-row">
-          <label><input type="radio" name="usageType" value="underpressure" required
-            <%= editBox && editBox.usage_type === 'underpressure' ? 'checked' : '' %>>
-            Person Protection (Underpressure)</label>
-          <label><input type="radio" name="usageType" value="overpressure"
-            <%= editBox && editBox.usage_type === 'overpressure' ? 'checked' : '' %>>
-            Product Protection (Overpressure)</label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="additionalNotes">Additional Notes</label>
-        <textarea id="additionalNotes" name="additionalNotes" rows="3"><%= editBox ? editBox.additional_notes || '' : '' %></textarea>
-      </div>
-
-      <div class="form-actions">
+      <div class="card-form__footer">
         <a href="/boxes" class="btn btn-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary" id="boxSubmitBtn" disabled>
           <%= isEdit ? 'Save Changes' : 'Add Box' %>
@@ -243,7 +293,7 @@
         sections.forEach(function (s) {
           var on  = document.getElementById(s.toggle).checked;
           var sec = document.getElementById(s.section);
-          sec.style.display = on ? 'block' : 'none';
+          sec.style.display = on ? 'flex' : 'none';
           Array.prototype.forEach.call(sec.querySelectorAll('input'), function (inp) {
             inp.required = on;
           });

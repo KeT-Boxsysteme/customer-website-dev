@@ -1,4 +1,4 @@
-<%- include('../partials/head', { title: 'Diagrams – ' + box.box_alias }) %>
+<%- include('../partials/head', { title: 'Diagrams: ' + box.box_alias }) %>
 <body class="app-layout">
   <%- include('../partials/nav', { currentPage: 'diagrams' }) %>
 
@@ -9,9 +9,15 @@
 
     <%- include('../partials/flash') %>
 
-    <h2 class="section-title">
-      <%= box.box_alias %> <span class="mono text-muted">&nbsp;#<%= box.project_number %></span>
-    </h2>
+    <div class="detail-column">
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">
+          <%= box.box_alias %> <span class="mono text-muted">&nbsp;#<%= box.project_number %></span>
+        </h2>
+        <p class="section-desc">Measured values and trends for the selected period.</p>
+      </div>
+    </div>
 
     <!-- Time range selector -->
     <div class="radio-group">
@@ -48,10 +54,10 @@
           <% measurements.forEach(m => { %>
           <tr>
             <td><%= new Date(m.measured_at).toLocaleString('en-GB') %></td>
-            <td class="mono"><%= m.username || '–' %></td>
-            <% if (box.has_o2_sensor) { %><td><%= m.o2_value !== null ? m.o2_value : '–' %></td><% } %>
-            <% if (box.has_h2o_sensor) { %><td><%= m.h2o_value !== null ? m.h2o_value : '–' %></td><% } %>
-            <% if (box.has_fridge) { %><td><%= m.fridge_temp !== null ? m.fridge_temp : '–' %></td><% } %>
+            <td class="mono"><%= m.username || '-' %></td>
+            <% if (box.has_o2_sensor) { %><td><%= m.o2_value !== null ? m.o2_value : '-' %></td><% } %>
+            <% if (box.has_h2o_sensor) { %><td><%= m.h2o_value !== null ? m.h2o_value : '-' %></td><% } %>
+            <% if (box.has_fridge) { %><td><%= m.fridge_temp !== null ? m.fridge_temp : '-' %></td><% } %>
           </tr>
           <% }) %>
           <% } %>
@@ -63,6 +69,7 @@
     <div class="chart-container">
       <canvas id="valuesChart"></canvas>
     </div>
+    </div><!-- /.detail-column -->
   </main>
 
   <script src="/js/vendor/chart.umd.min.js"></script>

@@ -5,17 +5,26 @@
   <main class="main-content">
     <div class="page-header">
       <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
+    </div>
+
+    <%- include('../partials/flash') %>
+
+    <div class="section-head">
+      <div>
+        <h2 class="section-title">Box Management</h2>
+        <p class="section-desc">Your registered gloveboxes and their configuration.</p>
+      </div>
       <div class="page-actions">
         <a href="/boxes/create" class="btn btn-primary">+ Add Box</a>
       </div>
     </div>
 
-    <%- include('../partials/flash') %>
-
-    <h2 class="section-title">Box Management</h2>
-
     <% if (boxes.length === 0) { %>
-      <p class="empty-state">No boxes found. Add your first glovebox.</p>
+      <div class="empty-state">
+        <p class="empty-state__title">No boxes yet</p>
+        <p class="empty-state__hint">Add your first glovebox to start monitoring it.</p>
+        <a href="/boxes/create" class="btn btn-primary">+ Add Box</a>
+      </div>
     <% } else { %>
     <table class="data-table">
       <thead>
