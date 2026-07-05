@@ -77,12 +77,22 @@ router.post('/register', async (req, res) => {
       req.flash('error', 'You must accept the Terms and Conditions.');
       return res.redirect('/auth/register');
     }
+    // Serverseitige Pflichtfeld-Pruefung (Client-Validierung kann umgangen werden)
+    const requiredFields = { companyType, companyName, city, street, housenumber, zip, firstname, lastname, email, username, department, password };
+    if (Object.values(requiredFields).some(v => !v || !String(v).trim())) {
+      req.flash('error', 'Please fill in all required fields.');
+      return res.redirect('/auth/register');
+    }
     if (password !== passwordConfirm) {
       req.flash('error', 'Passwords do not match.');
       return res.redirect('/auth/register');
     }
-    if (username && username.length > 4) {
+    if (username.trim().length > 4) {
       req.flash('error', 'Username must be max. 4 characters.');
+      return res.redirect('/auth/register');
+    }
+    if (department === 'other' && (!departmentOther || !departmentOther.trim())) {
+      req.flash('error', 'Please specify your position when selecting "Other" as department.');
       return res.redirect('/auth/register');
     }
 
@@ -92,7 +102,7 @@ router.post('/register', async (req, res) => {
       return res.redirect('/auth/register');
     }
 
-    const finalDepartment = department === 'other' ? departmentOther : department;
+    const finalDepartment = department === 'other' ? departmentOther.trim() : department;
 
     const companyId = await Company.create({
       name: companyName, type: companyType,

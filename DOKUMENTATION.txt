@@ -1,8 +1,8 @@
 ================================================================================
   GLOVEBOX-MONITORING BY KeT – TECHNISCHE DOKUMENTATION
 ================================================================================
-  Letzte Aktualisierung: 2026-06-04 (UI-Redesign Auth-Seiten)
-  Stack: Node.js + Express, EJS-Templates, MSSQL (Azure), Nodemailer
+  Letzte Aktualisierung: 2026-07-05 (Konzept-Vollabgleich, Ampel-Engine, Tests)
+  Stack: Node.js + Express, EJS-Templates, MSSQL (Azure), Nodemailer, Jest
   Einstiegspunkt: server.js | Port: 3000 (Standard)
 ================================================================================
 
@@ -24,7 +24,8 @@
   │   ├── user.js             → Alle Datenbankoperationen für User
   │   ├── box.js              → Alle Datenbankoperationen für Boxen
   │   ├── company.js          → Alle Datenbankoperationen für Unternehmen
-  │   └── measurement.js      → Alle Datenbankoperationen für Messwerte
+  │   ├── measurement.js      → Alle Datenbankoperationen für Messwerte
+  │   └── alertAck.js         → "Erledigt"-Quittungen für ppm-Warnmeldungen
   ├── routes/
   │   ├── auth.js             → Login, Registrierung, Passwort zurücksetzen
   │   ├── users.js            → Userverwaltung (nur Admin)
@@ -32,7 +33,8 @@
   │   ├── monitoring.js       → Werte eingeben + Wartungshinweise
   │   └── diagrams.js         → Diagramme anzeigen
   ├── services/
-  │   └── email.js            → Alle E-Mail-Funktionen (Nodemailer)
+  │   ├── email.js            → Alle E-Mail-Funktionen (Nodemailer)
+  │   └── alerts.js           → Ampelsystem: Wartungs-/ppm-Meldungen (pure Logik)
   ├── views/
   │   ├── auth/               → Login, Registrierung, Passwort-Views
   │   ├── boxes/              → Boxenverwaltungs-Views
@@ -41,11 +43,14 @@
   │   ├── errors/             → Fehlerseiten (403, 404, 500)
   │   ├── monitoring/         → Monitoring-Views
   │   ├── partials/           → Wiederverwendbare Bausteine (Nav, Head etc.)
-  │   └── users/              → Userverwaltungs-Views
+  │   ├── users/              → Userverwaltungs-Views
+  │   └── terms.ejs           → AGB/Terms-Seite (öffentlich, verlinkt in Registrierung)
   ├── public/
   │   ├── css/style.css       → Globales Stylesheet
   │   ├── js/main.js          → Globales Frontend-JavaScript
-  │   └── fonts/              → Schriftart "Skyload | Modern Sense"
+  │   ├── js/vendor/          → Lokal eingebundenes Chart.js (kein CDN nötig)
+  │   └── fonts/              → Schriftart "Skyload | Modern Sense" (Dateien fehlen noch!)
+  ├── tests/                  → Jest + Supertest (npm test), DB/SMTP gemockt
   ├── scripts/
   │   ├── setup-db.js         → Erstellt alle DB-Tabellen (einmalig ausführen)
   │   └── seed-admin.js       → Legt einen Test-Admin-User an
@@ -63,12 +68,17 @@
 
   Was hier passiert (der Reihe nach):
   1. Lädt alle Umgebungsvariablen aus .env
-  2. Setzt EJS als Template-Engine (alle Views sind .ejs-Dateien)
-  3. Aktiviert Middleware: Formular-Parser, JSON-Parser, statische Dateien (public/)
-  4. Session-Verwaltung: Nutzer bleibt 24 Stunden eingeloggt (Cookie)
-  5. Flash-Nachrichten: Kurze Erfolgs-/Fehlermeldungen zwischen Seitenaufrufen
-  6. Globale Variablen für alle Views: user (eingeloggter User), success, error
-  7. Routen werden eingebunden – alle außer /auth benötigen Login (requireAuth)
+  2. app.set('trust proxy', 1) – WICHTIG für Render/Cloud-Deployment:
+     Render terminiert SSL am Load Balancer, Node sieht intern HTTP.
+     Ohne diesen Eintrag werden Session-Cookies mit secure:true nie gesetzt
+     → Login schlägt in Produktion still fehl. Muss VOR der Session-Middleware stehen.
+  3. Setzt EJS als Template-Engine (alle Views sind .ejs-Dateien)
+  4. Aktiviert Middleware: Formular-Parser, JSON-Parser, statische Dateien (public/)
+  5. Session-Verwaltung: Nutzer bleibt 24 Stunden eingeloggt (Cookie)
+     secure: true nur in NODE_ENV=production (erfordert HTTPS)
+  6. Flash-Nachrichten: Kurze Erfolgs-/Fehlermeldungen zwischen Seitenaufrufen
+  7. Globale Variablen für alle Views: user (eingeloggter User), success, error
+  8. Routen werden eingebunden – alle außer /auth benötigen Login (requireAuth)
 
   Routen-Übersicht:
     GET  /              → Weiterleitung zu /auth/login oder /dashboard
@@ -88,9 +98,15 @@
   CONFIG/DATABASE.JS – DATENBANKVERBINDUNG
 ════════════════════════════════════════════════════════════════════════════════
 
-  Stellt eine Verbindung zur MSSQL-Datenbank her (über AWS oder Azure).
+  Stellt eine Verbindung zur MSSQL-Datenbank her (Azure SQL).
   Verwendet einen Connection-Pool (max. 10 gleichzeitige Verbindungen).
   Die Verbindung wird nur einmal aufgebaut und danach wiederverwendet.
+
+  Timeout-Konfiguration:
+    connectionTimeout: 8000 ms  → Fehler nach 8 Sek. wenn DB nicht erreichbar
+    requestTimeout:   15000 ms  → Einzelne Queries laufen max. 15 Sek.
+  (Reduziert auf 8 Sek. damit Login-Fehler schnell angezeigt werden,
+   statt 30 Sek. zu hängen wenn Azure DB pausiert ist.)
 
   Funktionen:
   ┌─────────────────┬────────────────────────────────────────────────────────┐
@@ -101,10 +117,14 @@
   └─────────────────┴────────────────────────────────────────────────────────┘
 
   Benötigte .env-Variablen:
-    DB_SERVER    → Adresse des MSSQL-Servers
+    DB_SERVER    → Adresse des MSSQL-Servers (z.B. ket-dev-website.database.windows.net)
     DB_DATABASE  → Name der Datenbank
     DB_USERNAME  → Datenbankbenutzer
     DB_PASSWORD  → Datenbankpasswort
+
+  HINWEIS Azure SQL: Die Datenbank pausiert sich im kostenlosen/Serverless-Tier
+  automatisch nach Inaktivität. Im Azure Portal unter
+  "SQL Databases → Compute + Storage" auf "Provisioned" wechseln um das zu verhindern.
 
 
 ════════════════════════════════════════════════════════════════════════════════
@@ -243,8 +263,12 @@
   │ GET  /auth/login               │ Zeigt Login-Formular an                  │
   ├────────────────────────────────┼──────────────────────────────────────────┤
   │ POST /auth/login               │ Verarbeitet Login: prüft E-Mail und       │
-  │                                │ Passwort, schreibt User in Session,       │
-  │                                │ leitet zu /dashboard weiter               │
+  │                                │ Passwort, schreibt User in Session        │
+  │                                │ (inkl. department + phone), leitet zu     │
+  │                                │ /dashboard weiter.                        │
+  │                                │ Fehlermeldung unterscheidet zwischen:     │
+  │                                │  - "Invalid email or password"            │
+  │                                │  - "Database temporarily unavailable"     │
   ├────────────────────────────────┼──────────────────────────────────────────┤
   │ GET  /auth/register            │ Zeigt Registrierungsformular an           │
   ├────────────────────────────────┼──────────────────────────────────────────┤
@@ -641,6 +665,11 @@
            Kürzel-Dropdown-Handling (Inaktivität nach 1 Stunde),
            Wartungshinweis-Fenster (Modal), Ampel-Logik im Frontend.
 
+  Flash-Nachrichten (auto-dismiss):
+    Erfolgs-Meldungen (.flash-success): verschwinden nach 5 Sekunden
+    Fehler-Meldungen  (.flash-error):   verschwinden nach 8 Sekunden
+    (Längere Zeit für Fehler damit User die Meldung lesen kann)
+
   ── public/fonts/ ─────────────────────────────────────────────────────────
 
   Enthält die Schriftart "Skyload | Modern Sense", die für den Haupt-
@@ -659,10 +688,21 @@
   Idempotent: Kann mehrfach ausgeführt werden ohne Fehler.
   Muss einmalig ausgeführt werden bevor die App gestartet wird.
 
+  STATUS (2026-06-05): Tabellen wurden manuell per sqlcmd auf der Azure-DB
+  angelegt (node_modules fehlten beim ersten Setup). Alle 4 Tabellen existieren.
+
   ── scripts/seed-admin.js ─────────────────────────────────────────────────
 
   Legt einen initialen Test-Admin-User und ein Test-Unternehmen an.
   Nützlich für lokale Entwicklung und erste Tests nach dem DB-Setup.
+
+  STATUS (2026-06-05): Admin-User wurde manuell per sqlcmd angelegt.
+  Login-Daten des Test-Admins:
+    E-Mail:   admin@ket.dev
+    Passwort: Admin1234!
+    Rolle:    admin
+    Kürzel:   AKET
+    Firma:    KeT Dev GmbH
 
 
 ════════════════════════════════════════════════════════════════════════════════
@@ -681,13 +721,23 @@
   DB_DATABASE       Datenbankname
   DB_USERNAME       DB-Benutzername
   DB_PASSWORD       DB-Passwort
-  EMAIL_HOST        SMTP-Serveradresse
-  EMAIL_PORT        SMTP-Port
-  EMAIL_SECURE      "true" / "false"
-  EMAIL_USER        Absender-E-Mail
+  EMAIL_HOST        SMTP-Serveradresse (Strato: smtp.strato.de)
+  EMAIL_PORT        SMTP-Port (Strato: 465)
+  EMAIL_SECURE      "true" für SSL/Port 465, "false" für STARTTLS/Port 587
+  EMAIL_USER        Absender-E-Mail (Strato: vollständige Mailadresse)
   EMAIL_PASS        E-Mail-Passwort
   KET_EMAIL         Interne KeT-E-Mail (Empfänger für Registrierungen etc.)
-  APP_URL           Öffentliche URL der App (für Links in E-Mails)
+  APP_URL           Öffentliche URL der App (für Links in Mails, z.B. Reset-Link)
+
+  Für Render-Deployment: Variablen im Render Dashboard unter
+  "Environment" eintragen – .env wird nicht ins Repo eingecheckt!
+
+  Bekannte Strato SMTP-Konfiguration:
+    EMAIL_HOST=smtp.strato.de
+    EMAIL_PORT=465
+    EMAIL_SECURE=true
+    EMAIL_USER=software@ketbox.de  (Entwicklungs-Absender, nicht kundenseitig)
+    KET_EMAIL=software@ketbox.de   (Empfänger für interne Benachrichtigungen)
 
 
 ════════════════════════════════════════════════════════════════════════════════
@@ -709,10 +759,20 @@
   APP STARTEN (SCHNELLSTART)
 ════════════════════════════════════════════════════════════════════════════════
 
+  Lokal:
   1. .env anlegen (Vorlage: .env.example)
   2. npm install
-  3. npm run setup     ← erstellt alle DB-Tabellen
-  4. npm start         ← startet den Server auf Port 3000
+  3. npm run setup     ← erstellt alle DB-Tabellen (einmalig)
+  4. npm run seed      ← legt Test-Admin an (einmalig, optional)
+  5. npm start         ← startet den Server auf Port 3000
+
+  Render (Produktion):
+  1. Alle Umgebungsvariablen im Render Dashboard eintragen (siehe oben)
+  2. Render baut automatisch bei jedem Push auf main
+     Build-Befehl: npm install  |  Start-Befehl: node server.js
+  3. DB-Tabellen einmalig anlegen: npm run setup (lokal mit Prod-.env)
+     ODER per sqlcmd direkt auf Azure:
+       sqlcmd -S <server> -d <db> -U <user> -P <pass> -i database/schema.sql
 
 
 ════════════════════════════════════════════════════════════════════════════════
@@ -722,14 +782,78 @@
   - Reset-Tokens (Passwort vergessen) sind aktuell im RAM (Map).
     Bei Server-Neustart gehen offene Links verloren → für Produktion in DB.
 
-  - Die Ampellogik (grün/gelb/rot) wird im Backend (routes/monitoring.js)
-    berechnet und als "statusColor"-Variable an die View übergeben.
+  - Die Ampellogik (grün/gelb/rot) liegt als pure Funktion in
+    services/alerts.js (buildAlerts/overallStatus) und wird in
+    routes/monitoring.js aufgerufen; Ergebnis geht als "alerts" +
+    "statusColor" an die View. Regeln: ppm >= 5 gelb, >= 10 rot (quittierbar
+    über alert_acks-Tabelle), 2000h-H2O-Reinigung (= Stunden seit
+    last_h2o_cleaning, Box läuft 24/7), Aktivkohle-/Molsieb-Zyklen laut
+    Boxconfig, 6-Monats-Regeln für Lösungsmittelsensor-Test und Ölwechsel.
+    "Erledigt"-Klick setzt das jeweilige Wartungsdatum auf heute
+    (POST /monitoring/:id/resolve/:field) bzw. quittiert ppm-Meldungen
+    (POST /monitoring/:id/ack/:key). Rote Meldungen stehen immer zuerst.
 
   - Neue Routen immer in server.js einbinden und mit requireAuth schützen.
 
   - Neue datenbankgebundene Funktionen gehören ins zugehörige Model,
     nicht direkt in die Route.
 
+  - Bei Cloud-Deployment (Render, Heroku, Railway etc.) immer
+    app.set('trust proxy', 1) in server.js behalten – sonst funktionieren
+    Session-Cookies im Produktionsmodus nicht (SSL-Terminierung am Proxy).
+
+  - Azure SQL pausiert sich im Serverless-Tier automatisch. Für Produktion
+    auf "Provisioned" wechseln oder Firewall-Regel für alle IPs setzen
+    (0.0.0.0 – 255.255.255.255) damit Verbindungen nicht geblockt werden.
+
   - Diese Datei bei jeder neuen Funktion, Route oder View aktualisieren.
+
+
+════════════════════════════════════════════════════════════════════════════════
+  ÄNDERUNGEN 2026-07-05 – VOLLSTÄNDIGER KONZEPT-ABGLEICH
+════════════════════════════════════════════════════════════════════════════════
+
+  Ziel: Website entspricht vollständig Konzept.txt (App entfällt, Box-User =
+  Web-Rolle mit Monitoring + Diagrammen). 117 Jest-Tests, alle grün (npm test).
+
+  NEU:
+  - services/alerts.js: Ampel-Engine (siehe Hinweis oben), 21 Unit-Tests.
+  - models/alertAck.js + Tabelle alert_acks (schema.sql): quittierbare
+    ppm-Meldungen. ACHTUNG: Tabelle auf Azure noch anlegen (npm run setup
+    oder sqlcmd mit database/schema.sql – idempotent).
+  - POST /monitoring/:id/ack/:key (Whitelist o2_high/o2_elevated/h2o_high/
+    h2o_elevated).
+  - views/terms.ejs + GET /terms (öffentlich): Platzhalter-AGB, aus der
+    Registrierung verlinkt (vorher toter /agb-Link).
+  - public/js/vendor/chart.umd.min.js: Chart.js lokal statt CDN.
+  - tests/: 7 Suites, 117 Tests (Rollen-Matrix, Auth-Flows, Box-Validierung,
+    Monitoring-Endpunkte, Diagramme, Ampel-Engine). DB + SMTP gemockt.
+
+  GEÄNDERT:
+  - Monitoring-Detailseite: Alert-Modal mit "Done"-Buttons + Zähler-Badge,
+    SVG-Box-Illustration statt CSS-Icon (Status-Einfärbung), Layout Kürzel
+    links / Werte rechts, Kontaktnachricht nutzt E-Mail des per Kürzel
+    aufgelösten Users (Konzept Z. 137).
+  - Boxformular: Ein-/Zweifilter + Aktivkohle/Molsieb als Radios, Handschuh-
+    anzahl 2/4/6/8 oder freie Eingabe, Submit-Button erst aktiv wenn alles
+    ausgefüllt, bedingte Felder Pflicht wenn Parent=Ja (Client + Server),
+    "Last Cleaned" nur bei H2O-Sensor (seeded last_h2o_cleaning für 2000h-
+    Zyklus). Box.update() persistiert jetzt ALLE Felder (vorher nur 4!).
+  - Login/Dashboard: Brand-Wordmark "Glovebox-Monitoring by KeT"
+    ("Welcome to" in Standardschrift + Wordmark in Brand-Font, Konzept Z. 46f),
+    Passwort-vergessen-Link unter dem Login-Button.
+  - Registrierung: Pflichtfeld-Prüfung serverseitig, "Sonstiges"-Position
+    Pflicht wenn gewählt; Userverwaltung: Department optional (Konzept Z. 57).
+  - routes/monitoring.js + routes/diagrams.js: expliziter Rollen-Guard
+    (authorize(...PERMISSIONS.x)) statt nur requireAuth.
+  - server.js: exportiert app (module.exports), listen nur bei Direktstart
+    (für Supertest); npm start unverändert.
+  - alert_acks.acked_at nutzt GETDATE() wie measurements.measured_at
+    (eine gemeinsame Uhr für Ack-Vergleiche).
+
+  OFFEN:
+  - Skyload-Font-Dateien fehlen weiterhin (public/fonts/ leer, @font-face in
+    style.css auskommentiert, Fallback Georgia). Dateien vom User nötig.
+  - Reset-Tokens weiterhin im RAM (siehe Hinweis oben).
 
 ================================================================================

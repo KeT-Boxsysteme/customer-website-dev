@@ -48,6 +48,11 @@ app.get('/', (req, res) => {
   res.redirect('/auth/login');
 });
 
+// Terms & Conditions – publicly accessible (linked from registration)
+app.get('/terms', (req, res) => {
+  res.render('terms', { title: 'Terms & Conditions' });
+});
+
 app.get('/dashboard', requireAuth, (req, res) => {
   res.render('dashboard/index', { currentPage: 'dashboard' });
 });
@@ -67,7 +72,12 @@ app.use((err, req, res, next) => {
   res.status(500).render('errors/500', { message: err.message });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Glovebox-Monitoring running on port ${PORT}`);
-});
+// Server nur starten, wenn die Datei direkt ausgeführt wird (nicht bei Tests)
+if (require.main === module) {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => {
+    console.log(`Glovebox-Monitoring running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

@@ -1,5 +1,6 @@
 node_modules/
 .env
+CLAUDE_PROMPT.txt
 .vs/
 *.log
 npm-debug.log*

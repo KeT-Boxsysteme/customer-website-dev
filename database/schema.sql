@@ -88,3 +88,17 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_users_company' AND ob
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_boxes_company' AND object_id = OBJECT_ID('dbo.boxes'))
   CREATE INDEX idx_boxes_company ON boxes (company_id);
+
+-- Bestätigungen ("Erledigt") für ppm-Warnmeldungen des Ampelsystems
+IF OBJECT_ID('dbo.alert_acks', 'U') IS NULL
+  CREATE TABLE alert_acks (
+    id         INT IDENTITY(1,1) PRIMARY KEY,
+    box_id     INT           NOT NULL REFERENCES boxes(id),
+    alert_key  NVARCHAR(40)  NOT NULL,
+    -- GETDATE() wie measurements.measured_at: eine gemeinsame Uhr fuer den Ack-Vergleich in services/alerts.js
+    acked_at   DATETIME2     NOT NULL DEFAULT GETDATE(),
+    acked_by   INT           NULL REFERENCES users(id)
+  );
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_alert_acks_box_key' AND object_id = OBJECT_ID('dbo.alert_acks'))
+  CREATE INDEX idx_alert_acks_box_key ON alert_acks (box_id, alert_key);

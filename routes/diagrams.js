@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const Box = require('../models/box');
 const Measurement = require('../models/measurement');
+const { authorize, PERMISSIONS } = require('../middleware/authorize');
+
+// All diagram pages require one of the roles allowed for "diagrams"
+// (admin, controller, user, box_user – see middleware/authorize.js)
+router.use(authorize(...PERMISSIONS.diagrams));
 
 // GET /diagrams – Box-Auswahl (Kacheldesign)
 router.get('/', async (req, res) => {

@@ -165,7 +165,7 @@
           <div class="agb-row">
             <input type="checkbox" name="agb" id="agb">
             <label for="agb">
-              I agree to the <a href="/agb" target="_blank">Terms and Conditions</a>
+              I agree to the <a href="/terms" target="_blank">Terms and Conditions</a>
             </label>
           </div>
 
@@ -285,7 +285,15 @@
       });
       var pw      = document.getElementById('password').value;
       var confirm = document.getElementById('passwordConfirm').value;
-      submitBtn.disabled = !(type && allFilled && agbCheck.checked && pw === confirm);
+
+      // Department must be chosen; "Other" requires the free-text position
+      var deptSelect = document.querySelector('select[name="department"]');
+      var deptValue  = deptSelect ? deptSelect.value : '';
+      var deptOk     = deptValue !== '' &&
+                       (deptValue !== 'other' ||
+                        document.getElementById('departmentOther').value.trim() !== '');
+
+      submitBtn.disabled = !(type && allFilled && deptOk && agbCheck.checked && pw === confirm);
     }
   </script>
 

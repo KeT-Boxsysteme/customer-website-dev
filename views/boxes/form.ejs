@@ -1,4 +1,20 @@
-<%- include('../partials/head', { title: editBox ? 'Edit Box' : 'Add Box' }) %>
+<%
+  // isEdit: echter Edit-Modus (Box mit id). editBox kann auch ein Repopulate-Objekt
+  // ohne id sein, wenn das Create-Formular nach Validierungsfehler neu gerendert wird.
+  const isEdit = editBox && editBox.id;
+  // Filtersystem: aus Repopulate-Wert (filter_system) oder aus DB-Flag ableiten
+  const filterSystem = editBox
+    ? (typeof editBox.filter_system !== 'undefined'
+        ? editBox.filter_system
+        : (editBox.has_dual_filter ? 'dual' : 'single'))
+    : null;
+  // Handschuh-Ports: Standardwerte oder benutzerdefinierte Anzahl
+  const gpStandard = [2, 4, 6, 8];
+  const gpValue = editBox && editBox.glove_ports != null && editBox.glove_ports !== ''
+    ? Number(editBox.glove_ports) : null;
+  const gpIsCustom = gpValue !== null && !gpStandard.includes(gpValue);
+%>
+<%- include('../partials/head', { title: isEdit ? 'Edit Box' : 'Add Box' }) %>
 <body class="app-layout">
   <%- include('../partials/nav', { currentPage: 'boxes' }) %>
 
@@ -9,10 +25,10 @@
 
     <%- include('../partials/flash') %>
 
-    <h2 class="section-title"><%= editBox ? 'Edit Box' : 'Add Glovebox' %></h2>
+    <h2 class="section-title"><%= isEdit ? 'Edit Box' : 'Add Glovebox' %></h2>
 
     <form class="card-form" id="boxForm"
-          action="<%= editBox ? '/boxes/' + editBox.id + '?_method=PUT' : '/boxes' %>"
+          action="<%= isEdit ? '/boxes/' + editBox.id + '?_method=PUT' : '/boxes' %>"
           method="POST">
 
       <!-- Manufacturer -->
@@ -53,23 +69,31 @@
       <hr class="form-divider">
       <h3 class="form-section-title">Technical Configuration</h3>
 
-      <!-- Filter -->
-      <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasDualFilter" value="1"
-          <%= editBox && editBox.has_dual_filter ? 'checked' : '' %>> Dual Filter System</label>
+      <!-- Filtersystem: explizite Wahl Ein- vs. Zwei-Filter-System (Konzept Z. 79),
+           wird serverseitig auf das bestehende Boolean-Feld has_dual_filter abgebildet -->
+      <div class="form-group">
+        <label>Filter System</label>
+        <div class="checkbox-row">
+          <label><input type="radio" name="filterSystem" value="single" required
+            <%= filterSystem === 'single' ? 'checked' : '' %>> Single-filter system</label>
+          <label><input type="radio" name="filterSystem" value="dual"
+            <%= filterSystem === 'dual' ? 'checked' : '' %>> Dual-filter system</label>
+        </div>
       </div>
       <div class="form-group form-group--checkbox">
         <label><input type="checkbox" name="hasSolventFilter" id="hasSolventFilter" value="1"
-          onchange="toggleSection('solventFilterSection', this.checked)"
           <%= editBox && editBox.has_solvent_filter ? 'checked' : '' %>> Solvent Filter</label>
       </div>
       <div id="solventFilterSection" class="conditional-section" style="<%= editBox && editBox.has_solvent_filter ? '' : 'display:none' %>">
         <div class="form-group">
           <label>Filter Type</label>
+          <!-- Exklusive Wahl (Radio statt Checkbox): genau EIN Filtertyp.
+               Nur das zum gewählten Typ passende Zyklus-Feld ist Pflicht,
+               das jeweils andere bleibt sichtbar und optional. -->
           <div class="checkbox-row">
-            <label><input type="checkbox" name="solventFilterType" value="charcoal"
+            <label><input type="radio" name="solventFilterType" value="charcoal"
               <%= editBox && editBox.solvent_filter_type === 'charcoal' ? 'checked' : '' %>> Activated Carbon</label>
-            <label><input type="checkbox" name="solventFilterType" value="molecular_sieve"
+            <label><input type="radio" name="solventFilterType" value="molecular_sieve"
               <%= editBox && editBox.solvent_filter_type === 'molecular_sieve' ? 'checked' : '' %>> Molecular Sieve</label>
           </div>
         </div>
@@ -89,8 +113,7 @@
 
       <!-- Sensors -->
       <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasSolventSensor" value="1"
-          onchange="toggleSection('solventSensorSection', this.checked)"
+        <label><input type="checkbox" name="hasSolventSensor" id="hasSolventSensor" value="1"
           <%= editBox && editBox.has_solvent_sensor ? 'checked' : '' %>> Solvent Sensor</label>
       </div>
       <div id="solventSensorSection" class="conditional-section" style="<%= editBox && editBox.has_solvent_sensor ? '' : 'display:none' %>">
@@ -102,8 +125,7 @@
       </div>
 
       <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasO2Sensor" value="1"
-          onchange="toggleSection('o2SensorSection', this.checked)"
+        <label><input type="checkbox" name="hasO2Sensor" id="hasO2Sensor" value="1"
           <%= editBox && editBox.has_o2_sensor ? 'checked' : '' %>> O₂ Sensor</label>
       </div>
       <div id="o2SensorSection" class="conditional-section" style="<%= editBox && editBox.has_o2_sensor ? '' : 'display:none' %>">
@@ -115,8 +137,7 @@
       </div>
 
       <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasH2oSensor" value="1"
-          onchange="toggleSection('h2oSensorSection', this.checked)"
+        <label><input type="checkbox" name="hasH2oSensor" id="hasH2oSensor" value="1"
           <%= editBox && editBox.has_h2o_sensor ? 'checked' : '' %>> H₂O Sensor</label>
       </div>
       <div id="h2oSensorSection" class="conditional-section" style="<%= editBox && editBox.has_h2o_sensor ? '' : 'display:none' %>">
@@ -125,18 +146,17 @@
           <input type="number" id="h2oSensorCalibrated" name="h2oSensorCalibrated"
                  value="<%= editBox ? editBox.h2o_sensor_calibrated : '' %>">
         </div>
+        <!-- Konzept: "Wann zuletzt gereinigt" nur wenn H2O vorhanden -->
+        <div class="form-group">
+          <label for="lastCleaned">Last Cleaned</label>
+          <input type="date" id="lastCleaned" name="lastCleaned"
+                 value="<%= editBox && editBox.last_cleaned ? editBox.last_cleaned.toISOString().split('T')[0] : '' %>">
+        </div>
       </div>
 
-      <!-- Fridge, Oil Pump, Cleaning -->
-      <div class="form-group">
-        <label for="lastCleaned">Last Cleaned</label>
-        <input type="date" id="lastCleaned" name="lastCleaned"
-               value="<%= editBox && editBox.last_cleaned ? editBox.last_cleaned.toISOString().split('T')[0] : '' %>">
-      </div>
-
+      <!-- Fridge, Oil Pump -->
       <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasFridge" value="1"
-          onchange="toggleSection('fridgeSection', this.checked)"
+        <label><input type="checkbox" name="hasFridge" id="hasFridge" value="1"
           <%= editBox && editBox.has_fridge ? 'checked' : '' %>> Refrigerator</label>
       </div>
       <div id="fridgeSection" class="conditional-section" style="<%= editBox && editBox.has_fridge ? '' : 'display:none' %>">
@@ -148,8 +168,7 @@
       </div>
 
       <div class="form-group form-group--checkbox">
-        <label><input type="checkbox" name="hasOilPump" value="1"
-          onchange="toggleSection('oilSection', this.checked)"
+        <label><input type="checkbox" name="hasOilPump" id="hasOilPump" value="1"
           <%= editBox && editBox.has_oil_pump ? 'checked' : '' %>> Vacuum Pump with Oil</label>
       </div>
       <div id="oilSection" class="conditional-section" style="<%= editBox && editBox.has_oil_pump ? '' : 'display:none' %>">
@@ -160,20 +179,27 @@
         </div>
       </div>
 
-      <!-- Glove Ports, Usage, Notes -->
+      <!-- Glove Ports: feste Auswahl 2/4/6/8 ODER eigene Anzahl (Konzept Z. 100) -->
       <div class="form-group">
         <label for="glovePorts">Number of Glove Ports</label>
-        <select id="glovePorts" name="glovePorts">
-          <% [2,4,6,8].forEach(n => { %>
-          <option value="<%= n %>" <%= editBox && editBox.glove_ports == n ? 'selected' : '' %>><%= n %></option>
+        <select id="glovePorts" name="glovePorts" required>
+          <option value="">&ndash; Select &ndash;</option>
+          <% gpStandard.forEach(n => { %>
+          <option value="<%= n %>" <%= gpValue === n ? 'selected' : '' %>><%= n %></option>
           <% }) %>
+          <option value="custom" <%= gpIsCustom ? 'selected' : '' %>>Custom&hellip;</option>
         </select>
+      </div>
+      <div class="form-group" id="glovePortsCustomWrap" style="<%= gpIsCustom ? '' : 'display:none' %>">
+        <label for="glovePortsCustom">Custom Number of Glove Ports</label>
+        <input type="number" id="glovePortsCustom" name="glovePortsCustom" min="1" max="99" step="1"
+               value="<%= gpIsCustom ? gpValue : '' %>">
       </div>
 
       <div class="form-group">
         <label>Box Usage</label>
         <div class="checkbox-row">
-          <label><input type="radio" name="usageType" value="underpressure"
+          <label><input type="radio" name="usageType" value="underpressure" required
             <%= editBox && editBox.usage_type === 'underpressure' ? 'checked' : '' %>>
             Person Protection (Underpressure)</label>
           <label><input type="radio" name="usageType" value="overpressure"
@@ -189,16 +215,66 @@
 
       <div class="form-actions">
         <a href="/boxes" class="btn btn-secondary">Cancel</a>
-        <button type="submit" class="btn btn-primary" id="boxSubmitBtn">
-          <%= editBox ? 'Save Changes' : 'Add Box' %>
+        <button type="submit" class="btn btn-primary" id="boxSubmitBtn" disabled>
+          <%= isEdit ? 'Save Changes' : 'Add Box' %>
         </button>
       </div>
     </form>
   </main>
 
   <script>
-    function toggleSection(id, show) {
-      document.getElementById(id).style.display = show ? 'block' : 'none';
-    }
+    (function () {
+      var form      = document.getElementById('boxForm');
+      var submitBtn = document.getElementById('boxSubmitBtn');
+
+      // Zuordnung Schalter-Checkbox -> bedingter Abschnitt.
+      // Sichtbare Abschnitte: Felder Pflicht; versteckte: Pflicht entfernt
+      // (serverseitig werden versteckte Werte zusätzlich ignoriert).
+      var sections = [
+        { toggle: 'hasSolventFilter', section: 'solventFilterSection' },
+        { toggle: 'hasSolventSensor', section: 'solventSensorSection' },
+        { toggle: 'hasO2Sensor',      section: 'o2SensorSection' },
+        { toggle: 'hasH2oSensor',     section: 'h2oSensorSection' },
+        { toggle: 'hasFridge',        section: 'fridgeSection' },
+        { toggle: 'hasOilPump',       section: 'oilSection' }
+      ];
+
+      function updateConditionals() {
+        sections.forEach(function (s) {
+          var on  = document.getElementById(s.toggle).checked;
+          var sec = document.getElementById(s.section);
+          sec.style.display = on ? 'block' : 'none';
+          Array.prototype.forEach.call(sec.querySelectorAll('input'), function (inp) {
+            inp.required = on;
+          });
+        });
+
+        // Lösungsmittelfilter: nur das zum gewählten Typ passende Zyklus-Feld
+        // ist Pflicht, das andere bleibt optional (siehe Kommentar im Formular)
+        var filterOn = document.getElementById('hasSolventFilter').checked;
+        var type     = form.querySelector('input[name="solventFilterType"]:checked');
+        document.getElementById('charcoalCycleMonths').required =
+          filterOn && !!type && type.value === 'charcoal';
+        document.getElementById('molecularSieveCycleMonths').required =
+          filterOn && !!type && type.value === 'molecular_sieve';
+
+        // Handschuh-Ports: eigenes Zahlenfeld nur bei "Custom..." sichtbar/Pflicht
+        var gpSelect = document.getElementById('glovePorts');
+        var isCustom = gpSelect.value === 'custom';
+        document.getElementById('glovePortsCustomWrap').style.display = isCustom ? 'block' : 'none';
+        document.getElementById('glovePortsCustom').required = isCustom;
+
+        updateSubmitBtn();
+      }
+
+      // Submit erst aktiv, wenn alle (auch bedingten) Pflichtfelder gefuellt sind
+      function updateSubmitBtn() {
+        submitBtn.disabled = !form.checkValidity();
+      }
+
+      form.addEventListener('input',  updateConditionals);
+      form.addEventListener('change', updateConditionals);
+      updateConditionals();
+    })();
   </script>
 <%- include('../partials/footer') %>

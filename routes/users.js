@@ -28,7 +28,13 @@ router.get('/create', adminOnly, (req, res) => {
 router.post('/', adminOnly, async (req, res) => {
   try {
     const { firstname, lastname, email, username, department, departmentOther, role, password } = req.body;
-    const finalDepartment = department === 'other' ? departmentOther : department;
+    // Serverseitige Pflichtfeld-Pruefung (Konzept Z. 57: Name, E-Mail, Kuerzel max. 4, Passwort, Rechtegruppe)
+    if ([firstname, lastname, email, username, role, password].some(v => !v || !String(v).trim()) || username.trim().length > 4) {
+      req.flash('error', 'Please fill in all required fields (username max. 4 characters).');
+      return res.redirect('/users/create');
+    }
+    // Department ist optional (Konzept Z. 57): leer -> NULL (Spalte ist nullable)
+    const finalDepartment = (department === 'other' ? departmentOther : department) || null;
 
     await User.create({
       companyId: req.session.user.companyId,
@@ -76,7 +82,13 @@ router.put('/:id', adminOnly, async (req, res) => {
       return res.redirect('/users');
     }
     const { firstname, lastname, email, username, department, departmentOther, role } = req.body;
-    const finalDepartment = department === 'other' ? departmentOther : department;
+    // Serverseitige Pflichtfeld-Pruefung analog zum Anlegen
+    if ([firstname, lastname, email, username, role].some(v => !v || !String(v).trim()) || username.trim().length > 4) {
+      req.flash('error', 'Please fill in all required fields (username max. 4 characters).');
+      return res.redirect('/users/' + userId + '/edit');
+    }
+    // Department ist optional: leer -> NULL (Spalte ist nullable)
+    const finalDepartment = (department === 'other' ? departmentOther : department) || null;
     await User.update(userId, { firstname, lastname, email: email.trim().toLowerCase(), username: username.toUpperCase(), department: finalDepartment, role });
     req.flash('success', 'User updated successfully.');
     res.redirect('/users');

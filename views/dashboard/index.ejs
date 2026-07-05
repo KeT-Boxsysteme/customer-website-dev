@@ -9,10 +9,16 @@
     <!-- Hero -->
     <div class="dash-hero">
       <div class="dash-hero__inner">
-        <p class="dash-hero__eyebrow" id="dashGreetingLabel">Welcome back</p>
+        <p class="dash-hero__eyebrow" id="dashGreetingLabel">
+          <svg width="6" height="6" viewBox="0 0 8 8" fill="currentColor" style="opacity:0.6"><circle cx="4" cy="4" r="4"/></svg>
+          Welcome back
+        </p>
         <h1 class="dash-hero__name">
-          Hello, <span><%= user.firstname %> <%= user.lastname %></span>
+          Welcome to <span class="dash-hero__brand">Glovebox-Monitoring by KeT</span>
         </h1>
+        <p class="dash-hero__greeting">
+          Hello, <span><%= user.firstname %> <%= user.lastname %></span>
+        </p>
         <div class="dash-hero__meta">
           <span class="dash-hero__badge dash-badge--<%= user.role %>">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -41,7 +47,9 @@
         </div>
         <div class="dash-card__cta" style="color: #2563eb">
           Open Monitoring
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span class="dash-card__cta-arrow">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
         </div>
       </a>
 
@@ -59,7 +67,9 @@
         </div>
         <div class="dash-card__cta" style="color: #059669">
           View Diagrams
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span class="dash-card__cta-arrow">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
         </div>
       </a>
 
@@ -78,7 +88,9 @@
         </div>
         <div class="dash-card__cta" style="color: #7c3aed">
           Manage Boxes
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span class="dash-card__cta-arrow">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
         </div>
       </a>
       <% } %>
@@ -99,7 +111,9 @@
         </div>
         <div class="dash-card__cta" style="color: #dc2626">
           Manage Users
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          <span class="dash-card__cta-arrow">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </span>
         </div>
       </a>
       <% } %>

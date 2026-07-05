@@ -1,3 +1,6 @@
+WICHTIG: Die App wird nicht mehr benötigt, das wird jetzt per Nutzerrechte geklärt. Quasi bekommt ein Nutzer mit dem Recht "Box-User" die selbe Ansicht wie für die App beschrieben nach dem Login nur auf der Website. Sprich das wird ein reines Website-Projekt. Die App Ideen wird in die Website gegossen.
+
+
 Glovebox-Monitoring by KeT
 
 1. Zielbestimmung

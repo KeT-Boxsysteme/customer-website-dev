@@ -38,7 +38,8 @@ async function create(data) {
     .input('h2oSensorCalibrated',     sql.NVarChar(4),   data.h2oSensorCalibrated || null)
     .input('lastCleaned',             sql.Date,          data.lastCleaned || null)
     .input('hasFridge',               sql.Bit,           data.hasFridge ? 1 : 0)
-    .input('fridgeTemp',              sql.Int,           data.fridgeTemp || null)
+    // 0 Grad C ist ein gueltiger Wert -> nicht per || verschlucken
+    .input('fridgeTemp',              sql.Int,           data.fridgeTemp === 0 ? 0 : (data.fridgeTemp || null))
     .input('hasOilPump',              sql.Bit,           data.hasOilPump ? 1 : 0)
     .input('lastOilChange',           sql.Date,          data.lastOilChange || null)
     .input('glovePorts',              sql.Int,           data.glovePorts)
@@ -67,22 +68,59 @@ async function create(data) {
               @lastCleaned, @hasFridge, @fridgeTemp,
               @hasOilPump, @lastOilChange, @glovePorts,
               @usageType, @buildYear, @additionalNotes, 1,
-              GETDATE(), GETDATE(), GETDATE(), GETDATE(), GETDATE()
+              COALESCE(@lastCleaned, GETDATE()), GETDATE(), GETDATE(), GETDATE(), GETDATE()
             )`);
+            // last_h2o_cleaning startet beim vom Kunden angegebenen "Last Cleaned"-Datum,
+            // damit der 2000h-Reinigungszyklus (services/alerts.js) korrekt weiterlaeuft.
   return result.recordset[0].id;
 }
 
 async function update(id, companyId, data) {
   const pool = await getPool();
+  // Persistiert ALLE Box-Eigenschaften aus dem Formular (spiegelt create())
   await pool.request()
-    .input('id',           sql.Int,          id)
-    .input('companyId',    sql.Int,          companyId)
-    .input('manufacturer', sql.NVarChar(50),  data.manufacturer)
-    .input('boxType',      sql.NVarChar(100), data.boxType)
-    .input('boxAlias',     sql.NVarChar(100), data.boxAlias)
-    .input('additionalNotes', sql.NVarChar(sql.MAX), data.additionalNotes || null)
-    .query(`UPDATE boxes SET manufacturer=@manufacturer, box_type=@boxType,
-            box_alias=@boxAlias, additional_notes=@additionalNotes
+    .input('id',                      sql.Int,           id)
+    .input('companyId',               sql.Int,           companyId)
+    .input('manufacturer',            sql.NVarChar(50),  data.manufacturer)
+    .input('projectNumber',           sql.NVarChar(50),  data.projectNumber)
+    .input('boxType',                 sql.NVarChar(100), data.boxType)
+    .input('boxAlias',                sql.NVarChar(100), data.boxAlias)
+    .input('hasDualFilter',           sql.Bit,           data.hasDualFilter ? 1 : 0)
+    .input('hasSolventFilter',        sql.Bit,           data.hasSolventFilter ? 1 : 0)
+    .input('solventFilterType',       sql.NVarChar(20),  data.solventFilterType || null)
+    .input('charcoalCycleMonths',     sql.Int,           data.charcoalCycleMonths || null)
+    .input('molecularSieveCycleMonths', sql.Int,         data.molecularSieveCycleMonths || null)
+    .input('hasSolventSensor',        sql.Bit,           data.hasSolventSensor ? 1 : 0)
+    .input('solventSensorCalibrated', sql.NVarChar(4),   data.solventSensorCalibrated || null)
+    .input('hasO2Sensor',             sql.Bit,           data.hasO2Sensor ? 1 : 0)
+    .input('o2SensorCalibrated',      sql.NVarChar(4),   data.o2SensorCalibrated || null)
+    .input('hasH2oSensor',            sql.Bit,           data.hasH2oSensor ? 1 : 0)
+    .input('h2oSensorCalibrated',     sql.NVarChar(4),   data.h2oSensorCalibrated || null)
+    .input('lastCleaned',             sql.Date,          data.lastCleaned || null)
+    .input('hasFridge',               sql.Bit,           data.hasFridge ? 1 : 0)
+    // 0 Grad C ist ein gueltiger Wert -> nicht per || verschlucken
+    .input('fridgeTemp',              sql.Int,           data.fridgeTemp === 0 ? 0 : (data.fridgeTemp || null))
+    .input('hasOilPump',              sql.Bit,           data.hasOilPump ? 1 : 0)
+    .input('lastOilChange',           sql.Date,          data.lastOilChange || null)
+    .input('glovePorts',              sql.Int,           data.glovePorts)
+    .input('usageType',               sql.NVarChar(20),  data.usageType)
+    .input('buildYear',               sql.Int,           data.buildYear)
+    .input('additionalNotes',         sql.NVarChar(sql.MAX), data.additionalNotes || null)
+    .query(`UPDATE boxes SET
+              manufacturer=@manufacturer, project_number=@projectNumber,
+              box_type=@boxType, box_alias=@boxAlias,
+              has_dual_filter=@hasDualFilter, has_solvent_filter=@hasSolventFilter,
+              solvent_filter_type=@solventFilterType,
+              charcoal_cycle_months=@charcoalCycleMonths,
+              molecular_sieve_cycle_months=@molecularSieveCycleMonths,
+              has_solvent_sensor=@hasSolventSensor,
+              solvent_sensor_calibrated=@solventSensorCalibrated,
+              has_o2_sensor=@hasO2Sensor, o2_sensor_calibrated=@o2SensorCalibrated,
+              has_h2o_sensor=@hasH2oSensor, h2o_sensor_calibrated=@h2oSensorCalibrated,
+              last_cleaned=@lastCleaned, has_fridge=@hasFridge, fridge_temp=@fridgeTemp,
+              has_oil_pump=@hasOilPump, last_oil_change=@lastOilChange,
+              glove_ports=@glovePorts, usage_type=@usageType, build_year=@buildYear,
+              additional_notes=@additionalNotes
             WHERE id=@id AND company_id=@companyId`);
 }
 

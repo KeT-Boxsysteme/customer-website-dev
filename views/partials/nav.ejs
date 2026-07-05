@@ -6,6 +6,9 @@
   </div>
 
   <ul class="sidebar-nav">
+    <li class="nav-item <%= currentPage === 'dashboard' ? 'active' : '' %>">
+      <a href="/dashboard">Dashboard</a>
+    </li>
     <% if (u && u.role === 'admin') { %>
     <li class="nav-item <%= currentPage === 'users' ? 'active' : '' %>">
       <a href="/users">User Management</a>

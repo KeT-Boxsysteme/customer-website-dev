@@ -65,7 +65,7 @@
     </div>
   </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/js/vendor/chart.umd.min.js"></script>
   <script>
     const labels = <%- chartLabels %>;
     const o2Data = <%- o2Data %>;
@@ -89,6 +89,16 @@
       data: h2oData,
       borderColor: '#2e7d32',
       backgroundColor: 'rgba(46,125,50,0.1)',
+      tension: 0.3,
+      pointRadius: 3
+    });
+    <% } %>
+    <% if (box.has_fridge) { %>
+    datasets.push({
+      label: 'Fridge (°C)',
+      data: fridgeData,
+      borderColor: '#f59e0b',
+      backgroundColor: 'rgba(245,158,11,0.1)',
       tension: 0.3,
       pointRadius: 3
     });
