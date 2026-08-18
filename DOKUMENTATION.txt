@@ -1,7 +1,7 @@
 ================================================================================
   GLOVEBOX-MONITORING BY KeT – TECHNISCHE DOKUMENTATION
 ================================================================================
-  Letzte Aktualisierung: 2026-08-18 (Druckmessung in bar, optional pro Box)
+  Letzte Aktualisierung: 2026-08-18 (LMF-Tauscherinnerung, Druckmessung in bar)
   Stack: Node.js + Express, EJS-Templates, MSSQL (Azure), Nodemailer, Jest
   Einstiegspunkt: server.js | Port: 3000 (Standard)
 ================================================================================
@@ -889,3 +889,50 @@
     Feld im Request (Box ohne diesen Sensor -> Input existiert im Formular gar
     nicht), wurde vorher parseFloat(undefined) = NaN an mssql übergeben und die
     Decimal-Validierung schlug fehl. Jetzt sauber NULL.
+
+
+════════════════════════════════════════════════════════════════════════════════
+  ÄNDERUNG 2026-08-18 – LMF-TAUSCHERINNERUNG
+════════════════════════════════════════════════════════════════════════════════
+
+  Hat eine Box einen Lösungsmittelfilter (LMF), muss beim Anlegen zusätzlich
+  gewählt werden, wann an den Tausch erinnert werden soll: viertel-, halb- oder
+  jährlich. Ist das Intervall erreicht, springt die Ampel auf Gelb und im
+  Wartungsfenster steht eine Meldung, die wie alle anderen mit "Done"
+  bestätigt werden muss. Ein Eingabefeld im Monitoring gibt es dafür NICHT.
+
+  NEU:
+  - boxes.lmf_replacement_months (INT) – 3, 6 oder 12. Auswahl im Boxformular
+    als Radiogruppe "Replacement Reminder (LMF)": Quarterly / Half-yearly /
+    Yearly. Nur sichtbar und Pflicht, wenn "Solvent Filter" aktiv ist.
+    Serverseitig gegen die Whitelist [3, 6, 12] geprüft (LMF_REPLACEMENT_MONTHS
+    in routes/boxes.js) – ein anderer Wert wird abgelehnt.
+  - boxes.last_lmf_replacement (DATETIME2, Default GETDATE()) – die Uhr für
+    diese Erinnerung. "Done" setzt sie über resolve/last_lmf_replacement neu.
+  - services/alerts.js: neue Meldung key='lmf_replace', gelb, action
+    'resolve-date'. Der Meldungstext richtet sich nach dem Filtertyp:
+      Aktivkohle      -> "LMF: replace the activated carbon"
+      Molekularsieb   -> "LMF: regenerate the molecular sieve"
+  - routes/monitoring.js: 'last_lmf_replacement' in der Whitelist erlaubter
+    Resolve-Felder.
+  - tests/: 8 neue Tests (Intervalllogik, Wortlaut je Filtertyp, Validierung
+    der Auswahl, Resolve-Whitelist) → jetzt 129 Tests in 7 Suiten.
+
+  WICHTIG – Verhältnis zu den bestehenden Zyklusfeldern:
+  Die freien Monatsfelder "Carbon Replacement Cycle" und "Sieve Regeneration
+  Cycle" bleiben unverändert bestehen und erzeugen weiterhin ihre eigenen
+  Meldungen (charcoal_replace / sieve_regenerate). Die LMF-Erinnerung läuft
+  bewusst PARALLEL dazu – so vom Auftraggeber entschieden. Es können also zwei
+  Meldungen gleichzeitig offen sein.
+
+  MIGRATION:
+  Beide Spalten stehen idempotent in database/schema.sql (COL_LENGTH-Prüfung)
+  und wurden am 2026-08-18 per "npm run setup" gegen die Dev-DB gefahren.
+  Bestandsboxen haben lmf_replacement_months = NULL und lösen daher keine
+  Meldung aus, bis sie einmal bearbeitet und gespeichert wurden.
+
+  GEÄNDERT:
+  - scripts/setup-db.js: connectionTimeout 45s / requestTimeout 60s. Mit dem
+    mssql-Default von 15s schlug "npm run setup" fehl, sobald die Azure-SQL-
+    Serverless-DB pausiert war (config/database.js hatte das längst, das
+    Setup-Skript nicht).

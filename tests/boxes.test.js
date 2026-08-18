@@ -37,6 +37,7 @@ const fullPayload = {
   solventFilterType: 'charcoal',
   charcoalCycleMonths: '6',
   molecularSieveCycleMonths: '',
+  lmfReplacementMonths: '6',
   hasSolventSensor: '1',
   solventSensorCalibrated: '2023',
   hasO2Sensor: '1',
@@ -66,6 +67,7 @@ const expectedMappedData = {
   solventFilterType: 'charcoal',
   charcoalCycleMonths: 6,
   molecularSieveCycleMonths: null,
+  lmfReplacementMonths: 6,
   hasSolventSensor: true,
   solventSensorCalibrated: '2023',
   hasO2Sensor: true,
@@ -147,6 +149,25 @@ describe('POST /boxes validation', () => {
     });
     expect(res.status).toBe(400);
     expect(res.text).toContain('Sieve regeneration cycle (months) is required.');
+    expect(Box.create).not.toHaveBeenCalled();
+  });
+
+  test('solvent filter on but no replacement reminder chosen -> 400 re-render with error', async () => {
+    const res = await agent.post('/boxes').type('form').send({
+      ...fullPayload,
+      lmfReplacementMonths: ''
+    });
+    expect(res.status).toBe(400);
+    expect(res.text).toContain('Please choose when to be reminded to replace the solvent filter.');
+    expect(Box.create).not.toHaveBeenCalled();
+  });
+
+  test('replacement reminder outside quarterly/half-yearly/yearly is rejected', async () => {
+    const res = await agent.post('/boxes').type('form').send({
+      ...fullPayload,
+      lmfReplacementMonths: '5'
+    });
+    expect(res.status).toBe(400);
     expect(Box.create).not.toHaveBeenCalled();
   });
 

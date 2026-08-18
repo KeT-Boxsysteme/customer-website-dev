@@ -43,6 +43,7 @@ IF OBJECT_ID('dbo.boxes', 'U') IS NULL
     solvent_filter_type          NVARCHAR(20),
     charcoal_cycle_months        INT,
     molecular_sieve_cycle_months INT,
+    lmf_replacement_months       INT,
     has_solvent_sensor           BIT            NOT NULL DEFAULT 0,
     solvent_sensor_calibrated    NVARCHAR(4),
     has_o2_sensor                BIT            NOT NULL DEFAULT 0,
@@ -65,6 +66,7 @@ IF OBJECT_ID('dbo.boxes', 'U') IS NULL
     last_sieve_done              DATETIME2      NOT NULL DEFAULT GETDATE(),
     last_solvent_test            DATETIME2      NOT NULL DEFAULT GETDATE(),
     last_oil_done                DATETIME2      NOT NULL DEFAULT GETDATE(),
+    last_lmf_replacement         DATETIME2      NOT NULL DEFAULT GETDATE(),
     operating_hours              INT            NOT NULL DEFAULT 0,
     created_at                   DATETIME2      NOT NULL DEFAULT GETDATE(),
     CONSTRAINT uq_box_project_number UNIQUE (company_id, project_number)
@@ -111,3 +113,10 @@ IF COL_LENGTH('dbo.boxes', 'has_pressure_sensor') IS NULL
 
 IF COL_LENGTH('dbo.measurements', 'pressure_value') IS NULL
   ALTER TABLE measurements ADD pressure_value DECIMAL(10,3) NULL;
+
+-- Nachtraegliche Spalten: LMF-Tauscherinnerung (Quartal/Halbjahr/Jahr)
+IF COL_LENGTH('dbo.boxes', 'lmf_replacement_months') IS NULL
+  ALTER TABLE boxes ADD lmf_replacement_months INT NULL;
+
+IF COL_LENGTH('dbo.boxes', 'last_lmf_replacement') IS NULL
+  ALTER TABLE boxes ADD last_lmf_replacement DATETIME2 NOT NULL DEFAULT GETDATE();

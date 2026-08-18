@@ -58,6 +58,7 @@ function makeBox(overrides = {}) {
     solvent_filter_type: 'charcoal',
     charcoal_cycle_months: 6,
     molecular_sieve_cycle_months: null,
+    lmf_replacement_months: null,
     has_solvent_sensor: 0,
     solvent_sensor_calibrated: null,
     has_o2_sensor: 1,
@@ -250,7 +251,8 @@ describe('POST /monitoring/:id/resolve/:field', () => {
     expect(Box.updateMaintenanceDate).toHaveBeenCalledWith(BOX_ID, 'last_h2o_cleaning');
   });
 
-  test.each(['last_charcoal_done', 'last_sieve_done', 'last_solvent_test', 'last_oil_done'])(
+  test.each(['last_charcoal_done', 'last_sieve_done', 'last_solvent_test', 'last_oil_done',
+             'last_lmf_replacement'])(
     'whitelisted field %s is accepted', async (field) => {
       const res = await agent.post(`/monitoring/${BOX_ID}/resolve/${field}`);
       expect(res.status).toBe(200);

@@ -150,6 +150,32 @@
                          value="<%= editBox ? editBox.molecular_sieve_cycle_months : '' %>">
                 </div>
               </div>
+              <!-- LMF-Tausch: feste Erinnerungsintervalle statt Freitext.
+                   Die Meldung im Monitoring haengt am gewaehlten Filtertyp
+                   (Aktivkohle tauschen / Molekularsieb regenerieren). -->
+              <div class="form-group form-group--choice">
+                <label>Replacement Reminder <span class="hint">(LMF)</span></label>
+                <div class="choice-row">
+                  <label class="choice-card">
+                    <input type="radio" name="lmfReplacementMonths" value="3"
+                      <%= editBox && String(editBox.lmf_replacement_months) === '3' ? 'checked' : '' %>>
+                    <span class="choice-card__dot"></span>
+                    <span class="choice-card__text">Quarterly</span>
+                  </label>
+                  <label class="choice-card">
+                    <input type="radio" name="lmfReplacementMonths" value="6"
+                      <%= editBox && String(editBox.lmf_replacement_months) === '6' ? 'checked' : '' %>>
+                    <span class="choice-card__dot"></span>
+                    <span class="choice-card__text">Half-yearly</span>
+                  </label>
+                  <label class="choice-card">
+                    <input type="radio" name="lmfReplacementMonths" value="12"
+                      <%= editBox && String(editBox.lmf_replacement_months) === '12' ? 'checked' : '' %>>
+                    <span class="choice-card__dot"></span>
+                    <span class="choice-card__text">Yearly</span>
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
         </section>

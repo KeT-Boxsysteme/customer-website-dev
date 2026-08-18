@@ -12,6 +12,10 @@ const config = {
   database: process.env.DB_DATABASE,
   user:     process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
+  // Azure SQL Serverless braucht beim Auto-Resume 30-60s (wie config/database.js);
+  // mit dem 15s-Default schlug "npm run setup" nach jeder DB-Pause fehl.
+  connectionTimeout: 45000,
+  requestTimeout:    60000,
   options:  { encrypt: true, trustServerCertificate: false }
 };
 

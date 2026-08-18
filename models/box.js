@@ -30,6 +30,7 @@ async function create(data) {
     .input('solventFilterType',       sql.NVarChar(20),  data.solventFilterType || null)
     .input('charcoalCycleMonths',     sql.Int,           data.charcoalCycleMonths || null)
     .input('molecularSieveCycleMonths', sql.Int,         data.molecularSieveCycleMonths || null)
+    .input('lmfReplacementMonths',    sql.Int,           data.lmfReplacementMonths || null)
     .input('hasSolventSensor',        sql.Bit,           data.hasSolventSensor ? 1 : 0)
     .input('solventSensorCalibrated', sql.NVarChar(4),   data.solventSensorCalibrated || null)
     .input('hasO2Sensor',             sql.Bit,           data.hasO2Sensor ? 1 : 0)
@@ -51,6 +52,7 @@ async function create(data) {
               company_id, manufacturer, project_number, box_type, box_alias,
               has_dual_filter, has_solvent_filter, solvent_filter_type,
               charcoal_cycle_months, molecular_sieve_cycle_months,
+              lmf_replacement_months,
               has_solvent_sensor, solvent_sensor_calibrated,
               has_o2_sensor, o2_sensor_calibrated,
               has_h2o_sensor, h2o_sensor_calibrated,
@@ -59,11 +61,12 @@ async function create(data) {
               has_oil_pump, last_oil_change, glove_ports,
               usage_type, build_year, additional_notes, is_active,
               last_h2o_cleaning, last_charcoal_done, last_sieve_done,
-              last_solvent_test, last_oil_done
+              last_solvent_test, last_oil_done, last_lmf_replacement
             ) OUTPUT INSERTED.id VALUES (
               @companyId, @manufacturer, @projectNumber, @boxType, @boxAlias,
               @hasDualFilter, @hasSolventFilter, @solventFilterType,
               @charcoalCycleMonths, @molecularSieveCycleMonths,
+              @lmfReplacementMonths,
               @hasSolventSensor, @solventSensorCalibrated,
               @hasO2Sensor, @o2SensorCalibrated,
               @hasH2oSensor, @h2oSensorCalibrated,
@@ -71,7 +74,7 @@ async function create(data) {
               @lastCleaned, @hasFridge, @fridgeTemp,
               @hasOilPump, @lastOilChange, @glovePorts,
               @usageType, @buildYear, @additionalNotes, 1,
-              COALESCE(@lastCleaned, GETDATE()), GETDATE(), GETDATE(), GETDATE(), GETDATE()
+              COALESCE(@lastCleaned, GETDATE()), GETDATE(), GETDATE(), GETDATE(), GETDATE(), GETDATE()
             )`);
             // last_h2o_cleaning startet beim vom Kunden angegebenen "Last Cleaned"-Datum,
             // damit der 2000h-Reinigungszyklus (services/alerts.js) korrekt weiterlaeuft.
@@ -93,6 +96,7 @@ async function update(id, companyId, data) {
     .input('solventFilterType',       sql.NVarChar(20),  data.solventFilterType || null)
     .input('charcoalCycleMonths',     sql.Int,           data.charcoalCycleMonths || null)
     .input('molecularSieveCycleMonths', sql.Int,         data.molecularSieveCycleMonths || null)
+    .input('lmfReplacementMonths',    sql.Int,           data.lmfReplacementMonths || null)
     .input('hasSolventSensor',        sql.Bit,           data.hasSolventSensor ? 1 : 0)
     .input('solventSensorCalibrated', sql.NVarChar(4),   data.solventSensorCalibrated || null)
     .input('hasO2Sensor',             sql.Bit,           data.hasO2Sensor ? 1 : 0)
@@ -117,6 +121,7 @@ async function update(id, companyId, data) {
               solvent_filter_type=@solventFilterType,
               charcoal_cycle_months=@charcoalCycleMonths,
               molecular_sieve_cycle_months=@molecularSieveCycleMonths,
+              lmf_replacement_months=@lmfReplacementMonths,
               has_solvent_sensor=@hasSolventSensor,
               solvent_sensor_calibrated=@solventSensorCalibrated,
               has_o2_sensor=@hasO2Sensor, o2_sensor_calibrated=@o2SensorCalibrated,

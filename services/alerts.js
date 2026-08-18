@@ -14,6 +14,10 @@
  *    we fall back to box.created_at — the box cannot have needed maintenance
  *    before it existed in the system. If created_at is also missing we use
  *    `now`, which starts the cycle fresh instead of firing a spurious alert.
+ *  - LMF replacement: the customer picks the reminder interval when creating the
+ *    box (quarterly / half-yearly / yearly). It runs alongside the charcoal and
+ *    sieve cycles and is confirmed the same way; the message wording follows the
+ *    chosen filter type (replace the carbon vs. regenerate the sieve).
  *  - solvent_filter_type is matched with includes() so that legacy rows that
  *    stored both values (old checkbox UI) keep working; the form now uses
  *    exclusive radio buttons ("charcoal" or "molecular_sieve").
@@ -155,6 +159,24 @@ function buildAlerts({ box, latestMeasurement, acks = [], now = new Date() }) {
         message: 'Regenerate the molecular sieve',
         action: 'resolve-date',
         field: 'last_sieve_done'
+      });
+    }
+  }
+
+  // --- Solvent filter (LMF) replacement: customer picks quarterly/half-yearly/yearly
+  //     at box creation. Runs alongside the charcoal/sieve cycles above and is
+  //     confirmed the same way ("Done" resets last_lmf_replacement). ---
+  if (box.has_solvent_filter && box.lmf_replacement_months) {
+    const since = baselineDate(box.last_lmf_replacement, box, now);
+    if (monthsSince(since, now) >= box.lmf_replacement_months) {
+      yellow.push({
+        key: 'lmf_replace',
+        severity: 'yellow',
+        message: String(box.solvent_filter_type || '').includes('molecular_sieve')
+          ? 'LMF: regenerate the molecular sieve'
+          : 'LMF: replace the activated carbon',
+        action: 'resolve-date',
+        field: 'last_lmf_replacement'
       });
     }
   }

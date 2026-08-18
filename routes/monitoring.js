@@ -100,7 +100,8 @@ router.post('/:id/resolve/:field', async (req, res) => {
     const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
     if (!box) return res.status(404).json({ error: 'Box not found' });
 
-    const allowedFields = ['last_h2o_cleaning', 'last_charcoal_done', 'last_sieve_done', 'last_solvent_test', 'last_oil_done'];
+    const allowedFields = ['last_h2o_cleaning', 'last_charcoal_done', 'last_sieve_done',
+                           'last_solvent_test', 'last_oil_done', 'last_lmf_replacement'];
     if (!allowedFields.includes(req.params.field)) {
       return res.status(400).json({ error: 'Invalid field' });
     }

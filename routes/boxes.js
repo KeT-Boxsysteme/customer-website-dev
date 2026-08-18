@@ -5,6 +5,9 @@ const { authorize, ROLES } = require('../middleware/authorize');
 
 const canManageBoxes = authorize(ROLES.ADMIN, ROLES.CONTROLLER);
 
+// Erlaubte LMF-Tauschintervalle: viertel-, halb- und jaehrlich
+const LMF_REPLACEMENT_MONTHS = [3, 6, 12];
+
 // -------------------------------------------------------------------------
 // Formular-Parsing + serverseitige Validierung (Create UND Update).
 // Bedingte Felder sind nur Pflicht, wenn der zugehoerige Schalter aktiv ist;
@@ -47,6 +50,7 @@ function parseBoxForm(body) {
   // Loesungsmittelfilter: Typ ist Pflicht; nur das zum Typ passende
   // Zyklus-Feld ist Pflicht, das andere wird optional mitgespeichert.
   let solventFilterType = null, charcoalCycleMonths = null, molecularSieveCycleMonths = null;
+  let lmfReplacementMonths = null;
   if (hasSolventFilter) {
     if (body.solventFilterType === 'charcoal' || body.solventFilterType === 'molecular_sieve') {
       solventFilterType = body.solventFilterType;
@@ -62,6 +66,13 @@ function parseBoxForm(body) {
     }
     if (solventFilterType === 'molecular_sieve' && molecularSieveCycleMonths === null) {
       errors.push('Sieve regeneration cycle (months) is required.');
+    }
+    // LMF-Tauscherinnerung: feste Auswahl statt Freitext (Quartal/Halbjahr/Jahr)
+    const lmf = parseInt(body.lmfReplacementMonths, 10);
+    if (LMF_REPLACEMENT_MONTHS.includes(lmf)) {
+      lmfReplacementMonths = lmf;
+    } else {
+      errors.push('Please choose when to be reminded to replace the solvent filter.');
     }
   }
 
@@ -112,6 +123,7 @@ function parseBoxForm(body) {
     solventFilterType,
     charcoalCycleMonths,
     molecularSieveCycleMonths,
+    lmfReplacementMonths,
     hasSolventSensor,
     solventSensorCalibrated,
     hasO2Sensor,
@@ -153,6 +165,7 @@ function toFormValues(body, id) {
     solvent_filter_type: body.solventFilterType || null,
     charcoal_cycle_months: body.charcoalCycleMonths || '',
     molecular_sieve_cycle_months: body.molecularSieveCycleMonths || '',
+    lmf_replacement_months: body.lmfReplacementMonths || '',
     has_solvent_sensor: body.hasSolventSensor === '1',
     solvent_sensor_calibrated: body.solventSensorCalibrated || '',
     has_o2_sensor: body.hasO2Sensor === '1',

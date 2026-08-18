@@ -28,6 +28,7 @@ function makeBox(overrides = {}) {
     solvent_filter_type: null,
     charcoal_cycle_months: null,
     molecular_sieve_cycle_months: null,
+    lmf_replacement_months: null,
     has_solvent_sensor: false,
     has_oil_pump: false,
     last_h2o_cleaning: hoursAgo(1),
@@ -35,6 +36,7 @@ function makeBox(overrides = {}) {
     last_sieve_done: hoursAgo(1),
     last_solvent_test: hoursAgo(1),
     last_oil_done: hoursAgo(1),
+    last_lmf_replacement: hoursAgo(1),
     ...overrides
   };
 }
@@ -344,5 +346,101 @@ describe('buildAlerts – sorting and overall status', () => {
     });
     expect(overallStatus(after)).toBe('yellow');
     expect(after.map(a => a.key)).toEqual(['oil_change']);
+  });
+});
+
+describe('buildAlerts – LMF replacement reminder (quarterly / half-yearly / yearly)', () => {
+  const lmfBox = (overrides = {}) => makeBox({
+    has_solvent_filter: true,
+    solvent_filter_type: 'charcoal',
+    lmf_replacement_months: 3,
+    ...overrides
+  });
+
+  test('no reminder before the chosen interval has elapsed', () => {
+    const alerts = buildAlerts({
+      box: lmfBox({ last_lmf_replacement: monthsAgo(2) }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    expect(alerts.find(a => a.key === 'lmf_replace')).toBeUndefined();
+  });
+
+  test('carbon filter due -> yellow "replace" reminder resetting last_lmf_replacement', () => {
+    const alerts = buildAlerts({
+      box: lmfBox({ last_lmf_replacement: monthsAgo(3) }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    const lmf = alerts.find(a => a.key === 'lmf_replace');
+    expect(lmf).toEqual({
+      key: 'lmf_replace',
+      severity: 'yellow',
+      message: 'LMF: replace the activated carbon',
+      action: 'resolve-date',
+      field: 'last_lmf_replacement'
+    });
+    expect(overallStatus(alerts)).toBe('yellow');
+  });
+
+  test('molecular sieve gets the regenerate wording instead', () => {
+    const alerts = buildAlerts({
+      box: lmfBox({
+        solvent_filter_type: 'molecular_sieve',
+        lmf_replacement_months: 12,
+        last_lmf_replacement: monthsAgo(12)
+      }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    expect(alerts.find(a => a.key === 'lmf_replace').message)
+      .toBe('LMF: regenerate the molecular sieve');
+  });
+
+  test('half-yearly interval is honoured', () => {
+    const notYet = buildAlerts({
+      box: lmfBox({ lmf_replacement_months: 6, last_lmf_replacement: monthsAgo(5) }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    expect(notYet.find(a => a.key === 'lmf_replace')).toBeUndefined();
+
+    const due = buildAlerts({
+      box: lmfBox({ lmf_replacement_months: 6, last_lmf_replacement: monthsAgo(6) }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    expect(due.find(a => a.key === 'lmf_replace')).toBeDefined();
+  });
+
+  test('no reminder without a solvent filter or without a chosen interval', () => {
+    const noFilter = buildAlerts({
+      box: makeBox({ lmf_replacement_months: 3, last_lmf_replacement: monthsAgo(12) }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    expect(noFilter.find(a => a.key === 'lmf_replace')).toBeUndefined();
+
+    const noInterval = buildAlerts({
+      box: lmfBox({ lmf_replacement_months: null, last_lmf_replacement: monthsAgo(12) }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    expect(noInterval.find(a => a.key === 'lmf_replace')).toBeUndefined();
+  });
+
+  test('runs alongside the charcoal cycle - both reminders can be active', () => {
+    const alerts = buildAlerts({
+      box: lmfBox({
+        charcoal_cycle_months: 6,
+        last_charcoal_done: monthsAgo(7),
+        last_lmf_replacement: monthsAgo(7)
+      }),
+      latestMeasurement: null,
+      now: NOW
+    });
+    expect(alerts.map(a => a.key)).toEqual(
+      expect.arrayContaining(['charcoal_replace', 'lmf_replace'])
+    );
   });
 });
