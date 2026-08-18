@@ -36,6 +36,7 @@ async function create(data) {
     .input('o2SensorCalibrated',      sql.NVarChar(4),   data.o2SensorCalibrated || null)
     .input('hasH2oSensor',            sql.Bit,           data.hasH2oSensor ? 1 : 0)
     .input('h2oSensorCalibrated',     sql.NVarChar(4),   data.h2oSensorCalibrated || null)
+    .input('hasPressureSensor',       sql.Bit,           data.hasPressureSensor ? 1 : 0)
     .input('lastCleaned',             sql.Date,          data.lastCleaned || null)
     .input('hasFridge',               sql.Bit,           data.hasFridge ? 1 : 0)
     // 0 Grad C ist ein gueltiger Wert -> nicht per || verschlucken
@@ -53,6 +54,7 @@ async function create(data) {
               has_solvent_sensor, solvent_sensor_calibrated,
               has_o2_sensor, o2_sensor_calibrated,
               has_h2o_sensor, h2o_sensor_calibrated,
+              has_pressure_sensor,
               last_cleaned, has_fridge, fridge_temp,
               has_oil_pump, last_oil_change, glove_ports,
               usage_type, build_year, additional_notes, is_active,
@@ -65,6 +67,7 @@ async function create(data) {
               @hasSolventSensor, @solventSensorCalibrated,
               @hasO2Sensor, @o2SensorCalibrated,
               @hasH2oSensor, @h2oSensorCalibrated,
+              @hasPressureSensor,
               @lastCleaned, @hasFridge, @fridgeTemp,
               @hasOilPump, @lastOilChange, @glovePorts,
               @usageType, @buildYear, @additionalNotes, 1,
@@ -96,6 +99,7 @@ async function update(id, companyId, data) {
     .input('o2SensorCalibrated',      sql.NVarChar(4),   data.o2SensorCalibrated || null)
     .input('hasH2oSensor',            sql.Bit,           data.hasH2oSensor ? 1 : 0)
     .input('h2oSensorCalibrated',     sql.NVarChar(4),   data.h2oSensorCalibrated || null)
+    .input('hasPressureSensor',       sql.Bit,           data.hasPressureSensor ? 1 : 0)
     .input('lastCleaned',             sql.Date,          data.lastCleaned || null)
     .input('hasFridge',               sql.Bit,           data.hasFridge ? 1 : 0)
     // 0 Grad C ist ein gueltiger Wert -> nicht per || verschlucken
@@ -117,6 +121,7 @@ async function update(id, companyId, data) {
               solvent_sensor_calibrated=@solventSensorCalibrated,
               has_o2_sensor=@hasO2Sensor, o2_sensor_calibrated=@o2SensorCalibrated,
               has_h2o_sensor=@hasH2oSensor, h2o_sensor_calibrated=@h2oSensorCalibrated,
+              has_pressure_sensor=@hasPressureSensor,
               last_cleaned=@lastCleaned, has_fridge=@hasFridge, fridge_temp=@fridgeTemp,
               has_oil_pump=@hasOilPump, last_oil_change=@lastOilChange,
               glove_ports=@glovePorts, usage_type=@usageType, build_year=@buildYear,

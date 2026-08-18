@@ -43,6 +43,7 @@ const fullPayload = {
   o2SensorCalibrated: '2024',
   hasH2oSensor: '1',
   h2oSensorCalibrated: '2025',
+  hasPressureSensor: '1',
   lastCleaned: '2026-01-15',
   hasFridge: '1',
   fridgeTemp: '4',
@@ -71,6 +72,7 @@ const expectedMappedData = {
   o2SensorCalibrated: '2024',
   hasH2oSensor: true,
   h2oSensorCalibrated: '2025',
+  hasPressureSensor: true,
   lastCleaned: '2026-01-15',
   hasFridge: true,
   fridgeTemp: 4,
@@ -236,6 +238,15 @@ describe('POST /boxes happy path', () => {
       hasOilPump: false,
       lastOilChange: null
     }));
+  });
+
+  test('pressure option off -> hasPressureSensor false', async () => {
+    const res = await agent.post('/boxes').type('form').send({
+      ...fullPayload,
+      hasPressureSensor: ''
+    });
+    expect(res.status).toBe(302);
+    expect(Box.create).toHaveBeenCalledWith(expect.objectContaining({ hasPressureSensor: false }));
   });
 });
 

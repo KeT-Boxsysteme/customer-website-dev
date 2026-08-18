@@ -64,6 +64,7 @@ function makeBox(overrides = {}) {
     o2_sensor_calibrated: '2024',
     has_h2o_sensor: 1,
     h2o_sensor_calibrated: '2025',
+    has_pressure_sensor: 0,
     last_cleaned: null,
     has_fridge: 1,
     fridge_temp: 4,
@@ -149,6 +150,16 @@ describe('GET /monitoring/:id', () => {
     expect(res.text).toContain('Attention required');
   });
 
+
+  test('pressure input only rendered when the box has a pressure sensor', async () => {
+    const without = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(without.text).not.toContain('name="pressureValue"');
+
+    Box.findById.mockResolvedValue(makeBox({ has_pressure_sensor: 1 }));
+    const with_ = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(with_.text).toContain('name="pressureValue"');
+    expect(with_.text).toContain('Pressure');
+  });
   test('unknown box -> 404', async () => {
     Box.findById.mockResolvedValue(null);
     const res = await agent.get('/monitoring/999');
@@ -188,6 +199,20 @@ describe('POST /monitoring/:id/submit', () => {
       h2oValue: '0.4',
       fridgeTemp: '4'
     });
+  });
+
+  test('pressure value is forwarded when the box has a pressure sensor', async () => {
+    Box.findById.mockResolvedValue(makeBox({ has_pressure_sensor: 1 }));
+    mockAbbrevRows = [{ id: 99, email: 'lab@example.com' }];
+    const res = await agent
+      .post(`/monitoring/${BOX_ID}/submit`)
+      .type('form')
+      .send({ username: 'LAB', o2Value: '1.5', h2oValue: '0.4', fridgeTemp: '4', pressureValue: '0.005' });
+
+    expect(res.status).toBe(302);
+    expect(Measurement.create).toHaveBeenCalledWith(
+      expect.objectContaining({ pressureValue: '0.005' })
+    );
   });
 
   test('unknown abbreviation -> falls back to the session user id', async () => {

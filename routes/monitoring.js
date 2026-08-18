@@ -73,7 +73,7 @@ router.post('/:id/submit', async (req, res) => {
     const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
     if (!box) return res.status(404).json({ error: 'Box not found' });
 
-    const { username, o2Value, h2oValue, fridgeTemp } = req.body;
+    const { username, o2Value, h2oValue, fridgeTemp, pressureValue } = req.body;
     if (!username) {
       req.flash('error', 'Please select your user abbreviation before submitting.');
       return res.redirect(`/monitoring/${req.params.id}`);
@@ -83,7 +83,7 @@ router.post('/:id/submit', async (req, res) => {
     const abbrevUser = await findUserByAbbreviation(username, req.session.user.companyId);
     const userId = abbrevUser?.id || req.session.user.id;
 
-    await Measurement.create({ boxId: box.id, userId, o2Value, h2oValue, fridgeTemp });
+    await Measurement.create({ boxId: box.id, userId, o2Value, h2oValue, fridgeTemp, pressureValue });
 
     req.flash('success', 'Values submitted successfully.');
     res.redirect(`/monitoring/${req.params.id}`);

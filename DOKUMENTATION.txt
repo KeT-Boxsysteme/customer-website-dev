@@ -1,7 +1,7 @@
 ================================================================================
   GLOVEBOX-MONITORING BY KeT – TECHNISCHE DOKUMENTATION
 ================================================================================
-  Letzte Aktualisierung: 2026-07-05 (Konzept-Vollabgleich, Ampel-Engine, Tests)
+  Letzte Aktualisierung: 2026-08-18 (Druckmessung in bar, optional pro Box)
   Stack: Node.js + Express, EJS-Templates, MSSQL (Azure), Nodemailer, Jest
   Einstiegspunkt: server.js | Port: 3000 (Standard)
 ================================================================================
@@ -198,7 +198,7 @@
   Tabelle: boxes
   Speichert alle technischen Konfigurationsdaten einer Glovebox.
   Wichtige Felder: manufacturer, project_number (eindeutiger Schlüssel),
-  box_type, box_alias, has_o2_sensor, has_h2o_sensor, has_fridge,
+  box_type, box_alias, has_o2_sensor, has_h2o_sensor, has_pressure_sensor, has_fridge,
   has_oil_pump, has_solvent_filter, last_h2o_cleaning, last_charcoal_done,
   last_sieve_done, last_solvent_test, last_oil_done (Wartungsdaten), is_active
 
@@ -238,10 +238,11 @@
 
   Tabelle: measurements
   Speichert jeden Messwert-Eintrag mit Zeitstempel und User-Kürzel.
-  Felder: box_id, user_id, o2_value, h2o_value, fridge_temp, measured_at
+  Felder: box_id, user_id, o2_value, h2o_value, fridge_temp, pressure_value, measured_at
 
   ┌────────────────────────────┬────────────────────────────────────────────────┐
-  │ create({...})              │ Speichert neuen Messwert (O2, H2O, Kühlschrank)│
+  │ create({...})              │ Speichert neuen Messwert (O2, H2O, Kühl-      │
+  │                            │ schrank, Druck in bar)                         │
   ├────────────────────────────┼────────────────────────────────────────────────┤
   │ findByBox(boxId, months)   │ Gibt alle Messwerte einer Box der letzten X    │
   │                            │ Monate zurück (Standard: 6), inkl. Username    │
@@ -576,7 +577,7 @@
   │ detail.ejs       │ Monitoring-Detailseite einer Box:                       │
   │                  │  - Bild der Box (eingefärbt nach Ampelstatus)           │
   │                  │  - Kürzel-Dropdown (alle User des Unternehmens)         │
-  │                  │  - Eingabefelder: O2, H2O, Kühlschrank (nur wenn       │
+  │                  │  - Eingabefelder: O2, H2O, Kühlschrank, Druck (nur     │
   │                  │    in der Boxconfig aktiviert)                          │
   │                  │  - Rotes Ausrufezeichen → öffnet Wartungshinweis-Fenster│
   │                  │  - Freitextfeld für Service-Nachricht an KeT            │
@@ -747,7 +748,7 @@
   companies       → Unternehmen (name, type, adresse)
   users           → User (company_id → companies, role, password_hash)
   boxes           → Gloveboxen (company_id → companies, alle Konfigfelder)
-  measurements    → Messwerte (box_id → boxes, user_id → users, o2, h2o, fridge_temp)
+  measurements    → Messwerte (box_id → boxes, user_id → users, o2, h2o, fridge_temp, pressure_value)
 
   Alle Löschvorgänge sind Soft-Deletes (is_active = 0).
   Echte Daten werden nie gelöscht.
@@ -857,3 +858,34 @@
   - Reset-Tokens weiterhin im RAM (siehe Hinweis oben).
 
 ================================================================================
+
+
+════════════════════════════════════════════════════════════════════════════════
+  ÄNDERUNG 2026-08-18 – DRUCKMESSUNG (bar)
+════════════════════════════════════════════════════════════════════════════════
+
+  Eine Box kann jetzt optional eine Druckmessung besitzen. Ist sie aktiviert,
+  wird im Monitoring zusätzlich ein Druckwert in bar abgefragt und gespeichert.
+
+  NEU:
+  - boxes.has_pressure_sensor (BIT, Default 0) – Schalter im Boxformular
+    (Abschnitt "Sensors", Checkbox "Pressure (bar)"). Kein Zusatzfeld nötig,
+    daher kein bedingter Unterabschnitt.
+  - measurements.pressure_value (DECIMAL(10,3), NULL) – der gemessene Druck.
+    3 Nachkommastellen, weil Gloveboxdrücke im Milli-bar-Bereich liegen.
+  - database/schema.sql: beide Spalten stehen in den CREATE-TABLE-Blöcken UND
+    als idempotente ALTER-TABLE-Blöcke (COL_LENGTH-Prüfung) für Bestands-DBs.
+    Am 2026-08-18 per "npm run setup" gegen die Dev-DB ausgeführt.
+  - views/monitoring/detail.ejs: Eingabefeld "Pressure (bar)" (step 0.001),
+    nur wenn box.has_pressure_sensor gesetzt ist – wie O2/H2O/Kühlschrank.
+  - views/diagrams/detail.ejs: zusätzliche Tabellenspalte "Pressure (bar)".
+    BEWUSST NICHT im Chart: die Y-Achse ist laut Konzept 0–20 für ppm-Werte,
+    ein bar-Wert (~0,005) wäre dort nicht ablesbar.
+  - tests/: 3 neue Tests (Boxformular-Mapping, bedingtes Rendern des Feldes,
+    Weitergabe des Wertes beim Submit) → jetzt 120 Tests in 7 Suiten.
+
+  GEÄNDERT:
+  - models/measurement.js: alle Zahlenwerte laufen jetzt durch num(). Fehlt ein
+    Feld im Request (Box ohne diesen Sensor -> Input existiert im Formular gar
+    nicht), wurde vorher parseFloat(undefined) = NaN an mssql übergeben und die
+    Decimal-Validierung schlug fehl. Jetzt sauber NULL.

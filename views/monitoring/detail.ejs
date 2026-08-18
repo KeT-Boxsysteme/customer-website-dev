@@ -73,6 +73,14 @@
                    placeholder="0.0">
           </div>
           <% } %>
+
+          <% if (box.has_pressure_sensor) { %>
+          <div class="form-group sensor-field">
+            <label for="pressureValue">Pressure <span class="hint">(bar)</span></label>
+            <input type="number" id="pressureValue" name="pressureValue" step="0.001"
+                   placeholder="0.000">
+          </div>
+          <% } %>
         </div>
       </div>
 

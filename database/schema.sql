@@ -49,6 +49,7 @@ IF OBJECT_ID('dbo.boxes', 'U') IS NULL
     o2_sensor_calibrated         NVARCHAR(4),
     has_h2o_sensor               BIT            NOT NULL DEFAULT 0,
     h2o_sensor_calibrated        NVARCHAR(4),
+    has_pressure_sensor          BIT            NOT NULL DEFAULT 0,
     last_cleaned                 DATE,
     has_fridge                   BIT            NOT NULL DEFAULT 0,
     fridge_temp                  INT,
@@ -76,7 +77,8 @@ IF OBJECT_ID('dbo.measurements', 'U') IS NULL
     user_id      INT             REFERENCES users(id),
     o2_value     DECIMAL(10,2),
     h2o_value    DECIMAL(10,2),
-    fridge_temp  DECIMAL(10,2),
+    fridge_temp     DECIMAL(10,2),
+    pressure_value  DECIMAL(10,3),
     measured_at  DATETIME2       NOT NULL DEFAULT GETDATE()
   );
 
@@ -102,3 +104,10 @@ IF OBJECT_ID('dbo.alert_acks', 'U') IS NULL
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_alert_acks_box_key' AND object_id = OBJECT_ID('dbo.alert_acks'))
   CREATE INDEX idx_alert_acks_box_key ON alert_acks (box_id, alert_key);
+
+-- Nachtraegliche Spalten (Bestandsdatenbanken): Druckmessung in bar
+IF COL_LENGTH('dbo.boxes', 'has_pressure_sensor') IS NULL
+  ALTER TABLE boxes ADD has_pressure_sensor BIT NOT NULL DEFAULT 0;
+
+IF COL_LENGTH('dbo.measurements', 'pressure_value') IS NULL
+  ALTER TABLE measurements ADD pressure_value DECIMAL(10,3) NULL;

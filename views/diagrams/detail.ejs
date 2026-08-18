@@ -45,6 +45,7 @@
             <% if (box.has_o2_sensor) { %><th>O₂ (ppm)</th><% } %>
             <% if (box.has_h2o_sensor) { %><th>H₂O (ppm)</th><% } %>
             <% if (box.has_fridge) { %><th>Fridge (°C)</th><% } %>
+            <% if (box.has_pressure_sensor) { %><th>Pressure (bar)</th><% } %>
           </tr>
         </thead>
         <tbody>
@@ -58,6 +59,7 @@
             <% if (box.has_o2_sensor) { %><td><%= m.o2_value !== null ? m.o2_value : '-' %></td><% } %>
             <% if (box.has_h2o_sensor) { %><td><%= m.h2o_value !== null ? m.h2o_value : '-' %></td><% } %>
             <% if (box.has_fridge) { %><td><%= m.fridge_temp !== null ? m.fridge_temp : '-' %></td><% } %>
+            <% if (box.has_pressure_sensor) { %><td><%= m.pressure_value !== null ? m.pressure_value : '-' %></td><% } %>
           </tr>
           <% }) %>
           <% } %>

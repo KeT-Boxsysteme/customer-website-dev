@@ -1,16 +1,21 @@
 const { getPool, sql } = require('../config/database');
 
-async function create({ boxId, userId, o2Value, h2oValue, fridgeTemp }) {
+// Fehlende Felder (Box ohne diesen Sensor -> Input existiert im Formular nicht) sind null,
+// nicht NaN: parseFloat(undefined) wuerde die Decimal-Validierung von mssql sprengen.
+const num = v => (v === undefined || v === null || v === '' || isNaN(parseFloat(v))) ? null : parseFloat(v);
+
+async function create({ boxId, userId, o2Value, h2oValue, fridgeTemp, pressureValue }) {
   const pool = await getPool();
   const result = await pool.request()
     .input('boxId',     sql.Int,     boxId)
     .input('userId',    sql.Int,     userId)
-    .input('o2Value',   sql.Decimal(10, 2), o2Value !== '' ? parseFloat(o2Value) : null)
-    .input('h2oValue',  sql.Decimal(10, 2), h2oValue !== '' ? parseFloat(h2oValue) : null)
-    .input('fridgeTemp', sql.Decimal(10, 2), fridgeTemp !== '' ? parseFloat(fridgeTemp) : null)
-    .query(`INSERT INTO measurements (box_id, user_id, o2_value, h2o_value, fridge_temp, measured_at)
+    .input('o2Value',   sql.Decimal(10, 2), num(o2Value))
+    .input('h2oValue',  sql.Decimal(10, 2), num(h2oValue))
+    .input('fridgeTemp',    sql.Decimal(10, 2), num(fridgeTemp))
+    .input('pressureValue', sql.Decimal(10, 3), num(pressureValue))
+    .query(`INSERT INTO measurements (box_id, user_id, o2_value, h2o_value, fridge_temp, pressure_value, measured_at)
             OUTPUT INSERTED.id
-            VALUES (@boxId, @userId, @o2Value, @h2oValue, @fridgeTemp, GETDATE())`);
+            VALUES (@boxId, @userId, @o2Value, @h2oValue, @fridgeTemp, @pressureValue, GETDATE())`);
   return result.recordset[0].id;
 }
 

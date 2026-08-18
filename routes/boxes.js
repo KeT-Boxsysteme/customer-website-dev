@@ -13,13 +13,14 @@ const canManageBoxes = authorize(ROLES.ADMIN, ROLES.CONTROLLER);
 function parseBoxForm(body) {
   const errors = [];
 
-  const hasDualFilter    = body.filterSystem === 'dual';
-  const hasSolventFilter = body.hasSolventFilter === '1';
-  const hasSolventSensor = body.hasSolventSensor === '1';
-  const hasO2Sensor      = body.hasO2Sensor === '1';
-  const hasH2oSensor     = body.hasH2oSensor === '1';
-  const hasFridge        = body.hasFridge === '1';
-  const hasOilPump       = body.hasOilPump === '1';
+  const hasDualFilter     = body.filterSystem === 'dual';
+  const hasSolventFilter  = body.hasSolventFilter === '1';
+  const hasSolventSensor  = body.hasSolventSensor === '1';
+  const hasO2Sensor       = body.hasO2Sensor === '1';
+  const hasH2oSensor      = body.hasH2oSensor === '1';
+  const hasPressureSensor = body.hasPressureSensor === '1';
+  const hasFridge         = body.hasFridge === '1';
+  const hasOilPump        = body.hasOilPump === '1';
 
   // Pflichtfelder
   if (!body.manufacturer) errors.push('Manufacturer is required.');
@@ -117,6 +118,7 @@ function parseBoxForm(body) {
     o2SensorCalibrated,
     hasH2oSensor,
     h2oSensorCalibrated,
+    hasPressureSensor,
     lastCleaned,
     hasFridge,
     fridgeTemp,
@@ -157,6 +159,7 @@ function toFormValues(body, id) {
     o2_sensor_calibrated: body.o2SensorCalibrated || '',
     has_h2o_sensor: body.hasH2oSensor === '1',
     h2o_sensor_calibrated: body.h2oSensorCalibrated || '',
+    has_pressure_sensor: body.hasPressureSensor === '1',
     last_cleaned: toDate(body.lastCleaned),
     has_fridge: body.hasFridge === '1',
     fridge_temp: body.fridgeTemp || '',
