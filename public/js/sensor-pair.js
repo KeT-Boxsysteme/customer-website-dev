@@ -85,6 +85,10 @@
       const serial = box.querySelector('input[name="sensorSerial"]').value;
       const hub = window.SensorHub;
       if (!serial || !hub) { liveEl.textContent = ''; return; }
+      // Ohne getDevices findet der Browser den Fuehler nach dem Neuladen nicht wieder (E-26: KeT richtet
+      // das Tablet mit den Chrome-Schaltern ein) — sagen, statt endlos "connecting"
+      const s0 = hub.state(serial);
+      if (hub.supported === false && !(s0 && s0.connected)) { liveEl.textContent = 'Automatic reconnect is not set up in this browser: in Chrome enable chrome://flags/#enable-experimental-web-platform-features and #enable-web-bluetooth-new-permissions-backend, restart Chrome, then pair the sensor once.'; return; }
       if (hub.role && hub.role() === 'waiting') { liveEl.textContent = 'Live connection: held by another open tab of this app.'; return; }
       const s = hub.state(serial);
       if (s && s.connected) {
