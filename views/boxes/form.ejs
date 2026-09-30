@@ -278,8 +278,10 @@
                 <label>Temperature sensor <span class="hint">(Bluetooth)</span></label>
                 <input type="hidden" name="sensorSerial" value="<%= sensorSerial %>">
                 <p class="sensor-pair__status" data-sensor-status aria-live="polite">
-                  <%= sensorSerial ? 'Sensor ' + sensorSerial + ' connected.' : 'No sensor connected.' %>
+                  <%= sensorSerial ? 'Sensor ' + sensorSerial + ' assigned to this box.' : 'No sensor assigned.' %>
                 </p>
+                <!-- Echte Bluetooth-Verbindung IN DIESEM BROWSER (sensor-pair.js aus SensorHub) — "assigned" ist nur die Zuordnung -->
+                <p class="sensor-pair__live hint" data-sensor-live aria-live="polite"></p>
                 <% const storeMinutes = String(editBox && editBox.sensor_store_minutes ? editBox.sensor_store_minutes : 1); %>
                 <div class="sensor-pair__interval">
                   <label for="sensorStoreMinutes">Save a reading to the history every</label>

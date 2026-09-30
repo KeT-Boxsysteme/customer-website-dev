@@ -400,3 +400,13 @@ describe('phone/tablet width (Betreiber 01.10.)', () => {
     }
   });
 });
+
+describe('box form says "assigned", not "connected" (Betreiber 01.10.: text looked like a live connection)', () => {
+  test('assigned sensor + a separate live-status line for this browser', async () => {
+    Box.findById.mockResolvedValue({ id: 11, company_id: COMPANY_ID, box_alias: 'Lab', has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1 });
+    const res = await agent.get('/boxes/11/edit');
+    expect(res.text).toContain('Sensor 740B3B assigned to this box.');
+    expect(res.text).not.toContain('Sensor 740B3B connected.');
+    expect(res.text).toContain('data-sensor-live');
+  });
+});

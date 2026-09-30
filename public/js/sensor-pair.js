@@ -78,6 +78,25 @@
 
   document.querySelectorAll('[data-sensor-pair]').forEach(box => {
     const statusEl = box.querySelector('[data-sensor-status]');
+    // Live-Zustand der Bluetooth-Verbindung in diesem Browser (Fund 01.10.: "connected" war nur die Zuordnung)
+    const liveEl = box.querySelector('[data-sensor-live]');
+    const liveTimer = liveEl && setInterval(() => {
+      if (!document.body.contains(liveEl)) { clearInterval(liveTimer); return; }
+      const serial = box.querySelector('input[name="sensorSerial"]').value;
+      const hub = window.SensorHub;
+      if (!serial || !hub) { liveEl.textContent = ''; return; }
+      if (hub.role && hub.role() === 'waiting') { liveEl.textContent = 'Live connection: held by another open tab of this app.'; return; }
+      const s = hub.state(serial);
+      if (s && s.connected) {
+        const age = s.lastValueAt ? Math.round((Date.now() - s.lastValueAt) / 1000) : null;
+        liveEl.textContent = 'Live connection in this browser: connected' + (age !== null ? ' (last value ' + age + ' s ago).' : '.');
+      } else if (s) {
+        liveEl.textContent = 'Live connection in this browser: connecting (attempt ' + s.diag.attempts + ')' +
+          (s.diag.lastError ? ' – ' + s.diag.lastError : '') + '.';
+      } else {
+        liveEl.textContent = 'Live connection in this browser: not connected. Click "Change sensor" and select it again to connect.';
+      }
+    }, 2000);
     const connectBtn = box.querySelector('[data-sensor-connect]');
     const removeBtn = box.querySelector('[data-sensor-remove]');
     const input = box.querySelector('input[name="sensorSerial"]');
@@ -105,7 +124,7 @@
       input.value = '';
       connectBtn.textContent = connectBtn.dataset.labelEmpty;
       removeBtn.hidden = true;
-      status('No sensor connected. Save the box to apply.');
+      status('No sensor assigned. Save the box to apply.');
     });
   });
 })();
