@@ -20,6 +20,7 @@
     return {
       root, box,
       field: box && document.getElementById('fridgeTemp'),
+      reconnect: document.querySelector('[data-sensor-reconnect]'),
       serial: box && box.dataset.serial,
       statusEl: box && box.querySelector('[data-live-status]')
     };
@@ -88,6 +89,8 @@
       const v = await res.json();
       const now = el();   // waehrend der Abfrage kann die Seite gemorpht worden sein
       if (!now.root) return;
+      // Knopf nur zeigen, wenn keine Verbindung besteht und dieser Browser Bluetooth kann
+      if (now.reconnect) now.reconnect.hidden = !!(v.fresh && v.temp !== null) || !navigator.bluetooth || state.reconnecting;
       if (v.fresh && v.temp !== null) {
         if (now.field) now.field.value = Number(v.temp).toFixed(1);
         setLive(now, true);
@@ -102,6 +105,38 @@
       setLive(now, false);
       show(now, 'Live value not reachable', err.message);
     }
+  }
+
+  // Knopf "Reconnect sensor" (E-27): Geraeteauswahl des Browsers oeffnen (braucht einen Klick —
+  // genau der fehlt dem automatischen Weg) und die Verbindung an den Hintergrund-Verbinder uebergeben.
+  // Einmal fuer das Dokument binden (Morphing ersetzt den Knopf).
+  if (!window.__reconnectHooked) {
+    window.__reconnectHooked = true;
+    document.addEventListener('click', async ev => {
+      const btn = ev.target.closest && ev.target.closest('[data-sensor-reconnect]');
+      if (!btn) return;
+      const e = el();
+      const B = window.BlueDAN, hub = window.SensorHub;
+      if (!e.serial || !B || !hub || !navigator.bluetooth) return;
+      const st = window.__monitoringLive;
+      try {
+        if (st) st.reconnecting = true;
+        btn.hidden = true;
+        show(e, 'Select sensor ' + e.serial + ' in the list …', 'browser device selection');
+        const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'BD ' }], optionalServices: [B.SERVICE] });
+        if (B.serialFromName(device.name) !== e.serial) {
+          show(e, 'Wrong sensor selected (' + device.name + ')', 'this box uses sensor ' + e.serial);
+          return;
+        }
+        try { localStorage.setItem('bluedan-device:' + e.serial, device.id); } catch (x) { /* egal */ }
+        hub.takeOver(e.serial, device);
+        show(e, 'Connecting …', 'reconnecting to sensor ' + e.serial);
+      } catch (err) {
+        show(el(), err && err.name === 'NotFoundError' ? 'No sensor selected' : 'Reconnect failed', err && err.message);
+      } finally {
+        if (st) st.reconnecting = false;
+      }
+    });
   }
 
   // Nach jedem Morphen/Rendern sofort den Live-Wert eintragen (sonst steht bis zu 5 s der Platzhalter da)

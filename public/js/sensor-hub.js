@@ -191,6 +191,13 @@
 
   setInterval(() => conns.forEach(request), TICK_MS);
 
+  // Beim Verlassen der Seite (F5, Tab zu, Deploy-Neuladen) SAUBER trennen. Gemessen 01.10.: nach einem
+  // Neuladen hielt die Bluetooth-Hardware des PCs die alte Verbindung fest, der Fuehler blieb stumm,
+  // bis Bluetooth aus/an geschaltet wurde. Turbo-Seitenwechsel loesen pagehide nicht aus.
+  window.addEventListener('pagehide', () => {
+    conns.forEach(c => { try { if (c.device.gatt.connected) c.device.gatt.disconnect(); } catch (e) { /* egal */ } });
+  });
+
   // Zustandsmeldung an den Server (Messinstrument, 01.10.): alle 15 s, auch wenn keine Werte kommen —
   // sonst ist der Server genau im Fehlerfall blind. Nur Zaehler und Fehlertexte, keine Personendaten.
   let lastVerdict = 'none', devicesKnown = null, wantedSerials = [];

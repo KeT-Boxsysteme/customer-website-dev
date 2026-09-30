@@ -82,6 +82,9 @@
               <span class="live-sensor__dot" aria-hidden="true"></span>
               <span class="live-sensor__status" data-live-status aria-live="polite">Connecting …</span>
             </div>
+            <!-- Sicherheitsnetz (E-27): nur sichtbar, solange keine Verbindung besteht (live-sensor.js).
+                 Automatisches Wiederverbinden ist unter Windows gemessen unzuverlaessig (01.10.). -->
+            <button type="button" class="btn btn-sm btn-secondary live-sensor__reconnect" data-sensor-reconnect hidden>Reconnect sensor</button>
             <% } %>
           </div>
           <% } %>

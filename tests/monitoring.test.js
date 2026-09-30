@@ -657,3 +657,17 @@ describe('hub state reports reach /live even without values (01.10.)', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('reconnect button as safety net (Betreiber 01.10., E-27)', () => {
+  test('box with sensor -> hidden "Reconnect sensor" button (shown by the page only while not connected)', async () => {
+    Box.findById.mockResolvedValue(makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B' }));
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toMatch(/<button[^>]*data-sensor-reconnect[^>]*hidden/);
+    expect(page.text).toContain('Reconnect sensor');
+  });
+  test('box without sensor -> no button', async () => {
+    Box.findById.mockResolvedValue(makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: null }));
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).not.toContain('data-sensor-reconnect');
+  });
+});

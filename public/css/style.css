@@ -1320,6 +1320,8 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
 .live-sensor { display: flex; align-items: center; gap: 6px; margin-top: 2px; min-width: 0; }
 .live-sensor__dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: #94a3b8; }
 .live-sensor.is-live .live-sensor__dot { background: #43a047; box-shadow: 0 0 0 3px rgba(67,160,71,0.18); }
+.live-sensor__reconnect { margin-top: 6px; align-self: flex-start; }
+.live-sensor__reconnect[hidden] { display: none; }
 .live-sensor__status { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sensor-pair__interval { margin: 4px 0 10px; }
 
