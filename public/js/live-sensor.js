@@ -83,15 +83,25 @@
     reconnectTimer = setTimeout(tryReconnect, 10000);
   }
 
+  // Messwerte zur Diagnose, sichtbar im Status solange keine Verbindung steht
+  const diag = { attempts: 0, lastError: '', watch: 'not available', adverts: 0 };
+  const diagText = () => ' [attempts ' + diag.attempts + ', signals seen ' + diag.adverts +
+    ', listening: ' + diag.watch + (diag.lastError ? ', last error: ' + diag.lastError : '') + ']';
+
   let connecting = false;
   async function tryReconnect() {
     if (connecting || (device && device.gatt.connected)) return;
     connecting = true;
     clearTimeout(reconnectTimer);
-    try { await connectGatt(); }
-    catch (err) {
+    diag.attempts++;
+    try {
+      // Haengt der Verbindungsaufbau, gilt er nach 20 s als gescheitert (sonst bliebe alles stehen)
+      await Promise.race([connectGatt(), new Promise((_, rej) => setTimeout(() => rej(new Error('timeout after 20 s')), 20000))]);
+    } catch (err) {
+      diag.lastError = (err && (err.name + ': ' + err.message)) || String(err);
+      if (device && device.gatt.connected) device.gatt.disconnect();
       // Fuehler meldet sich nur selten — weiter versuchen statt aufgeben
-      status('Sensor ' + serial + ' – waiting for the sensor to respond …');
+      status('Sensor ' + serial + ' – waiting for the sensor to respond …' + diagText());
       reconnectTimer = setTimeout(tryReconnect, 10000);
     }
     finally { connecting = false; }
@@ -103,8 +113,11 @@
     device.addEventListener('gattserverdisconnected', onDisconnected);
     // Fuehler meldet sich nur selten: wenn der Browser es kann, genau beim naechsten Signal verbinden
     if (device.watchAdvertisements) {
-      device.addEventListener('advertisementreceived', () => { if (!device.gatt.connected) tryReconnect(); });
-      device.watchAdvertisements().catch(() => { /* nicht verfuegbar -> 10-s-Wiederholung reicht */ });
+      device.addEventListener('advertisementreceived', () => { diag.adverts++; if (!device.gatt.connected) tryReconnect(); });
+      diag.watch = 'starting';
+      device.watchAdvertisements()
+        .then(() => { diag.watch = 'on'; })
+        .catch(err => { diag.watch = 'failed (' + (err && err.message) + ')'; });
     }
   }
 
