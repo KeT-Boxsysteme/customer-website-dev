@@ -3,6 +3,7 @@ const router = express.Router();
 const Box = require('../models/box');
 const { authorize, ROLES } = require('../middleware/authorize');
 const { decideSensorUpdate, STORE_MINUTES } = require('../services/sensor');
+const boxState = require('../services/boxState');
 
 const canManageBoxes = authorize(ROLES.ADMIN, ROLES.CONTROLLER);
 
@@ -277,6 +278,7 @@ router.put('/:id', canManageBoxes, async (req, res) => {
     }
     await Box.update(boxId, req.session.user.companyId, data);
     await applySensor(req, boxId, sensor);
+    boxState.bump(boxId);   // offene Monitoring-Seiten dieser Box laden neu
     req.flash('success', 'Box updated successfully.');
     res.redirect('/boxes');
   } catch (err) {
@@ -290,6 +292,7 @@ router.put('/:id', canManageBoxes, async (req, res) => {
 router.delete('/:id', canManageBoxes, async (req, res) => {
   try {
     await Box.softDelete(parseInt(req.params.id), req.session.user.companyId);
+    boxState.bump(parseInt(req.params.id));
     req.flash('success', 'Box deleted.');
     res.redirect('/boxes');
   } catch (err) {

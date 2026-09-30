@@ -5,6 +5,7 @@ const Measurement = require('../models/measurement');
 const AlertAck = require('../models/alertAck');
 const SensorReading = require('../models/sensorReading');
 const liveReadings = require('../services/liveReadings');
+const boxState = require('../services/boxState');
 const { storeWindowSeconds, validateReading } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
@@ -53,11 +54,11 @@ router.get('/sensors', async (req, res) => {
   }
 });
 
-// Frischer Live-Wert des zugeordneten Fuehlers mit Abweichungs-Zeiten (E-21), sonst null
+// Frischer Live-Wert des zugeordneten Fuehlers (E-21), sonst null
 function liveFridge(box) {
   const v = liveReadings.get(box.id);
   if (!v || !v.fresh || !box.sensor_serial || v.serial !== box.sensor_serial) return null;
-  return { temp: v.temp, ...liveReadings.deviation(box.id) };
+  return { temp: v.temp };
 }
 
 // GET /monitoring/:id – Box-Detail mit Werteeingabe
@@ -76,6 +77,7 @@ router.get('/:id', async (req, res) => {
     // Ampel-Status aus der Alert-Engine (Wartungszyklen + ppm-Werte + Acks + Kuehlschrank live)
     const alerts = buildAlerts({ box, latestMeasurement, acks, fridgeLive: liveFridge(box) });
     const statusColor = overallStatus(alerts);
+    const stateKey = boxState.stateKey(box.id, alerts.find(a => a.key.startsWith('fridge')) || null);
 
     res.render('monitoring/detail', {
       title: `Monitoring: ${box.box_alias}`,
@@ -84,7 +86,8 @@ router.get('/:id', async (req, res) => {
       usernames,
       latestMeasurement,
       alerts,
-      statusColor
+      statusColor,
+      stateKey
     });
   } catch (err) {
     console.error(err);
@@ -110,6 +113,7 @@ router.post('/:id/submit', async (req, res) => {
     const userId = abbrevUser?.id || req.session.user.id;
 
     await Measurement.create({ boxId: box.id, userId, o2Value, h2oValue, fridgeTemp, pressureValue });
+    boxState.bump(box.id);   // offene Monitoring-Seiten (Tablet) laden neu
 
     req.flash('success', 'Values submitted successfully.');
     res.redirect(`/monitoring/${req.params.id}`);
@@ -133,6 +137,7 @@ router.post('/:id/resolve/:field', async (req, res) => {
     }
 
     await Box.updateMaintenanceDate(box.id, req.params.field);
+    boxState.bump(box.id);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -152,6 +157,7 @@ router.post('/:id/ack/:key', async (req, res) => {
     }
 
     await AlertAck.insertAck(box.id, req.params.key, req.session.user.id);
+    boxState.bump(box.id);
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -174,7 +180,7 @@ router.post('/:id/readings', async (req, res) => {
     if (temp === null) return res.status(400).json({ error: 'Implausible temperature.' });
 
     // Jeder Wert ist sofort live (Speicher); die DB wird nur im Takt der Box gefragt
-    liveReadings.record(box.id, serial, temp, Date.now(), box.fridge_temp);
+    liveReadings.record(box.id, serial, temp);
     const stored = liveReadings.dueForHistory(box.id, box.sensor_store_minutes)
       ? await SensorReading.createIfDue(box.id, serial, temp, storeWindowSeconds(box.sensor_store_minutes))
       : false;
@@ -191,14 +197,14 @@ router.get('/:id/live', async (req, res) => {
     const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
     if (!box) return res.status(404).json({ error: 'Box not found' });
     const v = liveReadings.get(box.id);
+    // Ampelstufe der Temperatur + Zustands-Schluessel: aendert er sich, laedt das Monitoring neu
+    const alert = fridgeAlert(box, liveFridge(box));
+    const state = { fridgeAlert: alert ? alert.severity : null, stateKey: boxState.stateKey(box.id, alert) };
     // Nur Werte des aktuell zugeordneten Fuehlers zaehlen
     if (!v || !box.sensor_serial || v.serial !== box.sensor_serial) {
-      return res.json({ serial: box.sensor_serial || null, temp: null, fresh: false });
+      return res.json({ serial: box.sensor_serial || null, temp: null, fresh: false, ...state });
     }
-    // Ampelstufe der Temperatur mitliefern: aendert sie sich, laedt das Monitoring neu (E-21)
-    const alert = fridgeAlert(box, liveFridge(box), new Date());
-    res.json({ serial: v.serial, temp: v.temp, ageSeconds: v.ageSeconds, fresh: v.fresh,
-               fridgeAlert: alert ? alert.severity : null });
+    res.json({ serial: v.serial, temp: v.temp, ageSeconds: v.ageSeconds, fresh: v.fresh, ...state });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not load the live value.' });

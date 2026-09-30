@@ -26,12 +26,12 @@
  *    for its key exists with acked_at >= the measurement's measured_at
  *    (i.e. the user pressed "Done" AFTER this value was recorded; a newer
  *    measurement re-raises the alert).
- *  - Fridge temperature (E-21, Betreiber 2026-09-30): live sensor value vs. the target
- *    temperature of the box (boxes.fridge_temp, E-18). >= 3 °C off -> yellow, >= 5 °C
- *    off -> red, in BOTH directions, but only once the deviation has lasted 10 minutes
- *    (a briefly opened door is no alarm). No "Done": the alert disappears on its own
- *    when the temperature is back in range. The caller passes the live value and since
- *    when it deviates (services/liveReadings.js); no live value -> no temperature alert.
+ *  - Fridge temperature (E-21, revised by the Betreiber 2026-09-30: LIVE, no waiting
+ *    time): live sensor value vs. the target temperature of the box (boxes.fridge_temp,
+ *    E-18). >= 3 °C off -> yellow, >= 5 °C off -> red, in BOTH directions, immediately.
+ *    A box with an assigned sensor but no fresh live value is yellow right away
+ *    ("sensor not delivering values") — never a false all-clear. No "Done": the alerts
+ *    disappear on their own. Boxes without a sensor (manual entry) get no fridge alert.
  *  - Sorting (Konzept line 118): red alerts are prioritized and always
  *    listed first; order is otherwise stable.
  */
@@ -46,7 +46,6 @@ const PPM_RED_THRESHOLD = 10;
 
 const FRIDGE_YELLOW_DELTA = 3;      // °C
 const FRIDGE_RED_DELTA = 5;         // °C
-const FRIDGE_HOLD_MINUTES = 10;
 
 /** Deviation class of a fridge temperature vs. its target: 'red' | 'yellow' | null. */
 function fridgeDeviationLevel(temp, target) {
@@ -57,15 +56,18 @@ function fridgeDeviationLevel(temp, target) {
   return null;
 }
 
-/** Fridge alert from the live value, or null. fridgeLive = { temp, yellowSince, redSince }. */
-function fridgeAlert(box, fridgeLive, now) {
-  if (!box.has_fridge || !fridgeLive) return null;
-  const level = fridgeDeviationLevel(fridgeLive.temp, box.fridge_temp);
-  if (!level) return null;
-  const heldFor = since => since !== null && since !== undefined &&
-    now.getTime() - new Date(since).getTime() >= FRIDGE_HOLD_MINUTES * 60 * 1000;
-  const severity = level === 'red' && heldFor(fridgeLive.redSince) ? 'red'
-    : heldFor(fridgeLive.yellowSince) ? 'yellow' : null;
+/**
+ * Fridge alert from the live value, or null. fridgeLive = { temp } (fresh value of the
+ * assigned sensor) or null when the sensor delivers nothing.
+ */
+function fridgeAlert(box, fridgeLive) {
+  if (!box.has_fridge) return null;
+  if (!fridgeLive) {
+    if (!box.sensor_serial) return null;
+    return { key: 'fridge_sensor_offline', severity: 'yellow',
+             message: 'Temperature sensor not delivering values', action: 'none' };
+  }
+  const severity = fridgeDeviationLevel(fridgeLive.temp, box.fridge_temp);
   if (!severity) return null;
   return {
     key: 'fridge_temp',
@@ -111,7 +113,7 @@ function isAcked(acks, key, measuredAt) {
  * @param {object} opts.box                 boxes row
  * @param {object|null} opts.latestMeasurement  latest measurements row or null
  * @param {Array}  [opts.acks]              rows {alert_key, acked_at} (latest ack per key)
- * @param {object|null} [opts.fridgeLive]  live fridge value { temp, yellowSince, redSince } or null
+ * @param {object|null} [opts.fridgeLive]  fresh live fridge value { temp } or null
  * @param {Date}   [opts.now]               injected clock for testability
  * @returns {Array<{key:string, severity:'yellow'|'red', message:string,
  *                  action:'resolve-date'|'ack'|'none', field?:string}>}
@@ -122,7 +124,7 @@ function buildAlerts({ box, latestMeasurement, acks = [], fridgeLive = null, now
   const yellow = [];
 
   // --- fridge temperature vs. target (E-21) ---
-  const fridge = fridgeAlert(box, fridgeLive, now);
+  const fridge = fridgeAlert(box, fridgeLive);
   if (fridge) (fridge.severity === 'red' ? red : yellow).push(fridge);
 
   // --- ppm alerts (red has priority; an acked alert is fully suppressed) ---

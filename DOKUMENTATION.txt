@@ -377,7 +377,11 @@
   │                                      │    rot   = O2/H2O >= 10 ppm           │
   │                                      │    Kühlschrank live vs. Soll (E-21):  │
   │                                      │    gelb >= 3 °C, rot >= 5 °C, beide   │
-  │                                      │    Richtungen, erst nach 10 Minuten   │
+  │                                      │    Richtungen, sofort; Fühler ohne    │
+  │                                      │    Werte (> 20 s) = gelb              │
+  │                                      │  - Seite lädt neu, wenn sich der      │
+  │                                      │    Zustand ändert (GET /:id/live,     │
+  │                                      │    stateKey, services/boxState.js)    │
   │                                      │  - Lädt alle Kürzel für Dropdown      │
   ├──────────────────────────────────────┼──────────────────────────────────────┤
   │ POST /monitoring/:id/submit          │ Speichert neue Messwerte (O2, H2O,    │
@@ -623,10 +627,13 @@
   │ O2 oder H2O >= 10 ppm             │ Rot        │ (aus Messwert)           │
   ├───────────────────────────────────┼────────────┼──────────────────────────┤
   │ Kühlschrank >= 3 °C neben Soll,   │ Gelb       │ fridge_temp (Soll) +     │
-  │ 10 Min. lang (zu warm oder kalt)  │            │ Live-Wert des Fühlers    │
+  │ sofort (zu warm oder zu kalt)     │            │ Live-Wert des Fühlers    │
   ├───────────────────────────────────┼────────────┼──────────────────────────┤
   │ Kühlschrank >= 5 °C neben Soll,   │ Rot        │ (kein Done: verschwindet │
-  │ 10 Min. lang                      │            │  wenn Temperatur passt)  │
+  │ sofort                            │            │  wenn Temperatur passt)  │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ Fühler zugeordnet, aber > 20 s    │ Gelb       │ sensor_serial + Live-    │
+  │ kein Wert                         │            │ Speicher (kein Done)     │
   └───────────────────────────────────┴────────────┴──────────────────────────┘
 
   ── views/diagrams/ ───────────────────────────────────────────────────────

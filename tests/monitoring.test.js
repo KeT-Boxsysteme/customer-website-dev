@@ -473,7 +473,8 @@ describe('server-held live values (connection lives in the background hub, not i
   test('no value yet -> live says nothing (no invented value)', async () => {
     const res = await agent.get(`/monitoring/${BOX_ID}/live`);
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ serial: '740B3B', temp: null, fresh: false });
+    expect(res.body).toMatchObject({ serial: '740B3B', temp: null, fresh: false });
+    expect(res.body).not.toHaveProperty('ageSeconds');
   });
 
   test('live of an unknown / other company box -> 404', async () => {
@@ -503,39 +504,84 @@ describe('logged-in pages carry the background sensor hub (kept alive by Turbo)'
   });
 });
 
-describe('fridge temperature vs. target in the traffic light (E-21)', () => {
+describe('fridge temperature in the traffic light, live (E-21 rev.)', () => {
   const live = require('../services/liveReadings');
-  const fridgeBox = () => makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1 });
+  const fridgeBox = (o = {}) => makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1, ...o });
   beforeEach(() => {
     live.reset();
     Box.findById.mockResolvedValue(fridgeBox());
     SensorReading.createIfDue.mockResolvedValue(true);
   });
 
-  test('sensor 20 °C at target -30 °C for 11 min -> box red, alert without Done button', async () => {
-    const now = Date.now();
-    for (let m = 11; m >= 0; m -= 0.25) live.record(BOX_ID, '740B3B', 20, now - m * 60000, -30);
+  test('sensor 20 °C at target -30 °C -> box red immediately, alert without Done button', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 20 });
     const page = await agent.get(`/monitoring/${BOX_ID}`);
     expect(page.text).toContain('status-red');
     expect(page.text).toContain('Fridge temperature 20.0 °C deviates from the target of -30 °C');
-    expect(page.text).toContain('data-fridge-alert="red"');
     expect(page.text).not.toContain('data-target="fridge_temp"');
-
     const liveRes = await agent.get(`/monitoring/${BOX_ID}/live`);
     expect(liveRes.body).toMatchObject({ temp: 20, fresh: true, fridgeAlert: 'red' });
   });
 
-  test('deviation only 2 min old -> still green', async () => {
-    const now = Date.now();
-    live.record(BOX_ID, '740B3B', 20, now - 2 * 60000, -30);
-    live.record(BOX_ID, '740B3B', 20, now, -30);
+  test('sensor assigned but no value -> yellow, never “All systems normal”', async () => {
     const page = await agent.get(`/monitoring/${BOX_ID}`);
-    expect(page.text).toContain('status-green');
-    expect((await agent.get(`/monitoring/${BOX_ID}/live`)).body.fridgeAlert).toBeNull();
+    expect(page.text).toContain('status-yellow');
+    expect(page.text).toContain('Temperature sensor not delivering values');
+    expect(page.text).not.toContain('All systems normal');
+    expect((await agent.get(`/monitoring/${BOX_ID}/live`)).body.fridgeAlert).toBe('yellow');
   });
 
-  test('values posted by the sensor are tracked against the box target', async () => {
+  test('value in range -> green', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -29.5 });
+    expect((await agent.get(`/monitoring/${BOX_ID}`)).text).toContain('status-green');
+  });
+});
+
+describe('the monitoring page stays live: state key changes on every relevant change', () => {
+  const live = require('../services/liveReadings');
+  const stateKey = async () => (await agent.get(`/monitoring/${BOX_ID}/live`)).body.stateKey;
+  beforeEach(() => {
+    live.reset();
+    Box.findById.mockResolvedValue(makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1 }));
+    SensorReading.createIfDue.mockResolvedValue(true);
+  });
+
+  test('page and live endpoint carry the same state key; it stays the same while nothing changes', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -30 });
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    const key = await stateKey();
+    expect(key).toEqual(expect.any(String));
+    expect(page.text).toContain(`data-state-key="${key}"`);
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -29.8 });
+    expect(await stateKey()).toBe(key);
+  });
+
+  test('temperature leaves the range -> key changes', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -30 });
+    const before = await stateKey();
     await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 20 });
-    expect(live.deviation(BOX_ID).redSince).not.toBeNull();
+    expect(await stateKey()).not.toBe(before);
+  });
+
+  test('values submitted on another device -> key changes', async () => {
+    const before = await stateKey();
+    mockAbbrevRows = [{ id: 99, email: 'lab@example.com' }];
+    await agent.post(`/monitoring/${BOX_ID}/submit`).type('form').send({ username: 'AB', o2Value: '12' });
+    expect(await stateKey()).not.toBe(before);
+  });
+
+  test('Done on an alert (ack / maintenance) -> key changes', async () => {
+    const a = await stateKey();
+    await agent.post(`/monitoring/${BOX_ID}/ack/o2_high`);
+    const b = await stateKey();
+    expect(b).not.toBe(a);
+    await agent.post(`/monitoring/${BOX_ID}/resolve/last_h2o_cleaning`);
+    expect(await stateKey()).not.toBe(b);
+  });
+
+  test('without username nothing is saved -> key unchanged', async () => {
+    const before = await stateKey();
+    await agent.post(`/monitoring/${BOX_ID}/submit`).type('form').send({ o2Value: '12' });
+    expect(await stateKey()).toBe(before);
   });
 });

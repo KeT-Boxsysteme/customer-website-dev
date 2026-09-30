@@ -1,20 +1,25 @@
-// Monitoring: Live-Temperatur der Box in "Fridge Temp". Die Bluetooth-Verbindung haelt der
-// Hintergrund-Verbinder (sensor-hub.js); diese Seite liest den Wert nur vom Server (GET /:id/live).
-// Dadurch steht der Wert sofort beim Oeffnen da — auf jedem Geraet, auch ohne Bluetooth.
+// Monitoring live halten (Betreiber 30.09.: die Seite laeuft dauerhaft am Tablet an der Box).
+// Fragt alle 5 s GET /monitoring/:id/live. Aendert sich der Zustands-Schluessel (Ampel, Werte von
+// einem anderen Geraet, Done, Box-Aenderung, faellige Wartung), laedt die Seite neu (services/boxState.js).
+// Mit Fuehler zusaetzlich: Live-Temperatur in "Fridge Temp". Die Bluetooth-Verbindung haelt der
+// Hintergrund-Verbinder (sensor-hub.js); diese Seite liest den Wert nur vom Server.
 // Feld gesperrt, solange ein frischer Live-Wert da ist (E-19); sonst leer und frei (fehlend statt falsch).
 // Kein Knopf (Betreiber 30.09.): gekoppelt wird nur im Box Management.
 (function () {
-  const box = document.querySelector('[data-live-sensor]');
-  const field = document.getElementById('fridgeTemp');
-  if (!box || !field) return;
-
-  const serial = box.dataset.serial;
-  const url = box.dataset.liveUrl;
-  const statusEl = box.querySelector('[data-live-status]');
+  const root = document.querySelector('[data-monitoring-live]');
+  if (!root) return;
+  const url = root.dataset.liveUrl;
   const POLL_MS = 5000;
+
+  // Fuehler-Anzeige (nur bei Boxen mit zugeordnetem Fuehler)
+  const box = document.querySelector('[data-live-sensor]');
+  const field = box && document.getElementById('fridgeTemp');
+  const serial = box && box.dataset.serial;
+  const statusEl = box && box.querySelector('[data-live-status]');
   let wasLive = false;
 
   function setLive(on) {
+    if (!box || !field) return;
     field.readOnly = on;
     field.classList.toggle('is-live', on);
     box.classList.toggle('is-live', on);
@@ -24,6 +29,7 @@
 
   // Kurze Infozeile unter dem Feld; die Erklaerung steht im Tooltip (title)
   function show(text, detail) {
+    if (!box) return;
     statusEl.textContent = text;
     box.title = 'Sensor ' + serial + (detail ? ' – ' + detail : '');
   }
@@ -39,8 +45,7 @@
     return ['Waiting for value …', 'connected, waiting for the first value'];
   }
 
-  // Aendert sich die Ampelstufe der Temperatur (E-21), die Seite neu laden, damit Ampel und
-  // Warnliste stimmen — aber nicht, solange jemand gerade Werte eintippt oder die Warnliste offen hat.
+  // Neu laden nur, wenn niemand gerade etwas eintippt oder die Warnliste offen hat.
   // Alle Formulare der Seite (auch die Nachricht an KeT); Auswahllisten gegen ihre Vorauswahl
   function initial(el) {
     if (el.tagName !== 'SELECT') return el.defaultValue;
@@ -54,8 +59,8 @@
     const modal = document.getElementById('alertModal');
     return typed || fields.includes(document.activeElement) || (modal && modal.style.display !== 'none');
   }
-  function checkAlert(level) {
-    if ((level || '') === (box.dataset.fridgeAlert || '') || busy()) return;
+  function checkState(key) {
+    if (!key || key === root.dataset.stateKey || busy()) return;
     clearInterval(timer);
     if (window.Turbo) window.Turbo.visit(location.href, { action: 'replace' });
     else location.reload();
@@ -63,21 +68,20 @@
 
   let timer = null;
   async function poll() {
-    if (!document.body.contains(box)) { clearInterval(timer); return; }   // Seite verlassen (Turbo)
+    if (!document.body.contains(root)) { clearInterval(timer); return; }   // Seite verlassen (Turbo)
     try {
       const res = await fetch(url, { headers: { Accept: 'application/json' } });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const v = await res.json();
       if (v.fresh && v.temp !== null) {
-        field.value = Number(v.temp).toFixed(1);
+        if (field) field.value = Number(v.temp).toFixed(1);
         setLive(true);
         show('Live · ' + (v.ageSeconds <= 1 ? 'just now' : v.ageSeconds + ' s ago'), 'live value');
-        checkAlert(v.fridgeAlert);
-      } else {
+      } else if (box) {
         setLive(false);
         show(...localHint());
-        checkAlert(null);
       }
+      checkState(v.stateKey);
     } catch (err) {
       setLive(false);
       show('Live value not reachable', err.message);

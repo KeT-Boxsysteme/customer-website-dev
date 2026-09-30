@@ -374,3 +374,12 @@ describe('box form sensor button label', () => {
     expect(page.text).toMatch(/data-sensor-connect[\s\S]*?>Connect temperature sensor<\/button>/);
   });
 });
+
+describe('box changes reach an open monitoring page (state key, E-21 rev.)', () => {
+  const boxState = require('../services/boxState');
+  test('PUT /boxes/:id bumps the version of that box', async () => {
+    const before = boxState.version(11);
+    await agent.put('/boxes/11').type('form').send(fullPayload);
+    expect(boxState.version(11)).not.toBe(before);
+  });
+});

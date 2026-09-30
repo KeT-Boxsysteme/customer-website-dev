@@ -445,55 +445,47 @@ describe('buildAlerts – LMF replacement reminder (quarterly / half-yearly / ye
   });
 });
 
-describe('buildAlerts – fridge temperature vs. target (E-21: 3 / 5 °C, both directions, after 10 min)', () => {
-  const minutesAgo = m => new Date(NOW.getTime() - m * 60 * 1000);
-  const fridgeBox = (o = {}) => makeBox({ has_fridge: true, fridge_temp: -30, ...o });
+describe('buildAlerts – fridge temperature vs. target (E-21 rev.: live, 3 / 5 °C, both directions, sensor gone = yellow)', () => {
+  const fridgeBox = (o = {}) => makeBox({ has_fridge: true, fridge_temp: -30, sensor_serial: '740B3B', ...o });
   const run = (fridgeLive, box = fridgeBox()) =>
-    buildAlerts({ box, latestMeasurement: null, fridgeLive, now: NOW }).filter(a => a.key === 'fridge_temp');
+    buildAlerts({ box, latestMeasurement: null, fridgeLive, now: NOW }).filter(a => a.key.startsWith('fridge'));
 
-  test('6 °C too warm for 10 min -> red, without a Done button', () => {
-    const alerts = run({ temp: -24, yellowSince: minutesAgo(10), redSince: minutesAgo(10) });
+  test('6 °C too warm -> red immediately, without a Done button', () => {
+    const alerts = run({ temp: -24 });
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toMatchObject({ key: 'fridge_temp', severity: 'red', action: 'none' });
     expect(alerts[0].message).toContain('-24.0 °C');
     expect(alerts[0].message).toContain('-30 °C');
   });
 
-  test('6 °C too cold for 10 min -> red as well (both directions)', () => {
-    expect(run({ temp: -36, yellowSince: minutesAgo(10), redSince: minutesAgo(10) })[0].severity).toBe('red');
+  test('6 °C too cold -> red as well (both directions)', () => {
+    expect(run({ temp: -36 })[0].severity).toBe('red');
   });
 
-  test('4 °C off for 10 min -> yellow', () => {
-    expect(run({ temp: -26, yellowSince: minutesAgo(10), redSince: null })[0].severity).toBe('yellow');
-  });
-
-  test('deviation shorter than 10 min -> no alert yet (door opened briefly)', () => {
-    expect(run({ temp: -24, yellowSince: minutesAgo(9), redSince: minutesAgo(9) })).toEqual([]);
-  });
-
-  test('yellow range for 12 min, red range only for 5 min -> yellow, not red yet', () => {
-    expect(run({ temp: -24, yellowSince: minutesAgo(12), redSince: minutesAgo(5) })[0].severity).toBe('yellow');
+  test('4 °C off -> yellow immediately', () => {
+    expect(run({ temp: -26 })[0].severity).toBe('yellow');
   });
 
   test('boundary: exactly 3 °C counts, 2.9 °C does not', () => {
-    expect(run({ temp: -27, yellowSince: minutesAgo(10), redSince: null })[0].severity).toBe('yellow');
-    expect(run({ temp: -27.1, yellowSince: minutesAgo(10), redSince: null })).toEqual([]);
+    expect(run({ temp: -27 })[0].severity).toBe('yellow');
+    expect(run({ temp: -27.1 })).toEqual([]);
   });
 
-  test('back in range -> alert disappears on its own, even with an old since time', () => {
-    expect(run({ temp: -29, yellowSince: minutesAgo(30), redSince: minutesAgo(30) })).toEqual([]);
+  test('sensor assigned but no live value -> yellow “not delivering values” (no false all-clear)', () => {
+    const alerts = run(null);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toMatchObject({ key: 'fridge_sensor_offline', severity: 'yellow', action: 'none' });
+    expect(alerts[0].message).toBe('Temperature sensor not delivering values');
   });
 
-  test('no live value, no fridge or no target -> no temperature alert (missing beats wrong)', () => {
-    const hot = { temp: 20, yellowSince: minutesAgo(60), redSince: minutesAgo(60) };
-    expect(run(null)).toEqual([]);
-    expect(run(hot, fridgeBox({ has_fridge: false }))).toEqual([]);
-    expect(run(hot, fridgeBox({ fridge_temp: null }))).toEqual([]);
+  test('fridge without a sensor (manual entry) -> no sensor alert; no fridge or no target -> nothing', () => {
+    expect(run(null, fridgeBox({ sensor_serial: null }))).toEqual([]);
+    expect(run({ temp: 20 }, fridgeBox({ has_fridge: false }))).toEqual([]);
+    expect(run({ temp: 20 }, fridgeBox({ fridge_temp: null }))).toEqual([]);
   });
 
   test('red temperature alert makes the whole box red', () => {
-    const alerts = buildAlerts({ box: fridgeBox(), latestMeasurement: null, now: NOW,
-      fridgeLive: { temp: 20, yellowSince: minutesAgo(15), redSince: minutesAgo(15) } });
+    const alerts = buildAlerts({ box: fridgeBox(), latestMeasurement: null, now: NOW, fridgeLive: { temp: 20 } });
     expect(overallStatus(alerts)).toBe('red');
   });
 });

@@ -48,32 +48,3 @@ describe('dueForHistory', () => {
   });
 });
 
-describe('deviation tracking vs. target (E-21)', () => {
-  const min = m => sec(m * 60);
-
-  test('since times start at the first deviating value and stay while it lasts', () => {
-    live.record(5, '740B3B', -26, min(0), -30);    // 4 °C off -> yellow range
-    live.record(5, '740B3B', -24, min(0.05), -30); // 6 °C off -> red range
-    live.record(5, '740B3B', -24, min(0.1), -30);
-    expect(live.deviation(5)).toEqual({ yellowSince: min(0), redSince: min(0.05) });
-  });
-
-  test('dropping from red to yellow range resets red only; back in range resets both', () => {
-    live.record(5, '740B3B', -24, min(0), -30);
-    live.record(5, '740B3B', -26, min(0.1), -30);
-    expect(live.deviation(5)).toEqual({ yellowSince: min(0), redSince: null });
-    live.record(5, '740B3B', -29, min(0.2), -30);
-    expect(live.deviation(5)).toEqual({ yellowSince: null, redSince: null });
-  });
-
-  test('a gap without values (sensor away) does not count as deviation time', () => {
-    live.record(5, '740B3B', -24, min(0), -30);
-    live.record(5, '740B3B', -24, min(15), -30);   // 15 min silence in between
-    expect(live.deviation(5)).toEqual({ yellowSince: min(15), redSince: min(15) });
-  });
-
-  test('no target -> nothing tracked', () => {
-    live.record(5, '740B3B', 20, min(0), null);
-    expect(live.deviation(5)).toEqual({ yellowSince: null, redSince: null });
-  });
-});
