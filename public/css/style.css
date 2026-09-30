@@ -1228,3 +1228,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .dash-card,
   .dash-info-strip { animation: none; }
 }
+
+/* Bluetooth-Temperaturfuehler (Box-Formular + Monitoring) */
+.sensor-pair__status { margin: 4px 0 8px; font-size: 13px; color: var(--color-text-muted); }
+.sensor-pair__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.sensor-pair--inline { margin-top: 8px; }

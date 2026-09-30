@@ -71,6 +71,22 @@
             <label for="fridgeTemp">Fridge Temp <span class="hint">(°C)</span></label>
             <input type="number" id="fridgeTemp" name="fridgeTemp" step="0.1"
                    placeholder="0.0">
+            <% if (canManageSensor) { %>
+            <div class="sensor-pair sensor-pair--inline" data-sensor-pair data-mode="api"
+                 data-url="/monitoring/<%= box.id %>/sensor">
+              <p class="sensor-pair__status" data-sensor-status aria-live="polite">
+                <%= box.sensor_serial ? 'Sensor ' + box.sensor_serial : 'No sensor' %>
+              </p>
+              <div class="sensor-pair__actions">
+                <button type="button" class="btn btn-sm btn-secondary" data-sensor-connect>Connect sensor</button>
+                <% if (box.sensor_serial) { %>
+                <button type="button" class="btn btn-sm" data-sensor-remove>Remove</button>
+                <% } %>
+              </div>
+            </div>
+            <% } else if (box.sensor_serial) { %>
+            <p class="sensor-pair__status">Sensor <%= box.sensor_serial %></p>
+            <% } %>
           </div>
           <% } %>
 
@@ -200,4 +216,8 @@
       document.getElementById('contactUsername').value = abbrev;
     });
   </script>
+  <% if (box.has_fridge && canManageSensor) { %>
+  <script src="/js/bluedan.js"></script>
+  <script src="/js/sensor-pair.js"></script>
+  <% } %>
 <%- include('../partials/footer') %>

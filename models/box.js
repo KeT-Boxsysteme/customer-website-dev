@@ -149,4 +149,26 @@ async function updateMaintenanceDate(id, field) {
     .query(`UPDATE boxes SET ${field} = GETDATE() WHERE id = @id`);
 }
 
-module.exports = { findAllByCompany, findById, create, update, softDelete, updateMaintenanceDate };
+// Einziger Schreiber von boxes.sensor_serial. Ein Fuehler haengt je Firma an hoechstens einer Box
+// (E-17): haengt er schon an einer anderen Box, wird er dort in DERSELBEN Transaktion geloest.
+// serial = null entfernt den Fuehler. Rueckgabe: Aliasse der aktiven Boxen, die ihn verloren haben.
+async function setSensor(id, companyId, serial) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('id',        sql.Int,        id)
+    .input('companyId', sql.Int,        companyId)
+    .input('serial',    sql.NVarChar(6), serial)
+    .query(`SET XACT_ABORT ON;
+            BEGIN TRANSACTION;
+            DECLARE @moved TABLE (box_alias NVARCHAR(100), is_active BIT);
+            IF @serial IS NOT NULL
+              UPDATE boxes SET sensor_serial = NULL
+              OUTPUT deleted.box_alias, deleted.is_active INTO @moved
+              WHERE company_id = @companyId AND sensor_serial = @serial AND id <> @id;
+            UPDATE boxes SET sensor_serial = @serial WHERE id = @id AND company_id = @companyId;
+            COMMIT TRANSACTION;
+            SELECT box_alias FROM @moved WHERE is_active = 1;`);
+  return { movedFrom: (result.recordset || []).map(r => r.box_alias) };
+}
+
+module.exports = { findAllByCompany, findById, create, update, softDelete, updateMaintenanceDate, setSensor };

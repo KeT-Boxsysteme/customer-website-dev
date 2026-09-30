@@ -14,6 +14,13 @@
   const TX_CHAR = 0x2222; // Write: Befehle an den Fuehler
   const CMD_ONLINE_VALUE = 0xB7;
 
+  // Einzige Regel fuer eine gueltige Seriennummer: genau 6 Hex-Zeichen, Grossschreibung
+  function normalizeSerial(value) {
+    if (typeof value !== 'string') return null;
+    const v = value.trim().toUpperCase();
+    return /^[0-9A-F]{6}$/.test(v) ? v : null;
+  }
+
   // Seriennummer = letzte 6 Hex-Zeichen des Geraetenamens ("BD PT100 740B3B" -> "740B3B")
   function serialFromName(name) {
     const m = /(?:^|\s)([0-9A-Fa-f]{6})$/.exec(String(name || '').trim());
@@ -49,5 +56,5 @@
     return m ? parseFloat(m[1]) : null;
   }
 
-  return { SERVICE, RX_CHAR, TX_CHAR, serialFromName, crc16, buildOnlineRequest, parseOnlineValue };
+  return { SERVICE, RX_CHAR, TX_CHAR, normalizeSerial, serialFromName, crc16, buildOnlineRequest, parseOnlineValue };
 });

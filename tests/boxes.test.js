@@ -299,3 +299,47 @@ describe('DELETE /boxes/:id', () => {
     expect(Box.softDelete).toHaveBeenCalledWith(11, COMPANY_ID);
   });
 });
+
+describe('temperature sensor on the box form (E-16/E-17)', () => {
+  beforeEach(() => {
+    Box.create.mockResolvedValue(55);
+    Box.setSensor.mockResolvedValue({ movedFrom: [] });
+  });
+
+  test('create with fridge + paired sensor -> sensor stored on the new box', async () => {
+    const res = await agent.post('/boxes').type('form').send({ ...fullPayload, sensorSerial: '740b3b' });
+    expect(res.status).toBe(302);
+    expect(Box.setSensor).toHaveBeenCalledWith(55, COMPANY_ID, '740B3B');
+  });
+
+  test('update with fridge + sensor -> stored for this box and company', async () => {
+    await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: '740B3B' });
+    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, '740B3B');
+  });
+
+  test('update with fridge switched off -> sensor removed', async () => {
+    await agent.put('/boxes/11').type('form').send({ ...fullPayload, hasFridge: '', fridgeTemp: '', sensorSerial: '740B3B' });
+    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, null);
+  });
+
+  test('update without the sensor field -> sensor left untouched', async () => {
+    await agent.put('/boxes/11').type('form').send(fullPayload);
+    expect(Box.update).toHaveBeenCalled();
+    expect(Box.setSensor).not.toHaveBeenCalled();
+  });
+
+  test('invalid serial -> 400, nothing saved', async () => {
+    const res = await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: 'nonsense' });
+    expect(res.status).toBe(400);
+    expect(Box.update).not.toHaveBeenCalled();
+    expect(Box.setSensor).not.toHaveBeenCalled();
+  });
+
+  test('sensor taken from another box -> user is told which box lost it', async () => {
+    Box.setSensor.mockResolvedValue({ movedFrom: ['Old Lab Box'] });
+    await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: '740B3B' });
+    Box.findAllByCompany.mockResolvedValue([]);
+    const page = await agent.get('/boxes');
+    expect(page.text).toContain('Old Lab Box');
+  });
+});

@@ -273,6 +273,18 @@
                 <input type="number" id="fridgeTemp" name="fridgeTemp"
                        value="<%= editBox ? editBox.fridge_temp : '' %>">
               </div>
+              <% const sensorSerial = editBox && editBox.sensor_serial ? editBox.sensor_serial : ''; %>
+              <div class="form-group sensor-pair" data-sensor-pair data-mode="form">
+                <label>Temperature sensor <span class="hint">(Bluetooth)</span></label>
+                <input type="hidden" name="sensorSerial" value="<%= sensorSerial %>">
+                <p class="sensor-pair__status" data-sensor-status aria-live="polite">
+                  <%= sensorSerial ? 'Sensor ' + sensorSerial + ' connected.' : 'No sensor connected.' %>
+                </p>
+                <div class="sensor-pair__actions">
+                  <button type="button" class="btn btn-secondary" data-sensor-connect>Connect temperature sensor</button>
+                  <button type="button" class="btn btn-sm" data-sensor-remove <%= sensorSerial ? '' : 'hidden' %>>Remove</button>
+                </div>
+              </div>
             </div>
 
             <div class="form-group form-group--choice">
@@ -408,4 +420,6 @@
       updateConditionals();
     })();
   </script>
+  <script src="/js/bluedan.js"></script>
+  <script src="/js/sensor-pair.js"></script>
 <%- include('../partials/footer') %>

@@ -120,3 +120,11 @@ IF COL_LENGTH('dbo.boxes', 'lmf_replacement_months') IS NULL
 
 IF COL_LENGTH('dbo.boxes', 'last_lmf_replacement') IS NULL
   ALTER TABLE boxes ADD last_lmf_replacement DATETIME2 NOT NULL DEFAULT GETDATE();
+
+-- Nachtraegliche Spalte: Bluetooth-Temperaturfuehler je Box (Seriennummer, 6 Hex-Zeichen)
+IF COL_LENGTH('dbo.boxes', 'sensor_serial') IS NULL
+  ALTER TABLE boxes ADD sensor_serial NVARCHAR(6) NULL;
+
+-- Ein Fuehler haengt je Firma an hoechstens einer Box (E-17) - Riegel auch in der Datenbank
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'ux_boxes_company_sensor' AND object_id = OBJECT_ID('dbo.boxes'))
+  CREATE UNIQUE INDEX ux_boxes_company_sensor ON boxes (company_id, sensor_serial) WHERE sensor_serial IS NOT NULL;

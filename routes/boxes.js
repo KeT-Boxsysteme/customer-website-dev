@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Box = require('../models/box');
 const { authorize, ROLES } = require('../middleware/authorize');
+const { decideSensorUpdate } = require('../services/sensor');
 
 const canManageBoxes = authorize(ROLES.ADMIN, ROLES.CONTROLLER);
 
@@ -176,6 +177,7 @@ function toFormValues(body, id) {
     last_cleaned: toDate(body.lastCleaned),
     has_fridge: body.hasFridge === '1',
     fridge_temp: body.fridgeTemp || '',
+    sensor_serial: body.sensorSerial || '',
     has_oil_pump: body.hasOilPump === '1',
     last_oil_change: toDate(body.lastOilChange),
     glove_ports: body.glovePorts === 'custom' ? (body.glovePortsCustom || '') : (body.glovePorts || ''),
@@ -185,6 +187,16 @@ function toFormValues(body, id) {
 }
 
 // GET /boxes
+// Temperaturfuehler nach dem Speichern der Box anwenden (E-16/E-17); meldet, welche Box ihn verlor
+async function applySensor(req, boxId, sensor) {
+  if (sensor.action === 'keep') return;
+  const { movedFrom } = await Box.setSensor(boxId, req.session.user.companyId,
+    sensor.action === 'set' ? sensor.serial : null);
+  if (movedFrom.length) {
+    req.flash('success', `Temperature sensor ${sensor.serial} was moved here from: ${movedFrom.join(', ')}.`);
+  }
+}
+
 router.get('/', canManageBoxes, async (req, res) => {
   try {
     const boxes = await Box.findAllByCompany(req.session.user.companyId);
@@ -205,6 +217,8 @@ router.get('/create', canManageBoxes, (req, res) => {
 router.post('/', canManageBoxes, async (req, res) => {
   try {
     const { data, errors } = parseBoxForm(req.body);
+    const sensor = decideSensorUpdate({ hasFridge: data.hasFridge, raw: req.body.sensorSerial });
+    if (sensor.action === 'error') errors.push('Invalid temperature sensor.');
     if (errors.length) {
       // Fehlermeldung direkt in res.locals legen, damit sie beim Re-Render
       // sofort sichtbar ist (req.flash wuerde erst beim naechsten Request greifen)
@@ -214,7 +228,8 @@ router.post('/', canManageBoxes, async (req, res) => {
         editBox: toFormValues(req.body, null)
       });
     }
-    await Box.create({ companyId: req.session.user.companyId, ...data });
+    const newId = await Box.create({ companyId: req.session.user.companyId, ...data });
+    await applySensor(req, newId, sensor);
     req.flash('success', 'Box added successfully.');
     res.redirect('/boxes');
   } catch (err) {
@@ -242,6 +257,8 @@ router.put('/:id', canManageBoxes, async (req, res) => {
   try {
     const boxId = parseInt(req.params.id);
     const { data, errors } = parseBoxForm(req.body);
+    const sensor = decideSensorUpdate({ hasFridge: data.hasFridge, raw: req.body.sensorSerial });
+    if (sensor.action === 'error') errors.push('Invalid temperature sensor.');
     if (errors.length) {
       res.locals.error = [errors.join(' ')];
       return res.status(400).render('boxes/form', {
@@ -250,6 +267,7 @@ router.put('/:id', canManageBoxes, async (req, res) => {
       });
     }
     await Box.update(boxId, req.session.user.companyId, data);
+    await applySensor(req, boxId, sensor);
     req.flash('success', 'Box updated successfully.');
     res.redirect('/boxes');
   } catch (err) {
