@@ -94,11 +94,15 @@
   }
 
   // Bereits erlaubten Fuehler ohne Klick wiederfinden (falls der Browser getDevices anbietet)
+  // Der Knopf fuegt keinen Fuehler hinzu (das geht nur im Box Management), er startet die Live-Verbindung.
+  // Ohne getDevices verlangt der Browser dafuer einen Klick je Besuch — das sagen wir offen.
   async function autoConnect() {
-    if (!navigator.bluetooth || !navigator.bluetooth.getDevices) return;
+    const idle = 'Sensor ' + serial + ' assigned – live reading not started';
+    if (!navigator.bluetooth) { status(idle + ' (Bluetooth not available in this browser)'); return; }
+    if (!navigator.bluetooth.getDevices) { status(idle + ' (this browser requires one click per visit)'); return; }
     try {
       const known = (await navigator.bluetooth.getDevices()).find(d => B.serialFromName(d.name) === serial);
-      if (!known) return;
+      if (!known) { status(idle + ' (click once to allow this browser to use the sensor)'); return; }
       adopt(known);
       status('Sensor ' + serial + ' – connecting …');
       await connectGatt();

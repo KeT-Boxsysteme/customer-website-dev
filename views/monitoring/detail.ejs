@@ -75,8 +75,8 @@
             <div class="live-sensor" data-live-sensor data-serial="<%= box.sensor_serial %>"
                  data-url="/monitoring/<%= box.id %>/readings"
                  data-store-minutes="<%= box.sensor_store_minutes || 1 %>">
-              <p class="live-sensor__status" data-live-status aria-live="polite">Sensor <%= box.sensor_serial %> – not connected</p>
-              <button type="button" class="btn btn-sm btn-secondary" data-live-connect>Connect live sensor</button>
+              <p class="live-sensor__status" data-live-status aria-live="polite">Sensor <%= box.sensor_serial %> assigned – live reading not started</p>
+              <button type="button" class="btn btn-sm btn-secondary" data-live-connect>Start live reading</button>
             </div>
             <% } %>
           </div>
