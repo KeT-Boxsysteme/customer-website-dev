@@ -348,81 +348,20 @@ describe('POST /monitoring/:id/message', () => {
   });
 });
 
-describe('POST /monitoring/:id/sensor (pair / remove temperature sensor)', () => {
-  beforeEach(() => Box.setSensor.mockResolvedValue({ movedFrom: [] }));
-
-  test('admin pairs a sensor -> stored for this box and company', async () => {
-    const admin = await loginAgent(app, User, 'admin');
-    const res = await admin.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '740b3b' });
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, serial: '740B3B', movedFrom: [] });
-    expect(Box.setSensor).toHaveBeenCalledWith(BOX_ID, COMPANY_ID, '740B3B');
-  });
-
-  test('controller may remove the sensor', async () => {
-    const controller = await loginAgent(app, User, 'controller');
-    const res = await controller.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '' });
-    expect(res.status).toBe(200);
-    expect(Box.setSensor).toHaveBeenCalledWith(BOX_ID, COMPANY_ID, null);
-  });
-
-  test('reports the box the sensor was taken from', async () => {
-    Box.setSensor.mockResolvedValue({ movedFrom: ['Old Lab Box'] });
-    const admin = await loginAgent(app, User, 'admin');
-    const res = await admin.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '740B3B' });
-    expect(res.body.movedFrom).toEqual(['Old Lab Box']);
-  });
-
-  test.each(['user', 'box_user'])('%s may not pair sensors -> 403, nothing stored', async role => {
-    const other = await loginAgent(app, User, role);
-    const res = await other.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '740B3B' });
-    expect(res.status).toBe(403);
-    expect(Box.setSensor).not.toHaveBeenCalled();
-  });
-
-  test('box without refrigerator -> 400, nothing stored', async () => {
-    Box.findById.mockResolvedValue(makeBox({ has_fridge: 0 }));
-    const admin = await loginAgent(app, User, 'admin');
-    const res = await admin.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '740B3B' });
-    expect(res.status).toBe(400);
-    expect(Box.setSensor).not.toHaveBeenCalled();
-  });
-
-  test('invalid serial -> 400, nothing stored', async () => {
-    const admin = await loginAgent(app, User, 'admin');
-    const res = await admin.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: 'x' });
-    expect(res.status).toBe(400);
-    expect(Box.setSensor).not.toHaveBeenCalled();
-  });
-
-  test('unknown box -> 404, nothing stored', async () => {
-    Box.findById.mockResolvedValue(null);
-    const admin = await loginAgent(app, User, 'admin');
-    const res = await admin.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '740B3B' });
-    expect(res.status).toBe(404);
-    expect(Box.setSensor).not.toHaveBeenCalled();
-  });
-});
-
-describe('GET /monitoring/:id – sensor button visibility', () => {
-  test('admin sees the connect button on a fridge box', async () => {
+describe('temperature sensor in monitoring (display only – pairing is done in Box Management)', () => {
+  test('assigned sensor is shown, but there is no connect button, even for admins', async () => {
+    Box.findById.mockResolvedValue(makeBox({ sensor_serial: '740B3B' }));
     const admin = await loginAgent(app, User, 'admin');
     const page = await admin.get(`/monitoring/${BOX_ID}`);
     expect(page.status).toBe(200);
-    expect(page.text).toContain('data-sensor-connect');
-  });
-
-  test('user sees the assigned sensor but no connect button', async () => {
-    Box.findById.mockResolvedValue(makeBox({ sensor_serial: '740B3B' }));
-    const page = await agent.get(`/monitoring/${BOX_ID}`);
     expect(page.text).toContain('Sensor 740B3B');
     expect(page.text).not.toContain('data-sensor-connect');
   });
 
-  test('no fridge -> no sensor controls at all', async () => {
-    Box.findById.mockResolvedValue(makeBox({ has_fridge: 0 }));
+  test('there is no pairing endpoint in monitoring', async () => {
     const admin = await loginAgent(app, User, 'admin');
-    const page = await admin.get(`/monitoring/${BOX_ID}`);
-    expect(page.text).not.toContain('data-sensor-connect');
+    const res = await admin.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '740B3B' });
+    expect(res.status).toBe(404);
+    expect(Box.setSensor).not.toHaveBeenCalled();
   });
 });

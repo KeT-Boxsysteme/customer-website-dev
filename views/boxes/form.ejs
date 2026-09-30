@@ -274,7 +274,7 @@
                        value="<%= editBox ? editBox.fridge_temp : '' %>">
               </div>
               <% const sensorSerial = editBox && editBox.sensor_serial ? editBox.sensor_serial : ''; %>
-              <div class="form-group sensor-pair" data-sensor-pair data-mode="form">
+              <div class="form-group sensor-pair" data-sensor-pair>
                 <label>Temperature sensor <span class="hint">(Bluetooth)</span></label>
                 <input type="hidden" name="sensorSerial" value="<%= sensorSerial %>">
                 <p class="sensor-pair__status" data-sensor-status aria-live="polite">

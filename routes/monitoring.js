@@ -7,7 +7,6 @@ const User = require('../models/user');
 const emailService = require('../services/email');
 const { buildAlerts, overallStatus } = require('../services/alerts');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
-const { normalizeSerial } = require('../public/js/bluedan');
 
 // Expliziter Rollen-Guard analog zu routes/diagrams.js (admin, controller, user, box_user)
 router.use(authorize(...PERMISSIONS.monitoring));
@@ -59,9 +58,7 @@ router.get('/:id', async (req, res) => {
       usernames,
       latestMeasurement,
       alerts,
-      statusColor,
-      // Fuehler verbinden/entfernen nur fuer Rollen, die Boxen bearbeiten duerfen (E-16)
-      canManageSensor: PERMISSIONS.boxes.includes(req.session.user.role)
+      statusColor
     });
   } catch (err) {
     console.error(err);
@@ -133,28 +130,6 @@ router.post('/:id/ack/:key', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not acknowledge alert.' });
-  }
-});
-
-// POST /monitoring/:id/sensor – Temperaturfuehler verbinden ({serial}) oder entfernen ({serial: ''})
-// Nur wer Boxen bearbeiten darf (E-16); ein Fuehler haengt je Firma an hoechstens einer Box (E-17).
-router.post('/:id/sensor', authorize(...PERMISSIONS.boxes), async (req, res) => {
-  try {
-    const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
-    if (!box) return res.status(404).json({ error: 'Box not found' });
-    if (!box.has_fridge) return res.status(400).json({ error: 'This box has no refrigerator.' });
-
-    const raw = req.body.serial;
-    const serial = (raw === '' || raw === null) ? null : normalizeSerial(raw);
-    if (serial === null && !(raw === '' || raw === null)) {
-      return res.status(400).json({ error: 'Invalid temperature sensor.' });
-    }
-
-    const { movedFrom } = await Box.setSensor(box.id, req.session.user.companyId, serial);
-    res.json({ success: true, serial, movedFrom });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Could not save the temperature sensor.' });
   }
 });
 

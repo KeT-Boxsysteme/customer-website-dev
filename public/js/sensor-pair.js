@@ -1,7 +1,6 @@
 // Knopf "Connect temperature sensor": sucht einen blueDAN-Fuehler per Web Bluetooth, fragt zur
 // Bestaetigung einmal die Temperatur ab (Befehl B7) und haengt ihn an die Box.
-// Container: [data-sensor-pair] mit data-mode="form" (schreibt ins versteckte Feld sensorSerial)
-// oder data-mode="api" + data-url (POST an /monitoring/:id/sensor, danach Neuladen).
+// Container: [data-sensor-pair] im Box-Formular; schreibt ins versteckte Feld sensorSerial.
 (function () {
   const B = window.BlueDAN;
 
@@ -45,39 +44,22 @@
       : ' (no test reading received – please check the sensor)';
   }
 
-  async function post(url, serial) {
-    const res = await fetch(url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ serial })
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error || 'Could not save the temperature sensor.');
-    return body;
-  }
-
   document.querySelectorAll('[data-sensor-pair]').forEach(box => {
     const statusEl = box.querySelector('[data-sensor-status]');
     const connectBtn = box.querySelector('[data-sensor-connect]');
     const removeBtn = box.querySelector('[data-sensor-remove]');
     const input = box.querySelector('input[name="sensorSerial"]');
-    const mode = box.dataset.mode;
     const status = text => { statusEl.textContent = text; };
 
     connectBtn.addEventListener('click', async () => {
       connectBtn.disabled = true;
-      // Der Fuehler meldet sich nur alle paar Sekunden (gemessen: bis 13 s) — Wartezeit ansagen
-      status('Searching for sensors – it can take up to 20 seconds until the sensor appears in the list …');
+      // Der Fuehler meldet sich nur selten (gemessen: Pausen bis 60 s) — Wartezeit ansagen
+      status('Searching for sensors – it can take up to one minute until the sensor appears in the list …');
       try {
         const result = await pick(status);
-        if (mode === 'form') {
-          input.value = result.serial;
-          status('Sensor ' + result.serial + ' found' + testReading(result) + '. Save the box to connect it.');
-          if (removeBtn) removeBtn.hidden = false;
-        } else {
-          const saved = await post(box.dataset.url, result.serial);
-          status('Sensor ' + result.serial + ' connected to this box' + testReading(result) + '.' +
-            (saved.movedFrom && saved.movedFrom.length ? ' Moved here from: ' + saved.movedFrom.join(', ') + '.' : ''));
-          setTimeout(() => window.location.reload(), 1500);
-        }
+        input.value = result.serial;
+        status('Sensor ' + result.serial + ' found' + testReading(result) + '. Save the box to connect it.');
+        if (removeBtn) removeBtn.hidden = false;
       } catch (err) {
         // Abbruch im Auswahlfenster ist kein Fehler
         status(err && err.name === 'NotFoundError' ? 'No sensor selected.' : 'Error: ' + err.message);
@@ -86,21 +68,10 @@
       }
     });
 
-    if (removeBtn) removeBtn.addEventListener('click', async () => {
-      if (mode === 'form') {
-        input.value = '';
-        removeBtn.hidden = true;
-        status('No sensor connected. Save the box to apply.');
-        return;
-      }
-      removeBtn.disabled = true;
-      try {
-        await post(box.dataset.url, '');
-        window.location.reload();
-      } catch (err) {
-        status('Error: ' + err.message);
-        removeBtn.disabled = false;
-      }
+    if (removeBtn) removeBtn.addEventListener('click', () => {
+      input.value = '';
+      removeBtn.hidden = true;
+      status('No sensor connected. Save the box to apply.');
     });
   });
 })();

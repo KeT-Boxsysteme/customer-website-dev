@@ -213,8 +213,9 @@
     Lesebefehl B7, Antwort "$MWO;xx.x"), Browser + Jest. Nur B7 ist gebaut —
     B0 (Messung starten) löscht den Logger-Speicher, BE schreibt ins EEPROM.
   - public/js/sensor-pair.js: Knopf "Connect temperature sensor" (Web Bluetooth,
-    Chrome/Edge) im Box-Formular (Feld sensorSerial) und im Monitoring
-    (POST /monitoring/:id/sensor, nur admin/controller).
+    Chrome/Edge) NUR im Box-Formular (Anlegen/Bearbeiten, Feld sensorSerial,
+    admin/controller). Monitoring zeigt den Sensor nur an. Der Fühler meldet
+    sich nur selten (gemessen: Pausen bis 60 s) — Suche kann bis 1 min dauern.
   - services/sensor.js: Regel beim Speichern des Formulars (ohne Kühlschrank
     kein Fühler; fehlendes Feld = unverändert; leeres Feld = entfernen).
   - public/ble-diagnose.html: temporäres Messwerkzeug.
