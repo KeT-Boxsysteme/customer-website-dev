@@ -33,6 +33,7 @@ jest.mock('../models/box');
 jest.mock('../models/company');
 jest.mock('../models/measurement');
 jest.mock('../models/alertAck');
+jest.mock('../models/sensorReading');
 
 const app = require('../server');
 const User = require('../models/user');
@@ -40,6 +41,7 @@ const Box = require('../models/box');
 const Measurement = require('../models/measurement');
 const AlertAck = require('../models/alertAck');
 const emailService = require('../services/email');
+const SensorReading = require('../models/sensorReading');
 const { loginAgent, COMPANY_ID, USER_ID } = require('./helpers/login');
 
 const BOX_ID = 5;
@@ -363,5 +365,70 @@ describe('temperature sensor in monitoring (display only – pairing is done in 
     const res = await admin.post(`/monitoring/${BOX_ID}/sensor`).send({ serial: '740B3B' });
     expect(res.status).toBe(404);
     expect(Box.setSensor).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /monitoring/:id/readings (live sensor values, E-16/E-19)', () => {
+  const sensorBox = (o = {}) => makeBox({ sensor_serial: '740B3B', sensor_store_minutes: 5, ...o });
+  beforeEach(() => {
+    Box.findById.mockResolvedValue(sensorBox());
+    SensorReading.createIfDue.mockResolvedValue(true);
+  });
+
+  test.each(['admin', 'controller', 'user', 'box_user'])('%s may send a reading -> stored with the box interval', async role => {
+    const a = await loginAgent(app, User, role);
+    const res = await a.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740b3b', temp: 4.23 });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ stored: true });
+    // 5-minute interval -> 295 s window, value rounded to 0.1
+    expect(SensorReading.createIfDue).toHaveBeenCalledWith(BOX_ID, '740B3B', 4.2, 295);
+  });
+
+  test('server refuses a second reading inside the interval (reports stored: false)', async () => {
+    SensorReading.createIfDue.mockResolvedValue(false);
+    const res = await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 4 });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ stored: false });
+  });
+
+  test('reading from a sensor that is not assigned to this box -> 409, nothing stored', async () => {
+    const res = await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: 'AAAAAA', temp: 4 });
+    expect(res.status).toBe(409);
+    expect(SensorReading.createIfDue).not.toHaveBeenCalled();
+  });
+
+  test('box without sensor -> 409, nothing stored', async () => {
+    Box.findById.mockResolvedValue(makeBox({ sensor_serial: null }));
+    const res = await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 4 });
+    expect(res.status).toBe(409);
+    expect(SensorReading.createIfDue).not.toHaveBeenCalled();
+  });
+
+  test('implausible temperature -> 400, nothing stored', async () => {
+    const res = await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 999 });
+    expect(res.status).toBe(400);
+    expect(SensorReading.createIfDue).not.toHaveBeenCalled();
+  });
+
+  test('unknown box -> 404, nothing stored', async () => {
+    Box.findById.mockResolvedValue(null);
+    const res = await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 4 });
+    expect(res.status).toBe(404);
+    expect(SensorReading.createIfDue).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /monitoring/:id – live sensor block', () => {
+  test('box with sensor -> live block with serial and interval for the browser', async () => {
+    Box.findById.mockResolvedValue(makeBox({ sensor_serial: '740B3B', sensor_store_minutes: 15 }));
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toContain('data-live-sensor');
+    expect(page.text).toContain('data-serial="740B3B"');
+    expect(page.text).toContain('data-store-minutes="15"');
+  });
+
+  test('box without sensor -> no live block, fridge field stays a normal input', async () => {
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).not.toContain('data-live-sensor');
   });
 });

@@ -1236,3 +1236,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 /* Box-Formular: nennt fehlende Pflichtfelder unter dem gesperrten Speichern-Knopf */
 .form-missing-hint { margin: 8px 0 0; font-size: 13px; color: var(--color-text-muted); text-align: right; }
 .form-missing-hint:empty { display: none; }
+
+/* Monitoring: Live-Wert vom Fuehler */
+.live-sensor { margin-top: 8px; }
+.live-sensor__status { margin: 4px 0 6px; font-size: 13px; color: var(--color-text-muted); }
+input.is-live { background: #eef6ee; border-color: #8fbf8f; }
+.sensor-pair__interval { margin: 4px 0 10px; }

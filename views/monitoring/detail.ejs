@@ -72,7 +72,12 @@
             <input type="number" id="fridgeTemp" name="fridgeTemp" step="0.1"
                    placeholder="0.0">
             <% if (box.sensor_serial) { %>
-            <p class="sensor-pair__status">Sensor <%= box.sensor_serial %></p>
+            <div class="live-sensor" data-live-sensor data-serial="<%= box.sensor_serial %>"
+                 data-url="/monitoring/<%= box.id %>/readings"
+                 data-store-minutes="<%= box.sensor_store_minutes || 1 %>">
+              <p class="live-sensor__status" data-live-status aria-live="polite">Sensor <%= box.sensor_serial %> – not connected</p>
+              <button type="button" class="btn btn-sm btn-secondary" data-live-connect>Connect live sensor</button>
+            </div>
             <% } %>
           </div>
           <% } %>
@@ -203,4 +208,8 @@
       document.getElementById('contactUsername').value = abbrev;
     });
   </script>
+  <% if (box.sensor_serial) { %>
+  <script src="/js/bluedan.js"></script>
+  <script src="/js/live-sensor.js"></script>
+  <% } %>
 <%- include('../partials/footer') %>

@@ -128,3 +128,21 @@ IF COL_LENGTH('dbo.boxes', 'sensor_serial') IS NULL
 -- Ein Fuehler haengt je Firma an hoechstens einer Box (E-17) - Riegel auch in der Datenbank
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'ux_boxes_company_sensor' AND object_id = OBJECT_ID('dbo.boxes'))
   CREATE UNIQUE INDEX ux_boxes_company_sensor ON boxes (company_id, sensor_serial) WHERE sensor_serial IS NOT NULL;
+
+-- Nachtraegliche Spalte: Speichertakt des Fuehlers in Minuten (1/5/10/15/30/60, NULL = Vorgabe 1) - E-19
+IF COL_LENGTH('dbo.boxes', 'sensor_store_minutes') IS NULL
+  ALTER TABLE boxes ADD sensor_store_minutes INT NULL;
+
+-- Verlauf der Live-Werte vom Bluetooth-Fuehler (Paket 2). Getrennt von measurements, weil dort
+-- Eingaben von Personen (Kuerzel) stehen und die Ampel daran haengt.
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sensor_readings')
+  CREATE TABLE sensor_readings (
+    id            INT IDENTITY(1,1) PRIMARY KEY,
+    box_id        INT            NOT NULL REFERENCES boxes(id),
+    sensor_serial NVARCHAR(6)    NOT NULL,
+    temp          DECIMAL(6,1)   NOT NULL,
+    measured_at   DATETIME2      NOT NULL DEFAULT GETDATE()
+  );
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sensor_readings_box_time' AND object_id = OBJECT_ID('dbo.sensor_readings'))
+  CREATE INDEX idx_sensor_readings_box_time ON sensor_readings (box_id, measured_at);

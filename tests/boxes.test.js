@@ -309,17 +309,17 @@ describe('temperature sensor on the box form (E-16/E-17)', () => {
   test('create with fridge + paired sensor -> sensor stored on the new box', async () => {
     const res = await agent.post('/boxes').type('form').send({ ...fullPayload, sensorSerial: '740b3b' });
     expect(res.status).toBe(302);
-    expect(Box.setSensor).toHaveBeenCalledWith(55, COMPANY_ID, '740B3B');
+    expect(Box.setSensor).toHaveBeenCalledWith(55, COMPANY_ID, '740B3B', 1);
   });
 
   test('update with fridge + sensor -> stored for this box and company', async () => {
     await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: '740B3B' });
-    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, '740B3B');
+    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, '740B3B', 1);
   });
 
   test('update with fridge switched off -> sensor removed', async () => {
     await agent.put('/boxes/11').type('form').send({ ...fullPayload, hasFridge: '', fridgeTemp: '', sensorSerial: '740B3B' });
-    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, null);
+    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, null, null);
   });
 
   test('update without the sensor field -> sensor left untouched', async () => {
@@ -341,5 +341,21 @@ describe('temperature sensor on the box form (E-16/E-17)', () => {
     Box.findAllByCompany.mockResolvedValue([]);
     const page = await agent.get('/boxes');
     expect(page.text).toContain('Old Lab Box');
+  });
+});
+
+describe('storage interval on the box form (E-19)', () => {
+  beforeEach(() => Box.setSensor.mockResolvedValue({ movedFrom: [] }));
+
+  test('chosen interval is saved together with the sensor', async () => {
+    await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: '740B3B', sensorStoreMinutes: '15' });
+    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, '740B3B', 15);
+  });
+
+  test('interval outside the list -> 400, nothing saved', async () => {
+    const res = await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: '740B3B', sensorStoreMinutes: '2' });
+    expect(res.status).toBe(400);
+    expect(Box.update).not.toHaveBeenCalled();
+    expect(Box.setSensor).not.toHaveBeenCalled();
   });
 });

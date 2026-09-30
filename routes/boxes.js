@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Box = require('../models/box');
 const { authorize, ROLES } = require('../middleware/authorize');
-const { decideSensorUpdate } = require('../services/sensor');
+const { decideSensorUpdate, STORE_MINUTES } = require('../services/sensor');
 
 const canManageBoxes = authorize(ROLES.ADMIN, ROLES.CONTROLLER);
 
@@ -178,6 +178,7 @@ function toFormValues(body, id) {
     has_fridge: body.hasFridge === '1',
     fridge_temp: body.fridgeTemp || '',
     sensor_serial: body.sensorSerial || '',
+    sensor_store_minutes: body.sensorStoreMinutes || '',
     has_oil_pump: body.hasOilPump === '1',
     last_oil_change: toDate(body.lastOilChange),
     glove_ports: body.glovePorts === 'custom' ? (body.glovePortsCustom || '') : (body.glovePorts || ''),
@@ -187,11 +188,15 @@ function toFormValues(body, id) {
 }
 
 // GET /boxes
+// Waehlbare Speichertakte fuer das Formular — eine Liste, definiert in services/sensor.js (E-19)
+router.use((req, res, next) => { res.locals.storeMinutesOptions = STORE_MINUTES; next(); });
+
 // Temperaturfuehler nach dem Speichern der Box anwenden (E-16/E-17); meldet, welche Box ihn verlor
 async function applySensor(req, boxId, sensor) {
   if (sensor.action === 'keep') return;
   const { movedFrom } = await Box.setSensor(boxId, req.session.user.companyId,
-    sensor.action === 'set' ? sensor.serial : null);
+    sensor.action === 'set' ? sensor.serial : null,
+    sensor.action === 'set' ? sensor.storeMinutes : null);
   if (movedFrom.length) {
     req.flash('success', `Temperature sensor ${sensor.serial} was moved here from: ${movedFrom.join(', ')}.`);
   }
@@ -217,7 +222,9 @@ router.get('/create', canManageBoxes, (req, res) => {
 router.post('/', canManageBoxes, async (req, res) => {
   try {
     const { data, errors } = parseBoxForm(req.body);
-    const sensor = decideSensorUpdate({ hasFridge: data.hasFridge, raw: req.body.sensorSerial });
+    const sensor = decideSensorUpdate({
+      hasFridge: data.hasFridge, raw: req.body.sensorSerial, rawMinutes: req.body.sensorStoreMinutes
+    });
     if (sensor.action === 'error') errors.push('Invalid temperature sensor.');
     if (errors.length) {
       // Fehlermeldung direkt in res.locals legen, damit sie beim Re-Render
@@ -257,7 +264,9 @@ router.put('/:id', canManageBoxes, async (req, res) => {
   try {
     const boxId = parseInt(req.params.id);
     const { data, errors } = parseBoxForm(req.body);
-    const sensor = decideSensorUpdate({ hasFridge: data.hasFridge, raw: req.body.sensorSerial });
+    const sensor = decideSensorUpdate({
+      hasFridge: data.hasFridge, raw: req.body.sensorSerial, rawMinutes: req.body.sensorStoreMinutes
+    });
     if (sensor.action === 'error') errors.push('Invalid temperature sensor.');
     if (errors.length) {
       res.locals.error = [errors.join(' ')];

@@ -3,6 +3,9 @@ const router = express.Router();
 const Box = require('../models/box');
 const Measurement = require('../models/measurement');
 const AlertAck = require('../models/alertAck');
+const SensorReading = require('../models/sensorReading');
+const { storeWindowSeconds, validateReading } = require('../services/sensor');
+const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
 const { buildAlerts, overallStatus } = require('../services/alerts');
@@ -130,6 +133,29 @@ router.post('/:id/ack/:key', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not acknowledge alert.' });
+  }
+});
+
+// POST /monitoring/:id/readings – Live-Wert vom Temperaturfuehler ({serial, temp}) in den Verlauf.
+// Alle Monitoring-Rollen (E-16). Der Server wacht ueber den Speichertakt der Box (E-19).
+router.post('/:id/readings', async (req, res) => {
+  try {
+    const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
+    if (!box) return res.status(404).json({ error: 'Box not found' });
+
+    const serial = normalizeSerial(req.body.serial);
+    if (!box.sensor_serial || serial !== box.sensor_serial) {
+      return res.status(409).json({ error: 'This sensor is not assigned to the box.' });
+    }
+    const temp = validateReading(req.body.temp);
+    if (temp === null) return res.status(400).json({ error: 'Implausible temperature.' });
+
+    const stored = await SensorReading.createIfDue(box.id, serial, temp,
+      storeWindowSeconds(box.sensor_store_minutes));
+    res.json({ stored });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not store the reading.' });
   }
 });
 

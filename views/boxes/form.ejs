@@ -280,6 +280,15 @@
                 <p class="sensor-pair__status" data-sensor-status aria-live="polite">
                   <%= sensorSerial ? 'Sensor ' + sensorSerial + ' connected.' : 'No sensor connected.' %>
                 </p>
+                <% const storeMinutes = String(editBox && editBox.sensor_store_minutes ? editBox.sensor_store_minutes : 1); %>
+                <div class="sensor-pair__interval">
+                  <label for="sensorStoreMinutes">Save a reading to the history every</label>
+                  <select id="sensorStoreMinutes" name="sensorStoreMinutes">
+                    <% storeMinutesOptions.forEach(m => { %>
+                    <option value="<%= m %>" <%= String(m) === storeMinutes ? 'selected' : '' %>><%= m %> min</option>
+                    <% }) %>
+                  </select>
+                </div>
                 <div class="sensor-pair__actions">
                   <button type="button" class="btn btn-secondary" data-sensor-connect>Connect temperature sensor</button>
                   <button type="button" class="btn btn-sm" data-sensor-remove <%= sensorSerial ? '' : 'hidden' %>>Remove</button>
