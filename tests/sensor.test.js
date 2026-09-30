@@ -93,3 +93,33 @@ describe('sanitizeHubDiag – connection counters sent along with each value (me
     expect(sanitizeHubDiag('x')).toBeNull();
   });
 });
+
+describe('sanitizeHubReport – state report of the background hub, sent every 15 s (measuring instrument, 01.10.)', () => {
+  const { sanitizeHubReport } = require('../services/sensor');
+  const full = {
+    supported: true, role: 'owner', devicesKnown: 2, listVerdict: 'list',
+    sensors: [{ serial: '740b3b', adopted: true, connected: false, attempts: 12, drops: 1, renewals: 2,
+                adverts: 0, watch: 'on', lastError: 'NetworkError: Connection attempt failed.', lastValueAgeS: null }]
+  };
+  test('positive list of fields, serial normalised', () => {
+    expect(sanitizeHubReport(full)).toEqual({
+      supported: true, role: 'owner', devicesKnown: 2, listVerdict: 'list',
+      sensors: [{ serial: '740B3B', adopted: true, connected: false, attempts: 12, drops: 1, renewals: 2,
+                  adverts: 0, watch: 'on', lastError: 'NetworkError: Connection attempt failed.', lastValueAgeS: null }]
+    });
+  });
+  test('unknown fields dropped, bad values null, at most 10 sensors, long texts cut', () => {
+    const r = sanitizeHubReport({ ...full, evil: 1, role: 'x'.repeat(50),
+      sensors: Array.from({ length: 20 }, () => ({ serial: 'zzz', attempts: -3, watch: 'w'.repeat(200) })) });
+    expect(r.evil).toBeUndefined();
+    expect(r.role).toHaveLength(20);
+    expect(r.sensors).toHaveLength(10);
+    expect(r.sensors[0]).toMatchObject({ serial: null, attempts: null });
+    expect(r.sensors[0].watch).toHaveLength(60);
+  });
+  test('no object -> null', () => {
+    expect(sanitizeHubReport(null)).toBeNull();
+    expect(sanitizeHubReport('x')).toBeNull();
+    expect(sanitizeHubReport({ x: '' })).toBeNull();   // Formular-Muell ohne Fuehlerliste
+  });
+});

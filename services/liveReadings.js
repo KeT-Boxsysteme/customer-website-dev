@@ -15,6 +15,28 @@ function record(boxId, serial, temp, now = Date.now(), hub = null) {
   values.set(boxId, { serial, temp, at: now, hub });
 }
 
+// Zustandsmeldungen der Verbinder (je Firma + Benutzer die letzte), nur im Speicher, 2 Min. gueltig
+let reports = new Map();   // companyId:userId -> { report, at }
+const REPORT_TTL_MS = 2 * 60 * 1000;
+
+function recordReport(companyId, userId, report, now = Date.now()) {
+  reports.set(companyId + ':' + userId, { companyId, report, at: now });
+}
+
+// Meldungen der eigenen Firma, die diesen Fuehler erwaehnen: { ...report ohne sensors, sensor, ageSeconds }
+function reportsFor(companyId, serial, now = Date.now()) {
+  const out = [];
+  for (const [key, r] of reports) {
+    if (now - r.at > REPORT_TTL_MS) { reports.delete(key); continue; }
+    if (r.companyId !== companyId) continue;
+    const sensor = r.report.sensors.find(s => s.serial === serial);
+    if (!sensor) continue;
+    const { sensors, ...rest } = r.report;
+    out.push({ ...rest, sensor, ageSeconds: Math.round((now - r.at) / 1000) });
+  }
+  return out;
+}
+
 function hubDiag(boxId) {
   const v = values.get(boxId);
   return v ? v.hub : null;
@@ -37,6 +59,7 @@ function dueForHistory(boxId, storeMinutes, now = Date.now()) {
 function reset() {
   values = new Map();
   lastStored = new Map();
+  reports = new Map();
 }
 
-module.exports = { FRESH_SECONDS, record, get, hubDiag, dueForHistory, reset };
+module.exports = { FRESH_SECONDS, record, get, hubDiag, recordReport, reportsFor, dueForHistory, reset };

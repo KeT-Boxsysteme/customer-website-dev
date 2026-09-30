@@ -166,6 +166,7 @@
       catch (e) { res = null; }
       const verdict = B.sensorListVerdict(res && { ok: res.ok, status: res.status, redirected: res.redirected,
         url: res.url, contentType: res.headers.get('content-type') });
+      lastVerdict = verdict;
       // Nur eine echte Abmeldung trennt alles; eine Stoerung aendert nichts (Fund 01.10.)
       if (verdict === 'logged-out') { [...conns.keys()].forEach(stop); return; }
       if (verdict !== 'list') return;
@@ -174,6 +175,8 @@
       const wanted = new Map(list.map(s => [s.serial, s]));
       [...conns.keys()].filter(serial => !wanted.has(serial)).forEach(stop);
       const devices = supported ? await navigator.bluetooth.getDevices() : [];
+      devicesKnown = devices.length;
+      wantedSerials = list.map(s => s.serial);
       for (const sensor of list) {
         const existing = conns.get(sensor.serial);
         if (existing) { existing.url = sensor.url; continue; }   // Fuehler kann die Box gewechselt haben
@@ -187,6 +190,28 @@
   }
 
   setInterval(() => conns.forEach(request), TICK_MS);
+
+  // Zustandsmeldung an den Server (Messinstrument, 01.10.): alle 15 s, auch wenn keine Werte kommen —
+  // sonst ist der Server genau im Fehlerfall blind. Nur Zaehler und Fehlertexte, keine Personendaten.
+  let lastVerdict = 'none', devicesKnown = null, wantedSerials = [];
+  function report() {
+    const serials = new Set([...wantedSerials, ...conns.keys()]);
+    if (!serials.size) return;
+    const sensors = [...serials].map(serial => {
+      const c = conns.get(serial);
+      return c ? {
+        serial, adopted: true, connected: !!(c.device.gatt.connected && c.tx),
+        attempts: c.diag.attempts, drops: c.diag.drops, renewals: c.diag.renewals || 0,
+        adverts: c.diag.adverts, watch: c.diag.watch, lastError: c.diag.lastError,
+        lastValueAgeS: c.lastValueAt ? Math.round((Date.now() - c.lastValueAt) / 1000) : null
+      } : { serial, adopted: false };
+    });
+    fetch('/monitoring/hub-status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ supported, role: owner ? 'owner' : 'waiting', devicesKnown, listVerdict: lastVerdict, sensors })
+    }).catch(() => { /* Diagnose darf nie stoeren */ });
+  }
+  setInterval(report, 15000);
 
   // Der Fuehler nimmt nur EINE Verbindung an. Mehrere offene Tabs der Website stritten sich um ihn
   // (Fund 01.10.). Mit einer Browser-Sperre verbindet nur ein Tab; die anderen warten, bis er zu ist.

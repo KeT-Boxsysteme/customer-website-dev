@@ -632,3 +632,28 @@ describe('hub diagnostics travel with the reading and are visible in /live (01.1
     expect(res.body.hub).toEqual({ drops: 2, attempts: 5, lastError: 'timeout after 20 s' });
   });
 });
+
+describe('hub state reports reach /live even without values (01.10.)', () => {
+  const live = require('../services/liveReadings');
+  beforeEach(() => {
+    live.reset();
+    Box.findById.mockResolvedValue(makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1 }));
+  });
+  test('a report mentioning the box sensor shows up in the live answer; other sensors do not', async () => {
+    // ein Browser meldet alle seine Fuehler in EINEM Bericht; die letzte Meldung je Benutzer zaehlt
+    const res = await agent.post('/monitoring/hub-status').send({ supported: true, role: 'owner', devicesKnown: 1,
+      listVerdict: 'list', sensors: [
+        { serial: '740B3B', adopted: true, connected: false, attempts: 4, lastError: 'timeout after 20 s' },
+        { serial: 'AAAAAA', adopted: true, attempts: 1 }] });
+    expect(res.status).toBe(204);
+    const liveRes = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(liveRes.body.hubs).toHaveLength(1);
+    expect(liveRes.body.hubs[0]).toMatchObject({ supported: true, role: 'owner', devicesKnown: 1,
+      sensor: { serial: '740B3B', attempts: 4, lastError: 'timeout after 20 s' } });
+    expect(liveRes.body.hubs[0].ageSeconds).toEqual(expect.any(Number));
+  });
+  test('garbage report -> 400, nothing stored', async () => {
+    const res = await agent.post('/monitoring/hub-status').send('x');
+    expect(res.status).toBe(400);
+  });
+});

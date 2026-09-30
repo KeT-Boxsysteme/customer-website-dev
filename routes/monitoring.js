@@ -7,7 +7,7 @@ const SensorReading = require('../models/sensorReading');
 const liveReadings = require('../services/liveReadings');
 const boxState = require('../services/boxState');
 const { liveFridge, statusForBox } = require('../services/boxStatus');
-const { storeWindowSeconds, validateReading, sanitizeHubDiag } = require('../services/sensor');
+const { storeWindowSeconds, validateReading, sanitizeHubDiag, sanitizeHubReport } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
@@ -55,6 +55,15 @@ router.get('/sensors', async (req, res) => {
   }
 });
 
+
+// POST /monitoring/hub-status – Zustandsmeldung des Hintergrund-Verbinders (alle 15 s, Diagnose).
+// Nur im Speicher; sichtbar ueber GET /monitoring/:id/live (hubs) fuer die eigene Firma.
+router.post('/hub-status', (req, res) => {
+  const report = sanitizeHubReport(req.body);
+  if (!report) return res.status(400).json({ error: 'Invalid report.' });
+  liveReadings.recordReport(req.session.user.companyId, req.session.user.id, report);
+  res.status(204).end();
+});
 
 // GET /monitoring/:id – Box-Detail mit Werteeingabe
 router.get('/:id', async (req, res) => {
@@ -193,7 +202,8 @@ router.get('/:id/live', async (req, res) => {
     // Warnungen ohne DB-Messwerte: Kuehlschrank live + faellige Wartung aus der Box-Zeile
     const alerts = buildAlerts({ box, latestMeasurement: null, acks: [], fridgeLive: liveFridge(box) });
     const alert = alerts.find(a => a.key.startsWith('fridge')) || null;
-    const state = { fridgeAlert: alert ? alert.severity : null, stateKey: boxState.stateKey(box.id, alerts) };
+    const state = { fridgeAlert: alert ? alert.severity : null, stateKey: boxState.stateKey(box.id, alerts),
+                    hubs: box.sensor_serial ? liveReadings.reportsFor(req.session.user.companyId, box.sensor_serial) : [] };
     // Nur Werte des aktuell zugeordneten Fuehlers zaehlen
     if (!v || !box.sensor_serial || v.serial !== box.sensor_serial) {
       return res.json({ serial: box.sensor_serial || null, temp: null, fresh: false, ...state });

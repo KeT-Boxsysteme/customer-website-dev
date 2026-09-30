@@ -56,4 +56,33 @@ function sanitizeHubDiag(diag) {
   };
 }
 
-module.exports = { STORE_MINUTES, decideSensorUpdate, storeWindowSeconds, validateReading, sanitizeHubDiag };
+// Zustandsmeldung des Verbinders (alle 15 s, auch ohne Werte) — Positivliste, Texte gekuerzt,
+// hoechstens 10 Fuehler. Dient nur der Diagnose (Betreiber 01.10.: Verbindung unzuverlaessig).
+function sanitizeHubReport(r) {
+  if (!r || typeof r !== 'object' || Array.isArray(r) || !Array.isArray(r.sensors)) return null;
+  const count = v => (Number.isInteger(v) && v >= 0 && v < 1e7 ? v : null);
+  const text = (v, n) => (typeof v === 'string' ? v.slice(0, n) : null);
+  const bool = v => (typeof v === 'boolean' ? v : null);
+  const sensors = (Array.isArray(r.sensors) ? r.sensors : []).slice(0, 10).map(s => ({
+    serial: s && typeof s.serial === 'string' ? normalizeSerial(s.serial) : null,
+    adopted: bool(s && s.adopted),
+    connected: bool(s && s.connected),
+    attempts: count(s && s.attempts),
+    drops: count(s && s.drops),
+    renewals: count(s && s.renewals),
+    adverts: count(s && s.adverts),
+    watch: text(s && s.watch, 60),
+    lastError: text(s && s.lastError, 120),
+    lastValueAgeS: count(s && s.lastValueAgeS)
+  }));
+  return {
+    supported: bool(r.supported),
+    role: text(r.role, 20),
+    devicesKnown: count(r.devicesKnown),
+    listVerdict: text(r.listVerdict, 20),
+    sensors
+  };
+}
+
+module.exports = { STORE_MINUTES, decideSensorUpdate, storeWindowSeconds, validateReading, sanitizeHubDiag,
+                   sanitizeHubReport };
