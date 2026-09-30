@@ -26,6 +26,19 @@ app.use(compression()); // gzip fuer HTML/CSS/JS (CSS ~85% kleiner, spuerbar auf
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(methodOverride('_method'));
+// Versionierte Asset-URLs: /js/x.js?v=<Inhalts-Hash>. Ohne das liefen Browser nach einem Deploy bis
+// zu 1 Tag mit altem JS (max-age) — gemessen am 30.09. (alter Fuehler-Code im Monitoring).
+const assetHashes = new Map();
+app.locals.asset = (url) => {
+  if (!assetHashes.has(url)) {
+    let v = 'x';
+    try { v = require('crypto').createHash('md5').update(require('fs').readFileSync(path.join(__dirname, 'public', url))).digest('hex').slice(0, 10); }
+    catch (e) { /* fehlende Datei: ohne Hash ausliefern */ }
+    assetHashes.set(url, v);
+  }
+  return url + '?v=' + assetHashes.get(url);
+};
+
 // Statische Assets mit Browser-Cache: CSS/JS 1 Tag (aendert sich bei Deploys),
 // Bilder/Fonts 7 Tage; ETag sorgt fuer 304 statt Volltransfer
 app.use(express.static(path.join(__dirname, 'public'), {

@@ -216,6 +216,6 @@
   })();
   </script>
   <% if (box.sensor_serial) { %>
-  <script src="/js/live-sensor.js"></script>
+  <script src="<%= asset('/js/live-sensor.js') %>"></script>
   <% } %>
 <%- include('../partials/footer') %>

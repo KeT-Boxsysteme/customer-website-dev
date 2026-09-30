@@ -50,3 +50,13 @@ describe('Turbo + background sensor hub in the page head', () => {
     expect(res.text).not.toContain('/js/sensor-hub.js');
   });
 });
+
+describe('versioned asset URLs (no stale JS after a deploy)', () => {
+  const request = require('supertest');
+  test('scripts and stylesheet carry a content hash', async () => {
+    const res = await request(app).get('/auth/login');
+    expect(res.text).toMatch(/\/js\/vendor\/turbo\.umd\.js\?v=[0-9a-f]{10}"/);
+    expect(res.text).toMatch(/\/css\/style\.css\?v=[0-9a-f]{10}"/);
+    expect(res.text).toMatch(/\/js\/main\.js\?v=[0-9a-f]{10}"/);
+  });
+});

@@ -376,7 +376,7 @@
     </form>
   </main>
 
-  <script src="/js/form-hints.js"></script>
+  <script src="<%= asset('/js/form-hints.js') %>"></script>
   <script>
     (function () {
       var form      = document.getElementById('boxForm');
@@ -435,6 +435,5 @@
       updateConditionals();
     })();
   </script>
-  <script src="/js/bluedan.js"></script>
-  <script src="/js/sensor-pair.js"></script>
+  <script src="<%= asset('/js/sensor-pair.js') %>"></script>
 <%- include('../partials/footer') %>

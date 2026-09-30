@@ -8,7 +8,10 @@
 (function () {
   if (window.SensorHub) return;
   const B = window.BlueDAN;
-  const supported = !!(B && navigator.bluetooth && navigator.bluetooth.getDevices);
+  const canConnect = !!(B && navigator.bluetooth);
+  // automatisch (ohne Klick) nur mit getDevices; eine im Box Management gekoppelte Verbindung
+  // wird aber auch ohne getDevices uebernommen und ueber Seitenwechsel gehalten (Turbo)
+  const supported = !!(canConnect && navigator.bluetooth.getDevices);
   const conns = new Map();   // serial -> Verbindungszustand
   const TICK_MS = 5000;
 
@@ -20,9 +23,17 @@
       if (!c) return null;
       return { connected: !!(c.device.gatt.connected && c.tx), lastValueAt: c.lastValueAt, lastTemp: c.lastTemp, diag: { ...c.diag } };
     },
-    refresh
+    refresh,
+    // Box Management: frisch gekoppelten Fuehler UEBERNEHMEN statt trennen (Betreiber 30.09.:
+    // die Kopplung aus dem Management muss ans Monitoring weitergereicht werden)
+    takeOver(serial, device) {
+      const c = conns.get(serial);
+      if (c && c.device === device) { connect(c); return; }
+      if (c) stop(serial);
+      adopt({ serial, url: null }, device);   // url kommt nach dem Speichern der Box ueber refresh
+    }
   };
-  if (!supported) return;
+  if (!canConnect) return;
 
   const rememberedId = serial => {
     try { return localStorage.getItem('bluedan-device:' + serial); } catch (e) { return null; }
@@ -69,6 +80,7 @@
   }
 
   function post(c, temp) {
+    if (!c.url) return;   // gekoppelt, Box aber noch nicht gespeichert
     fetch(c.url, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ serial: c.serial, temp })
@@ -130,7 +142,7 @@
       }
       const wanted = new Map(list.map(s => [s.serial, s]));
       [...conns.keys()].filter(serial => !wanted.has(serial)).forEach(stop);
-      const devices = await navigator.bluetooth.getDevices();
+      const devices = supported ? await navigator.bluetooth.getDevices() : [];
       for (const sensor of list) {
         const existing = conns.get(sensor.serial);
         if (existing) { existing.url = sensor.url; continue; }   // Fuehler kann die Box gewechselt haben
