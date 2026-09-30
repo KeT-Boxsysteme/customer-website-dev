@@ -8,15 +8,8 @@
     return Promise.race([promise, new Promise(resolve => setTimeout(() => resolve(null), ms))]);
   }
 
-  // Einmal verbinden, einen Messwert holen, wieder trennen
-  async function pick(status) {
-    if (!navigator.bluetooth) throw new Error('Bluetooth is not available in this browser. Please use Chrome or Edge.');
-    const device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'BD ' }], optionalServices: [B.SERVICE]
-    });
-    const serial = B.serialFromName(device.name);
-    if (!serial) throw new Error('Unknown sensor: ' + device.name);
-    status('Connecting to ' + device.name + ' …');
+  // Einmal verbinden, einen Messwert holen, wieder trennen (wirft bei Verbindungsfehler)
+  async function readOnce(device, serial) {
     try {
       const service = await (await device.gatt.connect()).getPrimaryService(B.SERVICE);
       const rx = await service.getCharacteristic(B.RX_CHAR);
@@ -30,18 +23,41 @@
       });
       await rx.startNotifications();
       await tx.writeValueWithResponse(B.buildOnlineRequest(serial));
-      const temp = await withTimeout(reading, 5000);
-      return { serial, name: device.name, temp };
+      return await withTimeout(reading, 5000);
     } finally {
       if (device.gatt.connected) device.gatt.disconnect();
     }
+  }
+
+  // Seriennummer kommt aus dem Namen im Auswahlfenster — dafuer braucht es keine Verbindung.
+  // Der Kontrollwert ist nur Bestaetigung: bis zu 3 Versuche, weil sich der Fuehler nur selten
+  // meldet und ein Verbindungsaufbau dann scheitern kann (gemessen: Pausen bis 60 s).
+  async function pick(status) {
+    if (!navigator.bluetooth) throw new Error('Bluetooth is not available in this browser. Please use Chrome or Edge.');
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'BD ' }], optionalServices: [B.SERVICE]
+    });
+    const serial = B.serialFromName(device.name);
+    if (!serial) throw new Error('Unknown sensor: ' + device.name);
+    let lastError = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      status('Sensor ' + serial + ' selected – getting a test reading (attempt ' + attempt + ' of 3) …');
+      try {
+        const temp = await readOnce(device, serial);
+        if (temp !== null) return { serial, name: device.name, temp };
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (lastError) console.warn('Sensor test reading failed:', lastError);
+    return { serial, name: device.name, temp: null };
   }
 
   // Kontrollwert beim Verbinden — kein gespeicherter Messwert
   function testReading(result) {
     return result.temp !== null
       ? ' (test reading ' + result.temp.toFixed(1) + ' °C)'
-      : ' (no test reading received – please check the sensor)';
+      : ' (no test reading possible right now – the sensor is still assigned)';
   }
 
   document.querySelectorAll('[data-sensor-pair]').forEach(box => {
