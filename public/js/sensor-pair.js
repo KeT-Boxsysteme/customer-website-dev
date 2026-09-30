@@ -77,6 +77,7 @@
       try {
         const result = await pick(status);
         input.value = result.serial;
+        connectBtn.textContent = connectBtn.dataset.labelSet;
         status('Sensor ' + result.serial + ' found' + testReading(result) + '. Save the box to connect it.');
         if (removeBtn) removeBtn.hidden = false;
       } catch (err) {
@@ -89,6 +90,7 @@
 
     if (removeBtn) removeBtn.addEventListener('click', () => {
       input.value = '';
+      connectBtn.textContent = connectBtn.dataset.labelEmpty;
       removeBtn.hidden = true;
       status('No sensor connected. Save the box to apply.');
     });

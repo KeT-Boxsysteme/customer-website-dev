@@ -290,7 +290,8 @@
                   </select>
                 </div>
                 <div class="sensor-pair__actions">
-                  <button type="button" class="btn btn-secondary" data-sensor-connect>Connect temperature sensor</button>
+                  <button type="button" class="btn btn-secondary" data-sensor-connect
+                          data-label-empty="Connect temperature sensor" data-label-set="Change sensor"><%= sensorSerial ? 'Change sensor' : 'Connect temperature sensor' %></button>
                   <button type="button" class="btn btn-sm" data-sensor-remove <%= sensorSerial ? '' : 'hidden' %>>Remove</button>
                 </div>
               </div>

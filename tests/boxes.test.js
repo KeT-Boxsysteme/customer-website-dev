@@ -359,3 +359,18 @@ describe('storage interval on the box form (E-19)', () => {
     expect(Box.setSensor).not.toHaveBeenCalled();
   });
 });
+
+describe('box form sensor button label', () => {
+  test('box with sensor -> "Change sensor", so nobody thinks none is connected', async () => {
+    Box.findById.mockResolvedValue({ id: 11, has_fridge: 1, fridge_temp: 4, sensor_serial: '740B3B', sensor_store_minutes: 1 });
+    const page = await agent.get('/boxes/11/edit');
+    expect(page.status).toBe(200);
+    expect(page.text).toMatch(/data-sensor-connect[\s\S]*?>Change sensor<\/button>/);
+  });
+
+  test('box without sensor -> "Connect temperature sensor"', async () => {
+    Box.findById.mockResolvedValue({ id: 11, has_fridge: 1, fridge_temp: 4, sensor_serial: null });
+    const page = await agent.get('/boxes/11/edit');
+    expect(page.text).toMatch(/data-sensor-connect[\s\S]*?>Connect temperature sensor<\/button>/);
+  });
+});
