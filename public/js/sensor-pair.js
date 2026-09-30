@@ -38,10 +38,11 @@
     }
   }
 
-  function describe(result) {
-    return 'Sensor ' + result.serial + (result.temp !== null
-      ? ' – current reading ' + result.temp.toFixed(1) + ' °C'
-      : ' – no reading received, please check the sensor');
+  // Kontrollwert beim Verbinden — kein gespeicherter Messwert
+  function testReading(result) {
+    return result.temp !== null
+      ? ' (test reading ' + result.temp.toFixed(1) + ' °C)'
+      : ' (no test reading received – please check the sensor)';
   }
 
   async function post(url, serial) {
@@ -63,15 +64,17 @@
 
     connectBtn.addEventListener('click', async () => {
       connectBtn.disabled = true;
+      // Der Fuehler meldet sich nur alle paar Sekunden (gemessen: bis 13 s) — Wartezeit ansagen
+      status('Searching for sensors – it can take up to 20 seconds until the sensor appears in the list …');
       try {
         const result = await pick(status);
         if (mode === 'form') {
           input.value = result.serial;
-          status(describe(result) + '. Save the box to keep it.');
+          status('Sensor ' + result.serial + ' found' + testReading(result) + '. Save the box to connect it.');
           if (removeBtn) removeBtn.hidden = false;
         } else {
           const saved = await post(box.dataset.url, result.serial);
-          status(describe(result) + '. Saved.' +
+          status('Sensor ' + result.serial + ' connected to this box' + testReading(result) + '.' +
             (saved.movedFrom && saved.movedFrom.length ? ' Moved here from: ' + saved.movedFrom.join(', ') + '.' : ''));
           setTimeout(() => window.location.reload(), 1500);
         }

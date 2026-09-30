@@ -269,7 +269,7 @@
             </div>
             <div id="fridgeSection" class="conditional-section" style="<%= editBox && editBox.has_fridge ? '' : 'display:none' %>">
               <div class="form-group">
-                <label for="fridgeTemp">Temperature <span class="hint">(°C)</span></label>
+                <label for="fridgeTemp">Target temperature <span class="hint">(°C)</span></label>
                 <input type="number" id="fridgeTemp" name="fridgeTemp"
                        value="<%= editBox ? editBox.fridge_temp : '' %>">
               </div>
