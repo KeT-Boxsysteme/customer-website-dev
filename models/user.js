@@ -1,6 +1,10 @@
 const { getPool, sql } = require('../config/database');
 const bcrypt = require('bcryptjs');
 
+// Kostenstufe fuer neue/geaenderte Passwoerter (Betreiber 01.10.): Stufe 12 kostete auf Render ~2 s je
+// Login (gemessen). 10 = OWASP-Mindestempfehlung. Bestehende Hashes (Stufe 12) bleiben gueltig.
+const BCRYPT_COST = 10;
+
 async function findByEmail(email) {
   const pool = await getPool();
   const result = await pool.request()
@@ -29,7 +33,7 @@ async function findAllByCompany(companyId) {
 
 async function create({ companyId, firstname, lastname, email, phone, username, department, role, password }) {
   const pool = await getPool();
-  const passwordHash = await bcrypt.hash(password, 12);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
   const result = await pool.request()
     .input('companyId', sql.Int, companyId)
     .input('firstname', sql.NVarChar(100), firstname)
@@ -69,7 +73,7 @@ async function softDelete(id) {
 
 async function updatePassword(id, newPassword) {
   const pool = await getPool();
-  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_COST);
   await pool.request()
     .input('id', sql.Int, id)
     .input('passwordHash', sql.NVarChar(255), passwordHash)

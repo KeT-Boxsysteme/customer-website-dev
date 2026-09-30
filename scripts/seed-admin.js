@@ -56,7 +56,7 @@ async function run() {
   if (existingUser.recordset.length > 0) {
     console.log('Admin-User existiert bereits – nichts zu tun.');
   } else {
-    const hash = await bcrypt.hash(TEST_PASSWORD, 12);
+    const hash = await bcrypt.hash(TEST_PASSWORD, 10);   // wie models/user.js BCRYPT_COST
     await pool.request()
       .input('companyId',  sql.Int,          companyId)
       .input('firstname',  sql.NVarChar(100), 'Admin')
