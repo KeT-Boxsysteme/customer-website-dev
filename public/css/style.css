@@ -1232,3 +1232,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 /* Bluetooth-Temperaturfuehler (Box-Formular + Monitoring) */
 .sensor-pair__status { margin: 4px 0 8px; font-size: 13px; color: var(--color-text-muted); }
 .sensor-pair__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Box-Formular: nennt fehlende Pflichtfelder unter dem gesperrten Speichern-Knopf */
+.form-missing-hint { margin: 8px 0 0; font-size: 13px; color: var(--color-text-muted); text-align: right; }
+.form-missing-hint:empty { display: none; }

@@ -362,9 +362,11 @@
           <%= isEdit ? 'Save Changes' : 'Add Box' %>
         </button>
       </div>
+      <p class="form-missing-hint" id="boxSubmitHint" aria-live="polite"></p>
     </form>
   </main>
 
+  <script src="/js/form-hints.js"></script>
   <script>
     (function () {
       var form      = document.getElementById('boxForm');
@@ -413,6 +415,9 @@
       // Submit erst aktiv, wenn alle (auch bedingten) Pflichtfelder gefuellt sind
       function updateSubmitBtn() {
         submitBtn.disabled = !form.checkValidity();
+        // Sagen, WARUM der Knopf gesperrt ist (public/js/form-hints.js)
+        document.getElementById('boxSubmitHint').textContent =
+          submitBtn.disabled && window.FormHints ? window.FormHints.describe(form) : '';
       }
 
       form.addEventListener('input',  updateConditionals);
