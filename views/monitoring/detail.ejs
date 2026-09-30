@@ -88,7 +88,7 @@
         <% if (box.has_fridge && box.sensor_serial) { %>
         <!-- Live-Fuehler: verbindet automatisch, kein Knopf (gekoppelt wird im Box Management) -->
         <div class="live-sensor" data-live-sensor data-serial="<%= box.sensor_serial %>"
-             data-url="/monitoring/<%= box.id %>/readings"
+             data-live-url="/monitoring/<%= box.id %>/live"
              data-store-minutes="<%= box.sensor_store_minutes || 1 %>">
           <span class="live-sensor__dot" aria-hidden="true"></span>
           <p class="live-sensor__status" data-live-status aria-live="polite">Sensor <%= box.sensor_serial %> – connecting …</p>
@@ -153,6 +153,7 @@
   </main>
 
   <script>
+  (function () {   // eigener Bereich: Turbo fuehrt das Skript bei jedem Besuch erneut aus
     // Auto-clear username after 1 hour of inactivity (Box-User kiosk behaviour)
     let inactivityTimer;
     function resetInactivityTimer() {
@@ -170,6 +171,7 @@
     function closeAlertModal() {
       document.getElementById('alertModal').style.display = 'none';
     }
+    window.closeAlertModal = closeAlertModal;   // wird aus onclick im Markup aufgerufen
 
     document.getElementById('alertBtn').addEventListener('click', () => {
       document.getElementById('alertModal').style.display = 'flex';
@@ -191,7 +193,7 @@
         try {
           const res = await fetch(url, { method: 'POST' });
           if (!res.ok) throw new Error('Request failed');
-          window.location.reload();
+          if (window.Turbo) Turbo.visit(window.location.href, { action: 'replace' }); else window.location.reload();
         } catch (err) {
           btn.disabled = false;
           alert('Could not complete the action. Please try again.');
@@ -211,9 +213,9 @@
       }
       document.getElementById('contactUsername').value = abbrev;
     });
+  })();
   </script>
   <% if (box.sensor_serial) { %>
-  <script src="/js/bluedan.js"></script>
   <script src="/js/live-sensor.js"></script>
   <% } %>
 <%- include('../partials/footer') %>

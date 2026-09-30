@@ -42,6 +42,12 @@
     // Geraete-Kennung merken: das Monitoring findet den Fuehler darueber per getDevices wieder,
     // auch wenn der Browser dort keinen Namen liefert (nur Komfort — Speicher darf fehlen)
     try { localStorage.setItem('bluedan-device:' + serial, device.id); } catch (e) { /* egal */ }
+    // Haelt der Hintergrund-Verbinder den Fuehler schon, dessen Wert nehmen und die Verbindung
+    // NICHT anfassen — ein eigener Test wuerde sie danach trennen.
+    const held = window.SensorHub && window.SensorHub.state(serial);
+    if (held && held.connected) {
+      return { serial, name: device.name, temp: held.lastTemp === undefined ? null : held.lastTemp };
+    }
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
       status('Sensor ' + serial + ' selected – getting a test reading (attempt ' + attempt + ' of 3) …');

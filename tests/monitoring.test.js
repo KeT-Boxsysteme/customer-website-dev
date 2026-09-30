@@ -371,6 +371,7 @@ describe('temperature sensor in monitoring (display only – pairing is done in 
 describe('POST /monitoring/:id/readings (live sensor values, E-16/E-19)', () => {
   const sensorBox = (o = {}) => makeBox({ sensor_serial: '740B3B', sensor_store_minutes: 5, ...o });
   beforeEach(() => {
+    require('../services/liveReadings').reset();
     Box.findById.mockResolvedValue(sensorBox());
     SensorReading.createIfDue.mockResolvedValue(true);
   });
@@ -447,5 +448,57 @@ describe('GET /monitoring/:id – no pairing button at all (Betreiber 30.09.)', 
   test('box name is shown under the brand', async () => {
     const page = await agent.get(`/monitoring/${BOX_ID}`);
     expect(page.text).toContain('class="monitoring-box-name"');
+  });
+});
+
+describe('server-held live values (connection lives in the background hub, not in the page)', () => {
+  const sensorBox = (o = {}) => makeBox({ sensor_serial: '740B3B', sensor_store_minutes: 1, ...o });
+  beforeEach(() => {
+    require('../services/liveReadings').reset();
+    Box.findById.mockResolvedValue(sensorBox());
+    SensorReading.createIfDue.mockResolvedValue(true);
+  });
+
+  test('every value updates the live value, but the DB is only asked once per interval', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 4.0 });
+    const second = await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 4.5 });
+    expect(second.body).toEqual({ stored: false });
+    expect(SensorReading.createIfDue).toHaveBeenCalledTimes(1);
+
+    const liveRes = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(liveRes.status).toBe(200);
+    expect(liveRes.body).toMatchObject({ serial: '740B3B', temp: 4.5, fresh: true });
+  });
+
+  test('no value yet -> live says nothing (no invented value)', async () => {
+    const res = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ serial: '740B3B', temp: null, fresh: false });
+  });
+
+  test('live of an unknown / other company box -> 404', async () => {
+    Box.findById.mockResolvedValue(null);
+    const res = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(res.status).toBe(404);
+  });
+
+  test('sensor list for the background hub: only fridge boxes with a sensor, own company', async () => {
+    Box.findAllByCompany.mockResolvedValue([
+      sensorBox({ id: 5, sensor_store_minutes: 15 }),
+      makeBox({ id: 6, has_fridge: 1, sensor_serial: null }),
+      makeBox({ id: 7, has_fridge: 0, sensor_serial: 'AAAAAA' })
+    ]);
+    const res = await agent.get('/monitoring/sensors');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ boxId: 5, serial: '740B3B', storeMinutes: 15, url: '/monitoring/5/readings' }]);
+    expect(Box.findAllByCompany).toHaveBeenCalledWith(COMPANY_ID);
+  });
+});
+
+describe('logged-in pages carry the background sensor hub (kept alive by Turbo)', () => {
+  test('monitoring page head loads Turbo and the hub', async () => {
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toContain('/js/vendor/turbo.umd.js');
+    expect(page.text).toContain('/js/sensor-hub.js');
   });
 });

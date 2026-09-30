@@ -23,15 +23,15 @@
     <div class="radio-group">
       <label class="radio-label <%= months === 6 ? 'active' : '' %>">
         <input type="radio" name="months" value="6" <%= months === 6 ? 'checked' : '' %>
-               onchange="location.href='/diagrams/<%= box.id %>?months=6'"> 6 Months
+               onchange="window.Turbo ? Turbo.visit('/diagrams/<%= box.id %>?months=6') : (location.href='/diagrams/<%= box.id %>?months=6')"> 6 Months
       </label>
       <label class="radio-label <%= months === 9 ? 'active' : '' %>">
         <input type="radio" name="months" value="9" <%= months === 9 ? 'checked' : '' %>
-               onchange="location.href='/diagrams/<%= box.id %>?months=9'"> 9 Months
+               onchange="window.Turbo ? Turbo.visit('/diagrams/<%= box.id %>?months=9') : (location.href='/diagrams/<%= box.id %>?months=9')"> 9 Months
       </label>
       <label class="radio-label <%= months === 12 ? 'active' : '' %>">
         <input type="radio" name="months" value="12" <%= months === 12 ? 'checked' : '' %>
-               onchange="location.href='/diagrams/<%= box.id %>?months=12'"> 1 Year
+               onchange="window.Turbo ? Turbo.visit('/diagrams/<%= box.id %>?months=12') : (location.href='/diagrams/<%= box.id %>?months=12')"> 1 Year
       </label>
     </div>
 
@@ -76,6 +76,7 @@
 
   <script src="/js/vendor/chart.umd.min.js"></script>
   <script>
+  (function () {   // eigener Bereich: Turbo fuehrt das Skript bei jedem Besuch erneut aus
     const labels = <%- chartLabels %>;
     const o2Data = <%- o2Data %>;
     const h2oData = <%- h2oData %>;
@@ -133,5 +134,6 @@
         }
       }
     });
+  })();
   </script>
 <%- include('../partials/footer') %>

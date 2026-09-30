@@ -41,3 +41,12 @@ describe('App basic routes (unauthenticated)', () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe('Turbo + background sensor hub in the page head', () => {
+  const request = require('supertest');
+  test('login page loads Turbo, but not the sensor hub (nobody logged in)', async () => {
+    const res = await request(app).get('/auth/login');
+    expect(res.text).toContain('/js/vendor/turbo.umd.js');
+    expect(res.text).not.toContain('/js/sensor-hub.js');
+  });
+});

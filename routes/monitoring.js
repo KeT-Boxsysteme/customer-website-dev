@@ -4,6 +4,7 @@ const Box = require('../models/box');
 const Measurement = require('../models/measurement');
 const AlertAck = require('../models/alertAck');
 const SensorReading = require('../models/sensorReading');
+const liveReadings = require('../services/liveReadings');
 const { storeWindowSeconds, validateReading } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
@@ -34,6 +35,21 @@ router.get('/', async (req, res) => {
     console.error(err);
     req.flash('error', 'Could not load boxes.');
     res.redirect('/dashboard');
+  }
+});
+
+// GET /monitoring/sensors – Fuehler der eigenen Firma fuer den Hintergrund-Verbinder (sensor-hub.js).
+// Muss vor /:id stehen.
+router.get('/sensors', async (req, res) => {
+  try {
+    const boxes = await Box.findAllByCompany(req.session.user.companyId);
+    res.json(boxes
+      .filter(b => b.has_fridge && b.sensor_serial)
+      .map(b => ({ boxId: b.id, serial: b.sensor_serial, storeMinutes: b.sensor_store_minutes || 1,
+                   url: `/monitoring/${b.id}/readings` })));
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not load sensors.' });
   }
 });
 
@@ -150,12 +166,32 @@ router.post('/:id/readings', async (req, res) => {
     const temp = validateReading(req.body.temp);
     if (temp === null) return res.status(400).json({ error: 'Implausible temperature.' });
 
-    const stored = await SensorReading.createIfDue(box.id, serial, temp,
-      storeWindowSeconds(box.sensor_store_minutes));
+    // Jeder Wert ist sofort live (Speicher); die DB wird nur im Takt der Box gefragt
+    liveReadings.record(box.id, serial, temp);
+    const stored = liveReadings.dueForHistory(box.id, box.sensor_store_minutes)
+      ? await SensorReading.createIfDue(box.id, serial, temp, storeWindowSeconds(box.sensor_store_minutes))
+      : false;
     res.json({ stored });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not store the reading.' });
+  }
+});
+
+// GET /monitoring/:id/live – aktueller Live-Wert der Box aus dem Speicher (kein DB-Zugriff ausser Box-Check)
+router.get('/:id/live', async (req, res) => {
+  try {
+    const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
+    if (!box) return res.status(404).json({ error: 'Box not found' });
+    const v = liveReadings.get(box.id);
+    // Nur Werte des aktuell zugeordneten Fuehlers zaehlen
+    if (!v || !box.sensor_serial || v.serial !== box.sensor_serial) {
+      return res.json({ serial: box.sensor_serial || null, temp: null, fresh: false });
+    }
+    res.json(v);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Could not load the live value.' });
   }
 });
 
