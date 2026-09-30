@@ -432,3 +432,20 @@ describe('GET /monitoring/:id – live sensor block', () => {
     expect(page.text).not.toContain('data-live-sensor');
   });
 });
+
+describe('GET /monitoring/:id – no pairing button at all (Betreiber 30.09.)', () => {
+  test('box with sensor: live status line, but no connect / start button that could break the pairing', async () => {
+    Box.findById.mockResolvedValue(makeBox({ sensor_serial: '740B3B', sensor_store_minutes: 1 }));
+    const admin = await loginAgent(app, User, 'admin');
+    const page = await admin.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toContain('data-live-status');
+    expect(page.text).not.toContain('data-live-connect');
+    expect(page.text).not.toContain('Start live reading');
+    expect(page.text).not.toContain('data-sensor-connect');
+  });
+
+  test('box name is shown under the brand', async () => {
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toContain('class="monitoring-box-name"');
+  });
+});

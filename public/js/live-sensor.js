@@ -3,6 +3,8 @@
 //   und wird erst bei Verbindungsverlust geleert und freigegeben.
 // - In den Verlauf geht ein Wert im Takt der Box (data-store-minutes); der Server wacht zusaetzlich.
 // - Nur Lesebefehl B7 (public/js/bluedan.js), nie Befehle, die den Logger veraendern.
+// - KEIN Knopf (Betreiber 30.09.): gekoppelt wird nur im Box Management; hier nur automatisch
+//   ueber getDevices (Chrome-Schalter, Vault: Bluetooth-Fuehler).
 (function () {
   const B = window.BlueDAN;
   const box = document.querySelector('[data-live-sensor]');
@@ -13,7 +15,6 @@
   const url = box.dataset.url;
   const storeMs = (parseInt(box.dataset.storeMinutes, 10) || 1) * 60 * 1000;
   const statusEl = box.querySelector('[data-live-status]');
-  const connectBtn = box.querySelector('[data-live-connect]');
   const DISPLAY_MS = 5000;
 
   let device = null, tx = null, rx = null, ticker = null, lastValueAt = null, lastStoredAt = 0, reconnectTimer = null;
@@ -22,7 +23,7 @@
   function setLive(on) {
     field.readOnly = on;
     field.classList.toggle('is-live', on);
-    connectBtn.hidden = on;
+    box.classList.toggle('is-live', on);
     if (!on) field.value = '';   // kein alter Wert, der wie ein aktueller aussieht
   }
 
@@ -129,43 +130,21 @@
   // Der Knopf fuegt keinen Fuehler hinzu (das geht nur im Box Management), er startet die Live-Verbindung.
   // Ohne getDevices verlangt der Browser dafuer einen Klick je Besuch — das sagen wir offen.
   async function autoConnect() {
-    const idle = 'Sensor ' + serial + ' assigned – live reading not started';
-    if (!navigator.bluetooth) { status(idle + ' (Bluetooth not available in this browser)'); return; }
-    if (!navigator.bluetooth.getDevices) { status(idle + ' (this browser requires one click per visit)'); return; }
+    const idle = 'Sensor ' + serial + ' – no live reading';
+    if (!navigator.bluetooth) { status(idle + ': Bluetooth is not available in this browser (use Chrome or Edge).'); return; }
+    if (!navigator.bluetooth.getDevices) { status(idle + ': this browser is not set up for automatic sensor connection.'); return; }
     try {
       const id = rememberedId();
       const known = (await navigator.bluetooth.getDevices())
         .find(d => B.serialFromName(d.name) === serial || (id && d.id === id));
-      if (!known) { status(idle + ' (click once to allow this browser to use the sensor)'); return; }
+      if (!known) { status(idle + ': pair the sensor once in Box Management on this device.'); return; }
       adopt(known);
       status('Sensor ' + serial + ' – connecting …');
       await tryReconnect();
     } catch (err) {
-      status(idle + ' (' + err.message + ')');
+      status(idle + ': ' + err.message);
     }
   }
-
-  connectBtn.addEventListener('click', async () => {
-    if (!navigator.bluetooth) { status('Bluetooth is not available in this browser. Please use Chrome or Edge.'); return; }
-    connectBtn.disabled = true;
-    status('Searching – it can take up to one minute until the sensor appears in the list …');
-    try {
-      const d = await navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'BD ' }], optionalServices: [B.SERVICE]
-      });
-      if (B.serialFromName(d.name) !== serial) {
-        status('That is sensor ' + (B.serialFromName(d.name) || d.name) + ' – this box uses sensor ' + serial + '.');
-        return;
-      }
-      adopt(d);
-      status('Sensor ' + serial + ' – connecting …');
-      await connectGatt();
-    } catch (err) {
-      status(err && err.name === 'NotFoundError' ? 'No sensor selected.' : 'Sensor ' + serial + ' – could not connect: ' + err.message);
-    } finally {
-      connectBtn.disabled = false;
-    }
-  });
 
   autoConnect();
 })();

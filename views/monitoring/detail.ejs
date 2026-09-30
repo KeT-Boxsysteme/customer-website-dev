@@ -6,6 +6,7 @@
     <div class="page-header">
       <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
     </div>
+    <p class="monitoring-box-name"><%= box.box_alias %></p>
 
     <%- include('../partials/flash') %>
 
@@ -49,6 +50,7 @@
         </div>
 
         <!-- Sensor values – only shown if box has the respective sensor/component -->
+        <div class="monitoring-values">
         <div class="sensor-values">
           <% if (box.has_o2_sensor) { %>
           <div class="form-group sensor-field">
@@ -71,14 +73,6 @@
             <label for="fridgeTemp">Fridge Temp <span class="hint">(°C)</span></label>
             <input type="number" id="fridgeTemp" name="fridgeTemp" step="0.1"
                    placeholder="0.0">
-            <% if (box.sensor_serial) { %>
-            <div class="live-sensor" data-live-sensor data-serial="<%= box.sensor_serial %>"
-                 data-url="/monitoring/<%= box.id %>/readings"
-                 data-store-minutes="<%= box.sensor_store_minutes || 1 %>">
-              <p class="live-sensor__status" data-live-status aria-live="polite">Sensor <%= box.sensor_serial %> assigned – live reading not started</p>
-              <button type="button" class="btn btn-sm btn-secondary" data-live-connect>Start live reading</button>
-            </div>
-            <% } %>
           </div>
           <% } %>
 
@@ -90,20 +84,30 @@
           </div>
           <% } %>
         </div>
+
+        <% if (box.has_fridge && box.sensor_serial) { %>
+        <!-- Live-Fuehler: verbindet automatisch, kein Knopf (gekoppelt wird im Box Management) -->
+        <div class="live-sensor" data-live-sensor data-serial="<%= box.sensor_serial %>"
+             data-url="/monitoring/<%= box.id %>/readings"
+             data-store-minutes="<%= box.sensor_store_minutes || 1 %>">
+          <span class="live-sensor__dot" aria-hidden="true"></span>
+          <p class="live-sensor__status" data-live-status aria-live="polite">Sensor <%= box.sensor_serial %> – connecting …</p>
+        </div>
+        <% } %>
+        </div>
       </div>
 
-      <div class="monitoring-actions">
-        <button type="submit" class="btn btn-primary">Submit Values</button>
-      </div>
-
-      <!-- Alert / Maintenance button – centered under the value inputs -->
-      <div class="alert-section">
-        <button type="button" class="alert-btn" id="alertBtn" title="View alerts and maintenance tasks">
-          <span class="alert-icon">&#9888;</span>
-          <% if (alerts.length > 0) { %>
-          <span class="alert-badge"><%= alerts.length %></span>
-          <% } %>
-        </button>
+      <!-- Footer: alert button centered under the values (Konzept), submit on the right -->
+      <div class="monitoring-footer">
+        <div class="alert-section">
+          <button type="button" class="alert-btn" id="alertBtn" title="View alerts and maintenance tasks">
+            <span class="alert-icon">&#9888;</span>
+            <% if (alerts.length > 0) { %>
+            <span class="alert-badge"><%= alerts.length %></span>
+            <% } %>
+          </button>
+        </div>
+        <button type="submit" class="btn btn-primary monitoring-submit">Submit Values</button>
       </div>
     </form>
 
