@@ -19,16 +19,17 @@ async function create({ boxId, userId, o2Value, h2oValue, fridgeTemp, pressureVa
   return result.recordset[0].id;
 }
 
-async function findByBox(boxId, monthsBack) {
+// Manuelle Messwerte ab `since` (Zeitraum der Diagramm-Seite, services/diagramData.js)
+async function findByBox(boxId, since) {
   const pool = await getPool();
   const result = await pool.request()
-    .input('boxId',      sql.Int, boxId)
-    .input('monthsBack', sql.Int, monthsBack || 6)
+    .input('boxId', sql.Int,       boxId)
+    .input('since', sql.DateTime2, since)
     .query(`SELECT m.*, u.username
             FROM measurements m
             LEFT JOIN users u ON m.user_id = u.id
             WHERE m.box_id = @boxId
-              AND m.measured_at >= DATEADD(month, -@monthsBack, GETDATE())
+              AND m.measured_at >= @since
             ORDER BY m.measured_at DESC`);
   return result.recordset;
 }

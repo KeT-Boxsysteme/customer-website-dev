@@ -4,6 +4,46 @@
 // Punkte als { x: Zeitstempel in ms, y: Wert }; leere Werte werden weggelassen, nicht als 0 gezeichnet.
 const { FRIDGE_YELLOW_DELTA, FRIDGE_RED_DELTA } = require('./alerts');
 
+// Zeitraeume (Betreiber 01.10.): kurz fuer den Fuehler, lang wie im Lastenheft (6/9/12 Monate).
+// step = Schrittweite des Fuehler-Verlaufs in Minuten (ca. 300-1500 Punkte je Diagramm).
+const RANGES = [
+  { key: '24h', label: '24 h',     hours: 24,   step: 5 },
+  { key: '7d',  label: '7 days',   hours: 168,  step: 30 },
+  { key: '30d', label: '30 days',  hours: 720,  step: 120 },
+  { key: '6m',  label: '6 months', months: 6,   step: 360 },
+  { key: '9m',  label: '9 months', months: 9,   step: 360 },
+  { key: '12m', label: '1 year',   months: 12,  step: 720 }
+];
+const LEGACY_MONTHS = { 6: '6m', 9: '9m', 12: '12m' };   // alte Links ?months=
+
+// Zeitraum aus der Anfrage: { key, label, since, bucketMinutes } oder null (unbekannt -> Umleitung).
+// Ohne Angabe: 7 Tage bei Boxen mit Fuehler, sonst 6 Monate.
+function resolveRange(query, box, now = new Date()) {
+  let key = query.range;
+  if (!key && query.months !== undefined) {
+    key = LEGACY_MONTHS[parseInt(query.months, 10)] || (Number.isNaN(parseInt(query.months, 10)) ? undefined : 'invalid');
+  }
+  if (!key) key = box.sensor_serial ? '7d' : '6m';
+  const r = RANGES.find(x => x.key === key);
+  if (!r) return null;
+  const since = new Date(now.getTime());
+  if (r.months) since.setUTCMonth(since.getUTCMonth() - r.months);
+  else since.setTime(now.getTime() - r.hours * 3600 * 1000);
+  return { key: r.key, label: r.label, since, bucketMinutes: r.step };
+}
+
+// Luecke laenger als 3 Schritte -> Punkt ohne Wert einfuegen, damit keine Linie ueber fehlende Daten laeuft
+function breakGaps(points, bucketMinutes) {
+  if (!bucketMinutes) return points;
+  const out = [];
+  for (const p of points) {
+    const prev = out[out.length - 1];
+    if (prev && p.x - prev.x > 3 * bucketMinutes * 60000) out.push({ x: prev.x + bucketMinutes * 60000, y: null });
+    out.push(p);
+  }
+  return out;
+}
+
 const num = v => (v === null || v === undefined || v === '' ? null : Number(v));
 
 function series(rows, timeKey, valueKey) {
@@ -13,18 +53,34 @@ function series(rows, timeKey, valueKey) {
     .sort((a, b) => a.x - b.x);
 }
 
-function buildCharts({ box, measurements = [], sensorHours = [] }) {
+// Kennzahlen des Fuehler-Verlaufs: letzter Wert, Min, Max, Anteil der Schritte ausserhalb ±gelb
+function stats(avg, min, max, target) {
+  if (!avg.length) return null;
+  const outside = target === null ? 0 : avg.filter(p => Math.abs(p.y - target) >= FRIDGE_YELLOW_DELTA).length;
+  return {
+    last: avg[avg.length - 1].y,
+    min: Math.min(...min.map(p => p.y)),
+    max: Math.max(...max.map(p => p.y)),
+    outsidePct: Math.round((outside / avg.length) * 100)
+  };
+}
+
+function buildCharts({ box, measurements = [], sensorHours = [], bucketMinutes = null }) {
   let temp = null;
   if (box.has_fridge) {
     const avg = series(sensorHours, 'bucket', 'avg_temp');
+    const min = series(sensorHours, 'bucket', 'min_temp');
+    const max = series(sensorHours, 'bucket', 'max_temp');
     const manual = series(measurements, 'measured_at', 'fridge_temp');
+    const target = num(box.fridge_temp);
     temp = {
-      avg,
-      min: series(sensorHours, 'bucket', 'min_temp'),
-      max: series(sensorHours, 'bucket', 'max_temp'),
+      avg: breakGaps(avg, bucketMinutes),
+      min: breakGaps(min, bucketMinutes),
+      max: breakGaps(max, bucketMinutes),
       manual,
-      target: num(box.fridge_temp),
+      target,
       limits: { yellow: FRIDGE_YELLOW_DELTA, red: FRIDGE_RED_DELTA },
+      stats: stats(avg, min, max, target),
       hasData: avg.length > 0 || manual.length > 0
     };
   }
@@ -39,4 +95,4 @@ function buildCharts({ box, measurements = [], sensorHours = [] }) {
   return { temp, ppm };
 }
 
-module.exports = { buildCharts };
+module.exports = { buildCharts, resolveRange, RANGES };

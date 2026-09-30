@@ -19,20 +19,22 @@ async function createIfDue(boxId, sensorSerial, temp, windowSeconds) {
   return result.rowsAffected[0] === 1;
 }
 
-// Verlauf fuer /diagrams: je Stunde Mittel, Minimum und Maximum (1 Jahr im Minutentakt waeren
-// > 500 000 Punkte; Min/Max halten kurze Ausreisser sichtbar). Index idx_sensor_readings_box_time.
-async function hourlyByBox(boxId, monthsBack) {
+// Verlauf fuer /diagrams ab `since`, zusammengefasst in Schritten von `bucketMinutes` (Mittel, Minimum,
+// Maximum): 1 Jahr im Minutentakt waeren > 500 000 Punkte; Min/Max halten kurze Ausreisser sichtbar.
+// Schrittweite je Zeitraum: services/diagramData.js (RANGES). Index idx_sensor_readings_box_time.
+async function historyByBox(boxId, since, bucketMinutes) {
   const pool = await getPool();
   const result = await pool.request()
-    .input('boxId',      sql.Int, boxId)
-    .input('monthsBack', sql.Int, monthsBack || 6)
-    .query(`SELECT DATEADD(hour, DATEDIFF(hour, 0, measured_at), 0) AS bucket,
+    .input('boxId',  sql.Int,       boxId)
+    .input('since',  sql.DateTime2, since)
+    .input('bucket', sql.Int,       bucketMinutes)
+    .query(`SELECT DATEADD(minute, (DATEDIFF(minute, 0, measured_at) / @bucket) * @bucket, 0) AS bucket,
                    CAST(AVG(temp) AS DECIMAL(6,1)) AS avg_temp, MIN(temp) AS min_temp, MAX(temp) AS max_temp
             FROM sensor_readings
-            WHERE box_id = @boxId AND measured_at >= DATEADD(month, -@monthsBack, GETDATE())
-            GROUP BY DATEADD(hour, DATEDIFF(hour, 0, measured_at), 0)
+            WHERE box_id = @boxId AND measured_at >= @since
+            GROUP BY DATEADD(minute, (DATEDIFF(minute, 0, measured_at) / @bucket) * @bucket, 0)
             ORDER BY bucket`);
   return result.recordset;
 }
 
-module.exports = { createIfDue, hourlyByBox };
+module.exports = { createIfDue, historyByBox };

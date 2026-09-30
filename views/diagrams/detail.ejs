@@ -15,25 +15,16 @@
         <h2 class="section-title">
           <%= box.box_alias %> <span class="mono text-muted">&nbsp;#<%= box.project_number %></span>
         </h2>
-        <p class="section-desc">Temperature history from the sensor and manually entered values for the selected period.</p>
+        <p class="section-desc">Temperature history from the sensor and manually entered values — <%= range.label %>.</p>
       </div>
     </div>
 
-    <!-- Time range selector -->
-    <div class="radio-group">
-      <label class="radio-label <%= months === 6 ? 'active' : '' %>">
-        <input type="radio" name="months" value="6" <%= months === 6 ? 'checked' : '' %>
-               onchange="window.Turbo ? Turbo.visit('/diagrams/<%= box.id %>?months=6') : (location.href='/diagrams/<%= box.id %>?months=6')"> 6 Months
-      </label>
-      <label class="radio-label <%= months === 9 ? 'active' : '' %>">
-        <input type="radio" name="months" value="9" <%= months === 9 ? 'checked' : '' %>
-               onchange="window.Turbo ? Turbo.visit('/diagrams/<%= box.id %>?months=9') : (location.href='/diagrams/<%= box.id %>?months=9')"> 9 Months
-      </label>
-      <label class="radio-label <%= months === 12 ? 'active' : '' %>">
-        <input type="radio" name="months" value="12" <%= months === 12 ? 'checked' : '' %>
-               onchange="window.Turbo ? Turbo.visit('/diagrams/<%= box.id %>?months=12') : (location.href='/diagrams/<%= box.id %>?months=12')"> 1 Year
-      </label>
-    </div>
+    <!-- Time range: short ranges for the sensor, long ones as in the Konzept (6/9/12 months) -->
+    <nav class="range-tabs" aria-label="Time range">
+      <% ranges.forEach(r => { %>
+      <a href="/diagrams/<%= box.id %>?range=<%= r.key %>" class="range-tab<%= r.key === range.key ? ' is-active' : '' %>"<%- r.key === range.key ? ' aria-current="page"' : '' %>><%= r.label %></a>
+      <% }) %>
+    </nav>
 
     <!-- Charts: temperature (sensor history + manual entries + target) and ppm (manual entries) -->
     <% if (charts.temp) { %>
@@ -44,9 +35,17 @@
         <p class="chart-card__meta">Target <%= charts.temp.target %> °C · yellow from ±<%= charts.temp.limits.yellow %> °C · red from ±<%= charts.temp.limits.red %> °C</p>
         <% } %>
       </div>
+      <% if (charts.temp.stats) { const st = charts.temp.stats; %>
+      <dl class="kpi-row">
+        <div class="kpi"><dt>Latest</dt><dd><%= st.last.toFixed(1) %> °C</dd></div>
+        <div class="kpi"><dt>Min</dt><dd><%= st.min.toFixed(1) %> °C</dd></div>
+        <div class="kpi"><dt>Max</dt><dd><%= st.max.toFixed(1) %> °C</dd></div>
+        <div class="kpi<%= st.outsidePct > 0 ? ' kpi--warn' : '' %>"><dt>Outside ±<%= charts.temp.limits.yellow %> °C</dt><dd><%= st.outsidePct %> %</dd></div>
+      </dl>
+      <% } %>
       <% if (charts.temp.hasData) { %>
       <div class="chart-card__canvas"><canvas id="tempChart"></canvas></div>
-      <p class="chart-card__note">Sensor: hourly average with min–max band. Dots: manual entries.</p>
+      <p class="chart-card__note">Sensor: average per step with min–max band<%= charts.temp.manual.length ? '. Dots: manual entries' : '' %>.</p>
       <% } else { %>
       <p class="empty-state empty-state--plain">No temperature values in this period.</p>
       <% } %>
@@ -107,11 +106,17 @@
   <script>
   (function () {   // eigener Bereich: Turbo fuehrt das Skript bei jedem Besuch erneut aus
     const charts = <%- chartsJson %>;
-    const fmtDate = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    // Achse ueber den ganzen gewaehlten Zeitraum; bis 2 Tage Uhrzeiten, darueber Tage
+    const w = charts.window;
+    const short = w.to - w.from <= 2 * 24 * 3600 * 1000;
+    const fmtTick = ms => short
+      ? new Date(ms).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      : new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
     const fmtFull = ms => new Date(ms).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const stepLabel = w.step < 60 ? w.step + ' min' : (w.step / 60) + ' h';
     const timeAxis = {
-      type: 'linear',
-      ticks: { callback: v => fmtDate(v), maxTicksLimit: 8 },
+      type: 'linear', min: w.from, max: w.to,
+      ticks: { callback: v => fmtTick(v), maxTicksLimit: 8 },
       grid: { display: false }
     };
     const common = {
@@ -133,13 +138,12 @@
     const tempEl = document.getElementById('tempChart');
     if (tempEl && charts.temp) {
       const t = charts.temp;
-      const all = t.avg.concat(t.manual).map(p => p.x);
-      const xs = [Math.min.apply(null, all), Math.max.apply(null, all)];
+      const xs = [w.from, w.to];
       const datasets = [
         { label: 'Max', data: t.max, borderWidth: 0, pointRadius: 0, fill: false, backgroundColor: 'rgba(245,158,11,0.18)' },
         { label: 'Min', data: t.min, borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: 'rgba(245,158,11,0.18)' },
-        { label: 'Sensor (hourly avg)', data: t.avg, borderColor: '#d97706', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
-        { label: 'Manual entry', data: t.manual, borderColor: '#1e293b', backgroundColor: '#1e293b', showLine: false, pointRadius: 4 }
+        { label: 'Sensor (avg per ' + stepLabel + ')', data: t.avg, borderColor: '#d97706', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
+        { label: t.manual.length ? 'Manual entry' : '', data: t.manual, borderColor: '#1e293b', backgroundColor: '#1e293b', showLine: false, pointRadius: 4 }
       ];
       if (t.target !== null) {
         datasets.push(hline('Target', t.target, '#2e7d32', [], xs));

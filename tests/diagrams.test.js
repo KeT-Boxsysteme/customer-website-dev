@@ -55,71 +55,74 @@ beforeEach(async () => {
   Box.findAllByCompany.mockResolvedValue([]);
   Box.findById.mockResolvedValue(makeBox());
   Measurement.findByBox.mockResolvedValue(measurementRows);
-  SensorReading.hourlyByBox.mockResolvedValue([]);
+  SensorReading.historyByBox.mockResolvedValue([]);
   agent = await loginAgent(app, User, 'user');
 });
 
-describe('GET /diagrams/:id', () => {
-  test('?months=9 renders the 9-month radio as selected and the datasets', async () => {
+describe('GET /diagrams/:id – time ranges (24 h · 7 days · 30 days · 6/9/12 months)', () => {
+  const since = () => Measurement.findByBox.mock.calls[0][1].getTime();
+  const DAY = 24 * 3600 * 1000;
+
+  test('?range=9m -> 9-month link is current, queries start about 9 months back', async () => {
+    const res = await agent.get(`/diagrams/${BOX_ID}?range=9m`);
+    expect(res.status).toBe(200);
+    expect(Box.findById).toHaveBeenCalledWith(BOX_ID, COMPANY_ID);
+    expect(res.text).toMatch(/href="\/diagrams\/5\?range=9m"[^>]*aria-current="page"/);
+    expect(res.text).not.toMatch(/href="\/diagrams\/5\?range=6m"[^>]*aria-current="page"/);
+    const days = (Date.now() - since()) / DAY;
+    expect(days).toBeGreaterThan(260);
+    expect(days).toBeLessThan(280);
+  });
+
+  test('?range=24h -> sensor history in 5-minute steps for the last 24 hours', async () => {
+    const res = await agent.get(`/diagrams/${BOX_ID}?range=24h`);
+    expect(res.status).toBe(200);
+    const [boxId, from, bucket] = SensorReading.historyByBox.mock.calls[0];
+    expect(boxId).toBe(BOX_ID);
+    expect(bucket).toBe(5);
+    expect(Math.round((Date.now() - from.getTime()) / 3600000)).toBe(24);
+  });
+
+  test('old links ?months=9 still work (mapped to 9m)', async () => {
     const res = await agent.get(`/diagrams/${BOX_ID}?months=9`);
     expect(res.status).toBe(200);
+    expect(res.text).toMatch(/href="\/diagrams\/5\?range=9m"[^>]*aria-current="page"/);
+  });
 
-    // scoped queries
-    expect(Box.findById).toHaveBeenCalledWith(BOX_ID, COMPANY_ID);
-    expect(Measurement.findByBox).toHaveBeenCalledWith(BOX_ID, 9);
+  test('default: 7 days for a box with sensor, 6 months without', async () => {
+    Box.findById.mockResolvedValue(makeBox({ sensor_serial: '740B3B' }));
+    let res = await agent.get(`/diagrams/${BOX_ID}`);
+    expect(res.text).toMatch(/href="\/diagrams\/5\?range=7d"[^>]*aria-current="page"/);
+    Box.findById.mockResolvedValue(makeBox({ sensor_serial: null }));
+    res = await agent.get(`/diagrams/${BOX_ID}`);
+    expect(res.text).toMatch(/href="\/diagrams\/5\?range=6m"[^>]*aria-current="page"/);
+  });
 
-    // radio selection: 9 months checked, the others not
-    expect(res.text).toMatch(/value="9"\s+checked/);
-    expect(res.text).not.toMatch(/value="6"\s+checked/);
-    expect(res.text).not.toMatch(/value="12"\s+checked/);
+  test('unknown range -> redirect to the default, nothing queried', async () => {
+    const res = await agent.get(`/diagrams/${BOX_ID}?range=5y`);
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(`/diagrams/${BOX_ID}`);
+    expect(Measurement.findByBox).not.toHaveBeenCalled();
+  });
 
-    // chart datasets (chronologically reversed: oldest first)
-    // Werte als Zeitreihe, aelteste zuerst (Mai vor Juni)
+  test('values as time series (oldest first) and the manual-entry table', async () => {
+    const res = await agent.get(`/diagrams/${BOX_ID}?range=12m`);
     const may = new Date('2026-05-01T08:00:00Z').getTime();
     const june = new Date('2026-06-20T10:00:00Z').getTime();
     expect(res.text).toContain(`"o2":[{"x":${may},"y":2},{"x":${june},"y":1.2}]`);
     expect(res.text).toContain(`"h2o":[{"x":${may},"y":1.1},{"x":${june},"y":0.6}]`);
     expect(res.text).toContain(`"manual":[{"x":${may},"y":5},{"x":${june},"y":4.5}]`);
-
-    // table shows the measurement rows incl. the user abbreviation
     expect(res.text).toContain('TSTU');
     expect(res.text).toContain('LAB');
   });
 
-  test('defaults to 6 months without a query parameter', async () => {
-    const res = await agent.get(`/diagrams/${BOX_ID}`);
-    expect(res.status).toBe(200);
-    expect(Measurement.findByBox).toHaveBeenCalledWith(BOX_ID, 6);
-    expect(res.text).toMatch(/value="6"\s+checked/);
-  });
-
-  test('invalid months value redirects to the 6-month default', async () => {
-    const res = await agent.get(`/diagrams/${BOX_ID}?months=7`);
-    expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(`/diagrams/${BOX_ID}?months=6`);
-    expect(Measurement.findByBox).not.toHaveBeenCalled();
-  });
-
-  test('non-numeric months value falls back to 6 months', async () => {
-    const res = await agent.get(`/diagrams/${BOX_ID}?months=abc`);
-    expect(res.status).toBe(200);
-    expect(Measurement.findByBox).toHaveBeenCalledWith(BOX_ID, 6);
-  });
-
-  test('fridge dataset and column are present when the box has a fridge', async () => {
-    const res = await agent.get(`/diagrams/${BOX_ID}?months=6`);
-    expect(res.status).toBe(200);
+  test('fridge column only with a fridge; O2/H2O chart still there', async () => {
+    let res = await agent.get(`/diagrams/${BOX_ID}?range=6m`);
     expect(res.text).toContain('Fridge (°C)');
-  });
-
-  test('fridge dataset and column are absent when the box has no fridge', async () => {
     Box.findById.mockResolvedValue(makeBox({ has_fridge: 0 }));
-    const res = await agent.get(`/diagrams/${BOX_ID}?months=6`);
-    expect(res.status).toBe(200);
+    res = await agent.get(`/diagrams/${BOX_ID}?range=6m`);
     expect(res.text).not.toContain('Fridge (°C)');
-    // O2/H2O datasets still rendered
-    expect(res.text).toContain('O₂ (ppm)');
-    expect(res.text).toContain('H₂O (ppm)');
+    expect(res.text).toContain('id="ppmChart"');
   });
 
   test('unknown box -> 404', async () => {
@@ -128,22 +131,23 @@ describe('GET /diagrams/:id', () => {
     expect(res.status).toBe(404);
   });
 
-  test('empty measurement period renders the empty state', async () => {
+  test('empty period renders the empty states', async () => {
     Measurement.findByBox.mockResolvedValue([]);
-    const res = await agent.get(`/diagrams/${BOX_ID}?months=12`);
+    const res = await agent.get(`/diagrams/${BOX_ID}?range=12m`);
     expect(res.status).toBe(200);
     expect(res.text).toContain('No data available for this period.');
+    expect(res.text).toContain('No temperature values in this period.');
   });
 });
 
 describe('GET /diagrams/:id – sensor history (Fund 01.10.: sensor box showed no diagram)', () => {
-  test('fridge box -> hourly sensor history for the chosen period is loaded and drawn', async () => {
-    SensorReading.hourlyByBox.mockResolvedValue([
+  test('fridge box -> sensor history for the chosen range is loaded and drawn', async () => {
+    SensorReading.historyByBox.mockResolvedValue([
       { bucket: '2026-09-30T18:00:00Z', avg_temp: 24.9, min_temp: 24.5, max_temp: 25.3 }
     ]);
-    const res = await agent.get(`/diagrams/${BOX_ID}?months=9`);
+    const res = await agent.get(`/diagrams/${BOX_ID}?range=30d`);
     expect(res.status).toBe(200);
-    expect(SensorReading.hourlyByBox).toHaveBeenCalledWith(BOX_ID, 9);
+    expect(SensorReading.historyByBox.mock.calls[0][2]).toBe(120);
     expect(res.text).toContain('id="tempChart"');
     expect(res.text).toContain('24.9');
   });
@@ -151,7 +155,7 @@ describe('GET /diagrams/:id – sensor history (Fund 01.10.: sensor box showed n
   test('box without fridge -> no sensor query, no temperature chart', async () => {
     Box.findById.mockResolvedValue(makeBox({ has_fridge: 0 }));
     const res = await agent.get(`/diagrams/${BOX_ID}`);
-    expect(SensorReading.hourlyByBox).not.toHaveBeenCalled();
+    expect(SensorReading.historyByBox).not.toHaveBeenCalled();
     expect(res.text).not.toContain('id="tempChart"');
   });
 });

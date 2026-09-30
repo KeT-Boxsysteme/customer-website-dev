@@ -3,7 +3,7 @@ const router = express.Router();
 const Box = require('../models/box');
 const Measurement = require('../models/measurement');
 const SensorReading = require('../models/sensorReading');
-const { buildCharts } = require('../services/diagramData');
+const { buildCharts, resolveRange, RANGES } = require('../services/diagramData');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
 
 // All diagram pages require one of the roles allowed for "diagrams"
@@ -22,33 +22,32 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /diagrams/:id?months=6
+// GET /diagrams/:id?range=24h|7d|30d|6m|9m|12m  (alte Links ?months=6|9|12 gelten weiter)
 router.get('/:id', async (req, res) => {
   try {
-    const months = parseInt(req.query.months) || 6;
-    if (![6, 9, 12].includes(months)) return res.redirect(`/diagrams/${req.params.id}?months=6`);
-
-    // Box-Check und Messwerte parallel; Messwerte werden nur ausgegeben, wenn die Box zur Firma gehoert
+    // Erst die Box (Firmen-Check und Vorauswahl des Zeitraums haengen an ihr), dann die Werte
     const boxId = parseInt(req.params.id);
-    const [box, measurements] = await Promise.all([
-      Box.findById(boxId, req.session.user.companyId),
-      Measurement.findByBox(boxId, months)
-    ]);
+    const box = await Box.findById(boxId, req.session.user.companyId);
     if (!box) return res.status(404).render('errors/404');
+    const range = resolveRange(req.query, box);
+    if (!range) return res.redirect(`/diagrams/${boxId}`);
 
-    // Fuehler-Verlauf erst nach dem Box-Check (Werte nur fuer Boxen der eigenen Firma)
-    const sensorHours = box.has_fridge ? await SensorReading.hourlyByBox(boxId, months) : [];
-    const charts = buildCharts({ box, measurements, sensorHours });
+    const [measurements, sensorHours] = await Promise.all([
+      Measurement.findByBox(boxId, range.since),
+      box.has_fridge ? SensorReading.historyByBox(boxId, range.since, range.bucketMinutes) : []
+    ]);
+    const charts = buildCharts({ box, measurements, sensorHours, bucketMinutes: range.bucketMinutes });
 
     res.render('diagrams/detail', {
       title: `Diagrams: ${box.box_alias}`,
       currentPage: 'diagrams',
       box,
       measurements,
-      months,
+      range,
+      ranges: RANGES,
       charts,
       // fuer das Inline-Skript: JSON ohne "</script>"-Ausbruch
-      chartsJson: JSON.stringify(charts).replace(/</g, '\\u003c')
+      chartsJson: JSON.stringify({ ...charts, window: { from: range.since.getTime(), to: Date.now(), step: range.bucketMinutes } }).replace(/</g, '\\u003c')
     });
   } catch (err) {
     console.error(err);
