@@ -618,3 +618,17 @@ describe('value fields show which point causes the traffic light (Betreiber 01.1
     expect(fieldClass(page, 'fridgeTemp')).not.toMatch(/sensor-field--(red|yellow)/);
   });
 });
+
+describe('hub diagnostics travel with the reading and are visible in /live (01.10.)', () => {
+  const live = require('../services/liveReadings');
+  beforeEach(() => {
+    live.reset();
+    Box.findById.mockResolvedValue(makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1 }));
+    SensorReading.createIfDue.mockResolvedValue(true);
+  });
+  test('drops / attempts / last error of the sending device appear in the live answer', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -30, diag: { drops: 2, attempts: 5, lastError: 'timeout after 20 s' } });
+    const res = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(res.body.hub).toEqual({ drops: 2, attempts: 5, lastError: 'timeout after 20 s' });
+  });
+});

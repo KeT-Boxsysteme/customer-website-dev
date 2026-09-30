@@ -10,6 +10,9 @@
   <link rel="stylesheet" href="<%= asset('/css/style.css') %>" data-turbo-track="reload">
   <!-- Turbo: Seitenwechsel ohne Neuladen, damit der Fuehler-Verbinder die Bluetooth-Verbindung haelt -->
   <script src="<%= asset('/js/vendor/turbo.umd.js') %>" data-turbo-track="reload"></script>
+  <!-- Aktualisieren derselben Seite (Monitoring am Tablet) ohne sichtbares Neuladen: nur Geaendertes tauschen -->
+  <meta name="turbo-refresh-method" content="morph">
+  <meta name="turbo-refresh-scroll" content="preserve">
   <% if (locals.user) { %>
   <script src="<%= asset('/js/bluedan.js') %>" data-turbo-track="reload"></script>
   <script src="<%= asset('/js/sensor-hub.js') %>" data-turbo-track="reload"></script>

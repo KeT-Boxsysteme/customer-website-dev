@@ -43,4 +43,17 @@ function validateReading(value) {
   return Math.round(n * 10) / 10;
 }
 
-module.exports = { STORE_MINUTES, decideSensorUpdate, storeWindowSeconds, validateReading };
+// Zaehler, die der Verbinder im Browser mit jedem Wert mitschickt (Messinstrument, 01.10.):
+// drops = Verbindungsabbrueche, attempts = Verbindungsversuche, lastError = letzte Fehlermeldung.
+// Positivliste; alles andere wird verworfen. Kein Objekt -> null.
+function sanitizeHubDiag(diag) {
+  if (!diag || typeof diag !== 'object') return null;
+  const count = v => (Number.isInteger(v) && v >= 0 && v < 1e7 ? v : null);
+  return {
+    drops: count(diag.drops),
+    attempts: count(diag.attempts),
+    lastError: typeof diag.lastError === 'string' ? diag.lastError.slice(0, 120) : null
+  };
+}
+
+module.exports = { STORE_MINUTES, decideSensorUpdate, storeWindowSeconds, validateReading, sanitizeHubDiag };

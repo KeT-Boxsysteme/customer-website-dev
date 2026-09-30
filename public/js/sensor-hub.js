@@ -27,6 +27,8 @@
     // Box Management: frisch gekoppelten Fuehler UEBERNEHMEN statt trennen (Betreiber 30.09.:
     // die Kopplung aus dem Management muss ans Monitoring weitergereicht werden)
     takeOver(serial, device) {
+      // Ausdrueckliches Koppeln in diesem Tab: Sperre uebernehmen, andere Tabs trennen ihre Verbindung
+      if (window.SensorHub.claim) window.SensorHub.claim();
       const c = conns.get(serial);
       if (c && c.device === device) { connect(c); return; }
       if (c) stop(serial);
@@ -61,11 +63,17 @@
         await c.rx.startNotifications();
       })(), timeout(20000)]);
       c.diag.lastError = '';
+      c.failStreak = 0;
       request(c);
     } catch (err) {
       c.tx = null;
       c.diag.lastError = (err && (err.name + ': ' + err.message)) || String(err);
-      if (c.device.gatt.connected) c.device.gatt.disconnect();
+      c.failStreak++;
+      // IMMER trennen: bricht einen noch laufenden connect()-Versuch ab. Vorher lief er nach der
+      // 20-s-Grenze weiter und kollidierte mit dem naechsten Versuch (Fund 01.10.: 23 Fehlversuche).
+      try { c.device.gatt.disconnect(); } catch (e) { /* egal */ }
+      // Nach 5 Fehlversuchen das Geraet frisch vom Browser holen statt am alten Objekt festzuhalten
+      if (c.failStreak >= 5) { c.failStreak = 0; renew(c); return; }
       // Fuehler meldet sich nur selten — weiter versuchen statt aufgeben
       scheduleRetry(c, 10000);
     } finally {
@@ -83,15 +91,16 @@
     if (!c.url) return;   // gekoppelt, Box aber noch nicht gespeichert
     fetch(c.url, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ serial: c.serial, temp })
+      body: JSON.stringify({ serial: c.serial, temp,
+        diag: { drops: c.diag.drops, attempts: c.diag.attempts, lastError: c.diag.lastError } })
     }).catch(() => { /* Netz weg: naechster Wert kommt in 5 s */ });
   }
 
   function adopt(sensor, device) {
     const c = {
       serial: sensor.serial, url: sensor.url, device, rx: null, tx: null, connecting: false,
-      retry: null, stopped: false, lastValueAt: null,
-      diag: { attempts: 0, lastError: '', adverts: 0, watch: 'not available' }
+      retry: null, stopped: false, lastValueAt: null, failStreak: 0,
+      diag: { attempts: 0, drops: 0, lastError: '', adverts: 0, watch: 'not available' }
     };
     c.onValue = e => {
       const v = e.target.value;
@@ -101,7 +110,11 @@
       c.lastTemp = temp;
       post(c, temp);
     };
-    device.addEventListener('gattserverdisconnected', () => { c.tx = null; scheduleRetry(c, 2000); });
+    device.addEventListener('gattserverdisconnected', () => {
+      if (c.tx) c.diag.drops++;   // nur echte Abbrueche einer bestehenden Verbindung zaehlen
+      c.tx = null;
+      scheduleRetry(c, 2000);
+    });
     if (device.watchAdvertisements) {
       device.addEventListener('advertisementreceived', () => {
         c.diag.adverts++;
@@ -114,6 +127,24 @@
     }
     conns.set(sensor.serial, c);
     connect(c);
+    return c;
+  }
+
+  // Geraet frisch ueber getDevices holen und neu anfangen (Zaehler bleiben erhalten)
+  async function renew(c) {
+    if (c.stopped || !supported) { scheduleRetry(c, 10000); return; }
+    try {
+      const devices = await navigator.bluetooth.getDevices();
+      const id = rememberedId(c.serial);
+      const fresh = devices.find(d => B.serialFromName(d.name) === c.serial || (id && d.id === id));
+      if (!fresh) { scheduleRetry(c, 10000); return; }
+      const diag = c.diag;
+      stop(c.serial);
+      const n = adopt({ serial: c.serial, url: c.url }, fresh);
+      n.diag.attempts = diag.attempts; n.diag.drops = diag.drops; n.diag.renewals = (diag.renewals || 0) + 1;
+    } catch (e) {
+      scheduleRetry(c, 10000);
+    }
   }
 
   function stop(serial) {
@@ -130,16 +161,16 @@
     if (refreshing) return;
     refreshing = true;
     try {
+      let res = null;
+      try { res = await fetch('/monitoring/sensors', { headers: { Accept: 'application/json' } }); }
+      catch (e) { res = null; }
+      const verdict = B.sensorListVerdict(res && { ok: res.ok, status: res.status, redirected: res.redirected,
+        url: res.url, contentType: res.headers.get('content-type') });
+      // Nur eine echte Abmeldung trennt alles; eine Stoerung aendert nichts (Fund 01.10.)
+      if (verdict === 'logged-out') { [...conns.keys()].forEach(stop); return; }
+      if (verdict !== 'list') return;
       let list;
-      try {
-        const res = await fetch('/monitoring/sensors', { headers: { Accept: 'application/json' } });
-        if (!res.ok || !(res.headers.get('content-type') || '').includes('json')) throw new Error('no list');
-        list = await res.json();
-      } catch (e) {
-        // abgemeldet oder keine Rechte: alles trennen
-        [...conns.keys()].forEach(stop);
-        return;
-      }
+      try { list = await res.json(); } catch (e) { return; }
       const wanted = new Map(list.map(s => [s.serial, s]));
       [...conns.keys()].filter(serial => !wanted.has(serial)).forEach(stop);
       const devices = supported ? await navigator.bluetooth.getDevices() : [];
@@ -156,7 +187,29 @@
   }
 
   setInterval(() => conns.forEach(request), TICK_MS);
+
+  // Der Fuehler nimmt nur EINE Verbindung an. Mehrere offene Tabs der Website stritten sich um ihn
+  // (Fund 01.10.). Mit einer Browser-Sperre verbindet nur ein Tab; die anderen warten, bis er zu ist.
+  let owner = !navigator.locks;   // ohne Web Locks wie bisher (jeder Tab)
+  window.SensorHub.role = () => (owner ? 'owner' : 'waiting');
   // Nach jedem Seitenwechsel die Zuordnung abgleichen (z. B. Fuehler gerade im Box Management gekoppelt)
-  document.addEventListener('turbo:load', refresh);
-  refresh();
+  document.addEventListener('turbo:load', () => { if (owner) refresh(); });
+
+  const LOCK = 'glovebox-sensor-hub';
+  // Sperre halten, solange der Tab offen ist. Wird sie genommen (anderer Tab koppelt gerade im Box
+  // Management), trennt dieser Tab seine Fuehler und stellt sich wieder hinten an.
+  function claim(steal) {
+    navigator.locks.request(LOCK, steal ? { steal: true } : {}, () => {
+      owner = true;
+      refresh();
+      return new Promise(() => {});   // nie aufloesen = Sperre behalten
+    }).catch(() => {
+      owner = false;
+      [...conns.keys()].forEach(stop);
+      claim(false);
+    });
+  }
+  window.SensorHub.claim = () => { if (navigator.locks && !owner) claim(true); };
+  if (navigator.locks) claim(false);
+  else refresh();
 })();

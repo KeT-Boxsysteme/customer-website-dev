@@ -37,6 +37,9 @@
   // Was dieses Geraet selbst gerade tut (nur wenn es den Fuehler verbindet)
   function localHint() {
     const hub = window.SensorHub;
+    if (hub && hub.role && hub.role() === 'waiting') {
+      return ['Connected in another tab', 'another open tab of this app holds the sensor connection (only one tab can connect)'];
+    }
     const s = hub && hub.state(serial);
     if (!s) return ['No live value', 'the device at the box must have this app open and the sensor paired'];
     if (!s.connected) {

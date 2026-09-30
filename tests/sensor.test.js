@@ -79,3 +79,17 @@ describe('validateReading', () => {
     [-100.1, 150.1, 'abc', '', null, undefined, NaN, Infinity].forEach(v => expect(validateReading(v)).toBeNull());
   });
 });
+
+describe('sanitizeHubDiag – connection counters sent along with each value (measuring instrument, 01.10.)', () => {
+  const { sanitizeHubDiag } = require('../services/sensor');
+  test('keeps whole non-negative counters and a short error text', () => {
+    expect(sanitizeHubDiag({ drops: 3, attempts: 7, lastError: 'NetworkError: GATT Server is disconnected.' }))
+      .toEqual({ drops: 3, attempts: 7, lastError: 'NetworkError: GATT Server is disconnected.' });
+  });
+  test('garbage is dropped, long text cut, missing -> null', () => {
+    expect(sanitizeHubDiag({ drops: -1, attempts: 'x', lastError: 'e'.repeat(500), evil: 1 }))
+      .toEqual({ drops: null, attempts: null, lastError: 'e'.repeat(120) });
+    expect(sanitizeHubDiag(undefined)).toBeNull();
+    expect(sanitizeHubDiag('x')).toBeNull();
+  });
+});

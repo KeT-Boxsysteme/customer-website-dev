@@ -295,5 +295,9 @@ function overallStatus(alerts) {
   return 'green';
 }
 
+// Warnungen aus der letzten manuellen Messung (aendern sich nur durch Eingabe/Done)
+const PPM_ALERT_KEYS = ['o2_high', 'o2_elevated', 'h2o_high', 'h2o_elevated'];
+
 module.exports = { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlert, fridgeDeviationLevel,
+                   PPM_ALERT_KEYS,
                    FRIDGE_YELLOW_DELTA, FRIDGE_RED_DELTA };

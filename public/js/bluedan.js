@@ -56,5 +56,18 @@
     return m ? parseFloat(m[1]) : null;
   }
 
-  return { SERVICE, RX_CHAR, TX_CHAR, normalizeSerial, serialFromName, crc16, buildOnlineRequest, parseOnlineValue };
+  // Antwort auf GET /monitoring/sensors bewerten (Fund 01.10.): nur eine ECHTE Abmeldung (Umleitung auf
+  // die Login-Seite, 401/403) darf alle Fuehler trennen. Serverfehler, Netz weg, seltsame Antwort =
+  // keine Aussage -> Verbindungen behalten ("Stoerung ist kein Befund").
+  // r = { ok, status, redirected, url, contentType } oder null, wenn fetch selbst scheiterte.
+  function sensorListVerdict(r) {
+    if (!r) return 'unknown';
+    if (r.status === 401 || r.status === 403) return 'logged-out';
+    if (r.redirected && /\/auth\/login/.test(r.url || '')) return 'logged-out';
+    if (r.ok && /json/.test(r.contentType || '')) return 'list';
+    return 'unknown';
+  }
+
+  return { SERVICE, RX_CHAR, TX_CHAR, normalizeSerial, serialFromName, crc16, buildOnlineRequest, parseOnlineValue,
+           sensorListVerdict };
 });

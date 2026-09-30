@@ -7,11 +7,17 @@ const { storeWindowSeconds } = require('./sensor');
 
 const FRESH_SECONDS = 20;   // aelter = kein Live-Wert mehr (fehlend statt falsch)
 
-let values = new Map();      // boxId -> { serial, temp, at }
+let values = new Map();      // boxId -> { serial, temp, at, hub }
 let lastStored = new Map();  // boxId -> Zeitpunkt des letzten Verlaufs-Versuchs
 
-function record(boxId, serial, temp, now = Date.now()) {
-  values.set(boxId, { serial, temp, at: now });
+// hub = gepruefte Zaehler des sendenden Verbinders (services/sensor.sanitizeHubDiag) oder null
+function record(boxId, serial, temp, now = Date.now(), hub = null) {
+  values.set(boxId, { serial, temp, at: now, hub });
+}
+
+function hubDiag(boxId) {
+  const v = values.get(boxId);
+  return v ? v.hub : null;
 }
 
 function get(boxId, now = Date.now()) {
@@ -33,4 +39,4 @@ function reset() {
   lastStored = new Map();
 }
 
-module.exports = { FRESH_SECONDS, record, get, dueForHistory, reset };
+module.exports = { FRESH_SECONDS, record, get, hubDiag, dueForHistory, reset };

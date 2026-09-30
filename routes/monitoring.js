@@ -7,11 +7,11 @@ const SensorReading = require('../models/sensorReading');
 const liveReadings = require('../services/liveReadings');
 const boxState = require('../services/boxState');
 const { liveFridge, statusForBox } = require('../services/boxStatus');
-const { storeWindowSeconds, validateReading } = require('../services/sensor');
+const { storeWindowSeconds, validateReading, sanitizeHubDiag } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
-const { fieldLevels, fieldMessages, fridgeAlert } = require('../services/alerts');
+const { buildAlerts, fieldLevels, fieldMessages } = require('../services/alerts');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
 
 // Expliziter Rollen-Guard analog zu routes/diagrams.js (admin, controller, user, box_user)
@@ -67,7 +67,7 @@ router.get('/:id', async (req, res) => {
       User.getUsernamesByCompany(req.session.user.companyId),
       statusForBox(box)
     ]);
-    const stateKey = boxState.stateKey(box.id, alerts.find(a => a.key.startsWith('fridge')) || null);
+    const stateKey = boxState.stateKey(box.id, alerts);
 
     res.render('monitoring/detail', {
       title: `Monitoring: ${box.box_alias}`,
@@ -172,7 +172,7 @@ router.post('/:id/readings', async (req, res) => {
     if (temp === null) return res.status(400).json({ error: 'Implausible temperature.' });
 
     // Jeder Wert ist sofort live (Speicher); die DB wird nur im Takt der Box gefragt
-    liveReadings.record(box.id, serial, temp);
+    liveReadings.record(box.id, serial, temp, Date.now(), sanitizeHubDiag(req.body.diag));
     const stored = liveReadings.dueForHistory(box.id, box.sensor_store_minutes)
       ? await SensorReading.createIfDue(box.id, serial, temp, storeWindowSeconds(box.sensor_store_minutes))
       : false;
@@ -190,13 +190,16 @@ router.get('/:id/live', async (req, res) => {
     if (!box) return res.status(404).json({ error: 'Box not found' });
     const v = liveReadings.get(box.id);
     // Ampelstufe der Temperatur + Zustands-Schluessel: aendert er sich, laedt das Monitoring neu
-    const alert = fridgeAlert(box, liveFridge(box));
-    const state = { fridgeAlert: alert ? alert.severity : null, stateKey: boxState.stateKey(box.id, alert) };
+    // Warnungen ohne DB-Messwerte: Kuehlschrank live + faellige Wartung aus der Box-Zeile
+    const alerts = buildAlerts({ box, latestMeasurement: null, acks: [], fridgeLive: liveFridge(box) });
+    const alert = alerts.find(a => a.key.startsWith('fridge')) || null;
+    const state = { fridgeAlert: alert ? alert.severity : null, stateKey: boxState.stateKey(box.id, alerts) };
     // Nur Werte des aktuell zugeordneten Fuehlers zaehlen
     if (!v || !box.sensor_serial || v.serial !== box.sensor_serial) {
       return res.json({ serial: box.sensor_serial || null, temp: null, fresh: false, ...state });
     }
-    res.json({ serial: v.serial, temp: v.temp, ageSeconds: v.ageSeconds, fresh: v.fresh, ...state });
+    res.json({ serial: v.serial, temp: v.temp, ageSeconds: v.ageSeconds, fresh: v.fresh, ...state,
+               hub: liveReadings.hubDiag(box.id) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not load the live value.' });

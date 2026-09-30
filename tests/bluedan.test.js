@@ -61,3 +61,25 @@ describe('parseOnlineValue', () => {
     expect(parseOnlineValue(new Uint8Array(0))).toBeNull();
   });
 });
+
+describe('sensorListVerdict – when may the background hub drop all sensors? (Fund 01.10.)', () => {
+  const { sensorListVerdict } = require('../public/js/bluedan');
+  const json = 'application/json; charset=utf-8';
+
+  test('a proper list -> use it', () => {
+    expect(sensorListVerdict({ ok: true, status: 200, contentType: json, url: 'https://x/monitoring/sensors' })).toBe('list');
+  });
+
+  test('really logged out (redirected to the login page) or no rights -> drop', () => {
+    expect(sensorListVerdict({ ok: true, status: 200, redirected: true, contentType: 'text/html', url: 'https://x/auth/login' })).toBe('logged-out');
+    expect(sensorListVerdict({ ok: false, status: 401, contentType: json, url: 'https://x/monitoring/sensors' })).toBe('logged-out');
+    expect(sensorListVerdict({ ok: false, status: 403, contentType: 'text/html', url: 'https://x/monitoring/sensors' })).toBe('logged-out');
+  });
+
+  test('disturbance (server error, network, odd answer) -> no statement, keep the connections', () => {
+    expect(sensorListVerdict({ ok: false, status: 500, contentType: json, url: 'https://x/monitoring/sensors' })).toBe('unknown');
+    expect(sensorListVerdict({ ok: false, status: 502, contentType: 'text/html', url: 'https://x/monitoring/sensors' })).toBe('unknown');
+    expect(sensorListVerdict(null)).toBe('unknown');   // fetch threw (network gone)
+    expect(sensorListVerdict({ ok: true, status: 200, contentType: 'text/html', url: 'https://x/monitoring/sensors' })).toBe('unknown');
+  });
+});
