@@ -4,14 +4,30 @@
 // ueberhaupt gefragt wird; SensorReading.createIfDue bleibt der atomare Riegel dahinter.
 // Neustart des Servers = Live-Werte weg, bis der naechste Wert kommt (5 s) — gewollt.
 const { storeWindowSeconds } = require('./sensor');
+const { fridgeDeviationLevel } = require('./alerts');
 
 const FRESH_SECONDS = 20;   // aelter = kein Live-Wert mehr (fehlend statt falsch)
 
-let values = new Map();      // boxId -> { serial, temp, at }
+let values = new Map();      // boxId -> { serial, temp, at, yellowSince, redSince }
 let lastStored = new Map();  // boxId -> Zeitpunkt des letzten Verlaufs-Versuchs
 
-function record(boxId, serial, temp, now = Date.now()) {
-  values.set(boxId, { serial, temp, at: now });
+// target = Soll-Temperatur der Box: seit wann weicht der Wert ab (E-21)? Eine Luecke ohne Werte
+// (aelter als FRESH_SECONDS) oder ein anderer Fuehler zaehlt nicht als Abweichungszeit.
+function record(boxId, serial, temp, now = Date.now(), target = null) {
+  const prev = values.get(boxId);
+  const continuous = prev && prev.serial === serial && now - prev.at <= FRESH_SECONDS * 1000;
+  const level = fridgeDeviationLevel(temp, target);
+  const since = (key, inRange) => (inRange ? (continuous && prev[key] !== null ? prev[key] : now) : null);
+  values.set(boxId, {
+    serial, temp, at: now,
+    yellowSince: since('yellowSince', level !== null),
+    redSince: since('redSince', level === 'red')
+  });
+}
+
+function deviation(boxId) {
+  const v = values.get(boxId);
+  return { yellowSince: v ? v.yellowSince : null, redSince: v ? v.redSince : null };
 }
 
 function get(boxId, now = Date.now()) {
@@ -33,4 +49,4 @@ function reset() {
   lastStored = new Map();
 }
 
-module.exports = { FRESH_SECONDS, record, get, dueForHistory, reset };
+module.exports = { FRESH_SECONDS, record, get, deviation, dueForHistory, reset };

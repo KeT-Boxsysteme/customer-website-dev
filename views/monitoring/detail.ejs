@@ -73,6 +73,15 @@
             <label for="fridgeTemp">Fridge Temp <span class="hint">(°C)</span></label>
             <input type="number" id="fridgeTemp" name="fridgeTemp" step="0.1"
                    placeholder="0.0">
+            <% if (box.sensor_serial) { %>
+            <!-- Live-Fuehler: nur eine Infozeile unter dem Feld (Betreiber 30.09.); Details per Tooltip -->
+            <div class="live-sensor" data-live-sensor data-serial="<%= box.sensor_serial %>"
+                 data-live-url="/monitoring/<%= box.id %>/live" title="Sensor <%= box.sensor_serial %>"
+                 data-fridge-alert="<%= (alerts.find(a => a.key === 'fridge_temp') || {}).severity || '' %>">
+              <span class="live-sensor__dot" aria-hidden="true"></span>
+              <span class="live-sensor__status" data-live-status aria-live="polite">Connecting …</span>
+            </div>
+            <% } %>
           </div>
           <% } %>
 
@@ -85,15 +94,6 @@
           <% } %>
         </div>
 
-        <% if (box.has_fridge && box.sensor_serial) { %>
-        <!-- Live-Fuehler: verbindet automatisch, kein Knopf (gekoppelt wird im Box Management) -->
-        <div class="live-sensor" data-live-sensor data-serial="<%= box.sensor_serial %>"
-             data-live-url="/monitoring/<%= box.id %>/live"
-             data-store-minutes="<%= box.sensor_store_minutes || 1 %>">
-          <span class="live-sensor__dot" aria-hidden="true"></span>
-          <p class="live-sensor__status" data-live-status aria-live="polite">Sensor <%= box.sensor_serial %> – connecting …</p>
-        </div>
-        <% } %>
         </div>
       </div>
 
@@ -126,11 +126,13 @@
             <% alerts.forEach(a => { %>
             <li class="alert-item alert-item--<%= a.severity %>">
               <span class="alert-item-msg"><%= a.message %></span>
+              <% if (a.action !== 'none') { %>
               <button type="button" class="btn btn-sm btn-primary alert-done-btn"
                       data-action="<%= a.action %>"
                       data-target="<%= a.action === 'resolve-date' ? a.field : a.key %>">
                 Done
               </button>
+              <% } %>
             </li>
             <% }) %>
           </ul>

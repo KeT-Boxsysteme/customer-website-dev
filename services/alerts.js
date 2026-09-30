@@ -26,6 +26,12 @@
  *    for its key exists with acked_at >= the measurement's measured_at
  *    (i.e. the user pressed "Done" AFTER this value was recorded; a newer
  *    measurement re-raises the alert).
+ *  - Fridge temperature (E-21, Betreiber 2026-09-30): live sensor value vs. the target
+ *    temperature of the box (boxes.fridge_temp, E-18). >= 3 °C off -> yellow, >= 5 °C
+ *    off -> red, in BOTH directions, but only once the deviation has lasted 10 minutes
+ *    (a briefly opened door is no alarm). No "Done": the alert disappears on its own
+ *    when the temperature is back in range. The caller passes the live value and since
+ *    when it deviates (services/liveReadings.js); no live value -> no temperature alert.
  *  - Sorting (Konzept line 118): red alerts are prioritized and always
  *    listed first; order is otherwise stable.
  */
@@ -37,6 +43,38 @@ const OIL_CHANGE_INTERVAL_MONTHS = 6;
 
 const PPM_YELLOW_THRESHOLD = 5;
 const PPM_RED_THRESHOLD = 10;
+
+const FRIDGE_YELLOW_DELTA = 3;      // °C
+const FRIDGE_RED_DELTA = 5;         // °C
+const FRIDGE_HOLD_MINUTES = 10;
+
+/** Deviation class of a fridge temperature vs. its target: 'red' | 'yellow' | null. */
+function fridgeDeviationLevel(temp, target) {
+  if (temp === null || temp === undefined || target === null || target === undefined) return null;
+  const delta = Math.round(Math.abs(Number(temp) - Number(target)) * 10) / 10;
+  if (delta >= FRIDGE_RED_DELTA) return 'red';
+  if (delta >= FRIDGE_YELLOW_DELTA) return 'yellow';
+  return null;
+}
+
+/** Fridge alert from the live value, or null. fridgeLive = { temp, yellowSince, redSince }. */
+function fridgeAlert(box, fridgeLive, now) {
+  if (!box.has_fridge || !fridgeLive) return null;
+  const level = fridgeDeviationLevel(fridgeLive.temp, box.fridge_temp);
+  if (!level) return null;
+  const heldFor = since => since !== null && since !== undefined &&
+    now.getTime() - new Date(since).getTime() >= FRIDGE_HOLD_MINUTES * 60 * 1000;
+  const severity = level === 'red' && heldFor(fridgeLive.redSince) ? 'red'
+    : heldFor(fridgeLive.yellowSince) ? 'yellow' : null;
+  if (!severity) return null;
+  return {
+    key: 'fridge_temp',
+    severity,
+    message: `Fridge temperature ${Number(fridgeLive.temp).toFixed(1)} °C deviates from the target of ${box.fridge_temp} °C` +
+      (severity === 'red' ? ' — check the fridge' : ''),
+    action: 'none'
+  };
+}
 
 /** Baseline date for a maintenance field: field value, else box.created_at, else now. */
 function baselineDate(fieldValue, box, now) {
@@ -73,14 +111,19 @@ function isAcked(acks, key, measuredAt) {
  * @param {object} opts.box                 boxes row
  * @param {object|null} opts.latestMeasurement  latest measurements row or null
  * @param {Array}  [opts.acks]              rows {alert_key, acked_at} (latest ack per key)
+ * @param {object|null} [opts.fridgeLive]  live fridge value { temp, yellowSince, redSince } or null
  * @param {Date}   [opts.now]               injected clock for testability
  * @returns {Array<{key:string, severity:'yellow'|'red', message:string,
- *                  action:'resolve-date'|'ack', field?:string}>}
+ *                  action:'resolve-date'|'ack'|'none', field?:string}>}
  *          Red alerts first (Konzept line 118).
  */
-function buildAlerts({ box, latestMeasurement, acks = [], now = new Date() }) {
+function buildAlerts({ box, latestMeasurement, acks = [], fridgeLive = null, now = new Date() }) {
   const red = [];
   const yellow = [];
+
+  // --- fridge temperature vs. target (E-21) ---
+  const fridge = fridgeAlert(box, fridgeLive, now);
+  if (fridge) (fridge.severity === 'red' ? red : yellow).push(fridge);
 
   // --- ppm alerts (red has priority; an acked alert is fully suppressed) ---
   if (latestMeasurement) {
@@ -220,4 +263,4 @@ function overallStatus(alerts) {
   return 'green';
 }
 
-module.exports = { buildAlerts, overallStatus };
+module.exports = { buildAlerts, overallStatus, fridgeAlert, fridgeDeviationLevel };

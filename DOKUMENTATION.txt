@@ -375,6 +375,9 @@
   │                                      │    grün  = alles OK                   │
   │                                      │    gelb  = O2/H2O >= 5 ppm            │
   │                                      │    rot   = O2/H2O >= 10 ppm           │
+  │                                      │    Kühlschrank live vs. Soll (E-21):  │
+  │                                      │    gelb >= 3 °C, rot >= 5 °C, beide   │
+  │                                      │    Richtungen, erst nach 10 Minuten   │
   │                                      │  - Lädt alle Kürzel für Dropdown      │
   ├──────────────────────────────────────┼──────────────────────────────────────┤
   │ POST /monitoring/:id/submit          │ Speichert neue Messwerte (O2, H2O,    │
@@ -618,6 +621,12 @@
   │ O2 oder H2O >= 5 ppm              │ Gelb       │ (aus Messwert)           │
   ├───────────────────────────────────┼────────────┼──────────────────────────┤
   │ O2 oder H2O >= 10 ppm             │ Rot        │ (aus Messwert)           │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ Kühlschrank >= 3 °C neben Soll,   │ Gelb       │ fridge_temp (Soll) +     │
+  │ 10 Min. lang (zu warm oder kalt)  │            │ Live-Wert des Fühlers    │
+  ├───────────────────────────────────┼────────────┼──────────────────────────┤
+  │ Kühlschrank >= 5 °C neben Soll,   │ Rot        │ (kein Done: verschwindet │
+  │ 10 Min. lang                      │            │  wenn Temperatur passt)  │
   └───────────────────────────────────┴────────────┴──────────────────────────┘
 
   ── views/diagrams/ ───────────────────────────────────────────────────────

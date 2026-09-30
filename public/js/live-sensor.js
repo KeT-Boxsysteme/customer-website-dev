@@ -22,16 +22,43 @@
     wasLive = on;
   }
 
+  // Kurze Infozeile unter dem Feld; die Erklaerung steht im Tooltip (title)
+  function show(text, detail) {
+    statusEl.textContent = text;
+    box.title = 'Sensor ' + serial + (detail ? ' – ' + detail : '');
+  }
+
   // Was dieses Geraet selbst gerade tut (nur wenn es den Fuehler verbindet)
   function localHint() {
     const hub = window.SensorHub;
     const s = hub && hub.state(serial);
-    if (!s) return ' – no live value. The device at the box must have this app open and the sensor paired.';
+    if (!s) return ['No live value', 'the device at the box must have this app open and the sensor paired'];
     if (!s.connected) {
-      return ' – connecting to the sensor (attempt ' + s.diag.attempts + ') …' +
-        (s.diag.lastError ? ' [' + s.diag.lastError + ']' : '');
+      return ['Connecting … (' + s.diag.attempts + ')', s.diag.lastError || 'connecting to the sensor'];
     }
-    return ' – connected, waiting for the first value …';
+    return ['Waiting for value …', 'connected, waiting for the first value'];
+  }
+
+  // Aendert sich die Ampelstufe der Temperatur (E-21), die Seite neu laden, damit Ampel und
+  // Warnliste stimmen — aber nicht, solange jemand gerade Werte eintippt oder die Warnliste offen hat.
+  // Alle Formulare der Seite (auch die Nachricht an KeT); Auswahllisten gegen ihre Vorauswahl
+  function initial(el) {
+    if (el.tagName !== 'SELECT') return el.defaultValue;
+    const opt = Array.from(el.options).find(o => o.defaultSelected) || el.options[0];
+    return opt ? opt.value : '';
+  }
+  function busy() {
+    const fields = Array.from(document.querySelectorAll('form input, form textarea, form select'))
+      .filter(el => el !== field && el.type !== 'hidden');
+    const typed = fields.some(el => el.value !== initial(el));
+    const modal = document.getElementById('alertModal');
+    return typed || fields.includes(document.activeElement) || (modal && modal.style.display !== 'none');
+  }
+  function checkAlert(level) {
+    if ((level || '') === (box.dataset.fridgeAlert || '') || busy()) return;
+    clearInterval(timer);
+    if (window.Turbo) window.Turbo.visit(location.href, { action: 'replace' });
+    else location.reload();
   }
 
   let timer = null;
@@ -44,14 +71,16 @@
       if (v.fresh && v.temp !== null) {
         field.value = Number(v.temp).toFixed(1);
         setLive(true);
-        statusEl.textContent = 'Live · Sensor ' + serial + ' · ' + (v.ageSeconds <= 1 ? 'just now' : v.ageSeconds + ' s ago');
+        show('Live · ' + (v.ageSeconds <= 1 ? 'just now' : v.ageSeconds + ' s ago'), 'live value');
+        checkAlert(v.fridgeAlert);
       } else {
         setLive(false);
-        statusEl.textContent = 'Sensor ' + serial + localHint();
+        show(...localHint());
+        checkAlert(null);
       }
     } catch (err) {
       setLive(false);
-      statusEl.textContent = 'Sensor ' + serial + ' – live value not reachable (' + err.message + ')';
+      show('Live value not reachable', err.message);
     }
   }
 

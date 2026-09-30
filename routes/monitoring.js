@@ -9,7 +9,7 @@ const { storeWindowSeconds, validateReading } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
-const { buildAlerts, overallStatus } = require('../services/alerts');
+const { buildAlerts, overallStatus, fridgeAlert } = require('../services/alerts');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
 
 // Expliziter Rollen-Guard analog zu routes/diagrams.js (admin, controller, user, box_user)
@@ -53,6 +53,13 @@ router.get('/sensors', async (req, res) => {
   }
 });
 
+// Frischer Live-Wert des zugeordneten Fuehlers mit Abweichungs-Zeiten (E-21), sonst null
+function liveFridge(box) {
+  const v = liveReadings.get(box.id);
+  if (!v || !v.fresh || !box.sensor_serial || v.serial !== box.sensor_serial) return null;
+  return { temp: v.temp, ...liveReadings.deviation(box.id) };
+}
+
 // GET /monitoring/:id – Box-Detail mit Werteeingabe
 router.get('/:id', async (req, res) => {
   try {
@@ -66,8 +73,8 @@ router.get('/:id', async (req, res) => {
       AlertAck.latestAcks(box.id)
     ]);
 
-    // Ampel-Status aus der Alert-Engine (Wartungszyklen + ppm-Werte + Acks)
-    const alerts = buildAlerts({ box, latestMeasurement, acks });
+    // Ampel-Status aus der Alert-Engine (Wartungszyklen + ppm-Werte + Acks + Kuehlschrank live)
+    const alerts = buildAlerts({ box, latestMeasurement, acks, fridgeLive: liveFridge(box) });
     const statusColor = overallStatus(alerts);
 
     res.render('monitoring/detail', {
@@ -167,7 +174,7 @@ router.post('/:id/readings', async (req, res) => {
     if (temp === null) return res.status(400).json({ error: 'Implausible temperature.' });
 
     // Jeder Wert ist sofort live (Speicher); die DB wird nur im Takt der Box gefragt
-    liveReadings.record(box.id, serial, temp);
+    liveReadings.record(box.id, serial, temp, Date.now(), box.fridge_temp);
     const stored = liveReadings.dueForHistory(box.id, box.sensor_store_minutes)
       ? await SensorReading.createIfDue(box.id, serial, temp, storeWindowSeconds(box.sensor_store_minutes))
       : false;
@@ -188,7 +195,10 @@ router.get('/:id/live', async (req, res) => {
     if (!v || !box.sensor_serial || v.serial !== box.sensor_serial) {
       return res.json({ serial: box.sensor_serial || null, temp: null, fresh: false });
     }
-    res.json(v);
+    // Ampelstufe der Temperatur mitliefern: aendert sie sich, laedt das Monitoring neu (E-21)
+    const alert = fridgeAlert(box, liveFridge(box), new Date());
+    res.json({ serial: v.serial, temp: v.temp, ageSeconds: v.ageSeconds, fresh: v.fresh,
+               fridgeAlert: alert ? alert.severity : null });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not load the live value.' });

@@ -420,12 +420,12 @@ describe('POST /monitoring/:id/readings (live sensor values, E-16/E-19)', () => 
 });
 
 describe('GET /monitoring/:id – live sensor block', () => {
-  test('box with sensor -> live block with serial and interval for the browser', async () => {
+  test('box with sensor -> live block with serial and live URL for the browser', async () => {
     Box.findById.mockResolvedValue(makeBox({ sensor_serial: '740B3B', sensor_store_minutes: 15 }));
     const page = await agent.get(`/monitoring/${BOX_ID}`);
     expect(page.text).toContain('data-live-sensor');
     expect(page.text).toContain('data-serial="740B3B"');
-    expect(page.text).toContain('data-store-minutes="15"');
+    expect(page.text).toContain(`data-live-url="/monitoring/${BOX_ID}/live"`);
   });
 
   test('box without sensor -> no live block, fridge field stays a normal input', async () => {
@@ -500,5 +500,42 @@ describe('logged-in pages carry the background sensor hub (kept alive by Turbo)'
     const page = await agent.get(`/monitoring/${BOX_ID}`);
     expect(page.text).toContain('/js/vendor/turbo.umd.js');
     expect(page.text).toContain('/js/sensor-hub.js');
+  });
+});
+
+describe('fridge temperature vs. target in the traffic light (E-21)', () => {
+  const live = require('../services/liveReadings');
+  const fridgeBox = () => makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1 });
+  beforeEach(() => {
+    live.reset();
+    Box.findById.mockResolvedValue(fridgeBox());
+    SensorReading.createIfDue.mockResolvedValue(true);
+  });
+
+  test('sensor 20 °C at target -30 °C for 11 min -> box red, alert without Done button', async () => {
+    const now = Date.now();
+    for (let m = 11; m >= 0; m -= 0.25) live.record(BOX_ID, '740B3B', 20, now - m * 60000, -30);
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toContain('status-red');
+    expect(page.text).toContain('Fridge temperature 20.0 °C deviates from the target of -30 °C');
+    expect(page.text).toContain('data-fridge-alert="red"');
+    expect(page.text).not.toContain('data-target="fridge_temp"');
+
+    const liveRes = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(liveRes.body).toMatchObject({ temp: 20, fresh: true, fridgeAlert: 'red' });
+  });
+
+  test('deviation only 2 min old -> still green', async () => {
+    const now = Date.now();
+    live.record(BOX_ID, '740B3B', 20, now - 2 * 60000, -30);
+    live.record(BOX_ID, '740B3B', 20, now, -30);
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toContain('status-green');
+    expect((await agent.get(`/monitoring/${BOX_ID}/live`)).body.fridgeAlert).toBeNull();
+  });
+
+  test('values posted by the sensor are tracked against the box target', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 20 });
+    expect(live.deviation(BOX_ID).redSince).not.toBeNull();
   });
 });
