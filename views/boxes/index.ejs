@@ -26,7 +26,7 @@
         <a href="/boxes/create" class="btn btn-primary">+ Add Box</a>
       </div>
     <% } else { %>
-    <table class="data-table">
+    <table class="data-table data-table--cards">
       <thead>
         <tr>
           <th>Alias / Name</th>
@@ -40,11 +40,11 @@
       <tbody>
         <% boxes.forEach(b => { %>
         <tr>
-          <td><strong><%= b.box_alias %></strong></td>
-          <td class="mono"><%= b.project_number %></td>
-          <td><%= b.manufacturer %></td>
-          <td><%= b.box_type %></td>
-          <td><%= b.build_year %></td>
+          <td data-label="Alias / Name"><strong><%= b.box_alias %></strong></td>
+          <td data-label="Project No." class="mono"><%= b.project_number %></td>
+          <td data-label="Manufacturer"><%= b.manufacturer %></td>
+          <td data-label="Type"><%= b.box_type %></td>
+          <td data-label="Build Year"><%= b.build_year %></td>
           <td class="actions">
             <a href="/boxes/<%= b.id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
             <form action="/boxes/<%= b.id %>?_method=DELETE" method="POST" class="inline-form" onsubmit="return confirm('Delete this box?')">

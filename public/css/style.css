@@ -446,7 +446,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 
 /* Sidebar */
 .sidebar { width: var(--sidebar-width); min-height: 100vh; background: var(--color-sidebar); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100; }
-.sidebar-logo { padding: 30px 22px 22px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.sidebar-logo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 30px 22px 22px; border-bottom: 1px solid rgba(255,255,255,0.07); }
 .logo-text { display: block; font-family: var(--font-brand); font-size: 17px; color: #fff; line-height: 1.35; letter-spacing: 0.2px; }
 .logo-sub  { display: block; font-size: 12px; color: var(--color-sidebar-text); opacity: 0.75; margin-top: 2px; }
 .sidebar-nav { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 20px 12px; list-style: none; gap: 2px; }
@@ -471,6 +471,10 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   background: #60a5fa;
   transform: translateY(-50%);
 }
+.sidebar-logo__text { display: block; min-width: 0; }
+.sidebar-menu { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.nav-toggle { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; background: transparent; color: #fff; cursor: pointer; }
+.nav-toggle:focus-visible { outline: 2px solid #7ea4f4; outline-offset: 2px; }
 .sidebar-footer { padding: 18px 16px; border-top: 1px solid rgba(255,255,255,0.07); }
 .sidebar-user { display: block; font-size: 13px; color: var(--color-sidebar-text); margin-bottom: 10px; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .logout-btn {
@@ -994,11 +998,38 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
 }
 
 /* Hero banner: helle Karte in der Soft-Blau-Sprache (ehem. dunkles Glas) */
+/* Dashboard: Status aller Boxen (Betreiber 01.10.) */
+.box-status { margin: 0 0 28px; }
+.box-status__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; margin-bottom: 12px; }
+.box-status__title { margin: 0; font-size: 18px; font-weight: 700; color: var(--color-text); }
+.box-status__summary { margin: 0; font-size: 13px; color: var(--color-text-muted); }
+.txt-red { color: #b71c1c; font-weight: 600; }
+.txt-yellow { color: #854d0e; font-weight: 600; }
+.box-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+.box-tile { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; background: var(--color-card); border: 1px solid var(--color-border); border-left: 5px solid #94a3b8; border-radius: var(--radius); box-shadow: var(--shadow); color: var(--color-text); text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
+.box-tile:hover { transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.box-tile:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.box-tile__top { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.box-tile__name { font-size: 16px; font-weight: 700; }
+.box-tile__no { font-size: 12px; color: var(--color-text-muted); }
+.box-tile__status { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; }
+.box-tile__dot { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+.box-tile__temp { font-size: 22px; font-weight: 700; }
+.box-tile__target { font-size: 12px; font-weight: 500; color: var(--color-text-muted); }
+.box-tile__alert { font-size: 12px; color: var(--color-text-muted); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.box-tile--green { border-left-color: #43a047; }
+.box-tile--green .box-tile__status { color: #1b5e20; }
+.box-tile--yellow { border-left-color: #f59e0b; background: #fffdf5; }
+.box-tile--yellow .box-tile__status { color: #854d0e; }
+.box-tile--red { border-left-color: #e53935; background: #fffafa; }
+.box-tile--red .box-tile__status { color: #b71c1c; }
+@media (prefers-reduced-motion: reduce) { .box-tile { transition: none; } .box-tile:hover { transform: none; } }
+
 .dash-hero {
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  padding: 48px 56px;
+  padding: 30px 40px;
   color: var(--color-text);
   margin-bottom: 28px;
   position: relative;
@@ -1044,7 +1075,7 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
   margin-bottom: 20px;
 }
 .dash-hero__name {
-  font-size: 38px;
+  font-size: 30px;
   font-weight: 700;
   margin-bottom: 10px;
   color: var(--color-ink);
@@ -1089,14 +1120,14 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
 /* Quick-access card grid */
 .dash-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
   margin-bottom: 28px;
 }
 .dash-card {
   background: var(--color-card);
   border-radius: var(--radius-lg);
-  padding: 28px 28px 24px;
+  padding: 22px 22px 20px;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.9);
   display: flex;
@@ -1291,3 +1322,46 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
 .live-sensor.is-live .live-sensor__dot { background: #43a047; box-shadow: 0 0 0 3px rgba(67,160,71,0.18); }
 .live-sensor__status { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sensor-pair__interval { margin: 4px 0 10px; }
+
+/* ---------- Handy / Tablet (Betreiber 01.10.) ----------
+   Unter 900 px: Seitenleiste wird eine Leiste oben mit Menue-Knopf; Inhalt nutzt die volle Breite.
+   Unter 700 px: Tabellen mit .data-table--cards werden zu Karten (Beschriftung aus data-label). */
+@media (max-width: 900px) {
+  .sidebar { position: sticky; top: 0; width: 100%; min-height: 0; bottom: auto; }
+  .sidebar-logo { padding: 12px 16px; border-bottom: none; }
+  .nav-toggle { display: inline-flex; }
+  .sidebar-menu { display: none; }
+  .sidebar.is-open .sidebar-menu { display: flex; border-top: 1px solid rgba(255,255,255,0.07); }
+  .sidebar-nav { justify-content: flex-start; padding: 8px 12px; }
+  .sidebar-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .sidebar-footer .sidebar-user { margin: 0; }
+  .sidebar-footer .logout-btn { width: auto; padding-inline: 18px; }
+  .main-content { margin-left: 0; padding: 20px 16px 48px; min-height: 0; }
+  .page-header { margin-bottom: 18px; }
+  .page-brand { font-size: 19px; }
+  .dash-hero { padding: 22px 20px; }
+  .dash-hero__name { font-size: 22px; }
+  .chart-card { padding: 16px; }
+  .chart-card__canvas { height: 260px; }
+  .range-tabs { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; width: 100%; scrollbar-width: none; }
+  .range-tabs::-webkit-scrollbar { display: none; }
+  .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .dash-card { padding: 16px; gap: 8px; }
+  .dash-card__desc { display: none; }
+}
+@media (max-width: 420px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .data-table--cards thead { display: none; }
+  .data-table--cards, .data-table--cards tbody, .data-table--cards tr, .data-table--cards td { display: block; width: 100%; }
+  .data-table--cards tr { padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+  .data-table--cards tr:last-child { border-bottom: none; }
+  .data-table--cards td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 16px; border: none; text-align: right; }
+  .data-table--cards td[data-label]::before { content: attr(data-label); font-family: var(--font-main); font-size: 12px; font-weight: 600; color: var(--color-text-muted); text-align: left; }
+  .data-table--cards td.actions { justify-content: flex-end; padding-top: 8px; }
+  .data-table--cards td.empty-cell { justify-content: center; text-align: center; }
+  .data-table--cards tbody tr:hover td { background: transparent; }
+  .table-scroll { overflow-x: visible; }
+  .section-head { align-items: stretch; }
+}

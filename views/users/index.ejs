@@ -26,7 +26,7 @@
         <a href="/users/create" class="btn btn-primary">+ Add User</a>
       </div>
     <% } else { %>
-    <table class="data-table">
+    <table class="data-table data-table--cards">
       <thead>
         <tr>
           <th>Name</th>
@@ -40,11 +40,11 @@
       <tbody>
         <% users.forEach(u => { %>
         <tr>
-          <td><%= u.firstname %> <%= u.lastname %></td>
-          <td><%= u.email %></td>
-          <td class="mono"><%= u.username %></td>
-          <td><%= u.department %></td>
-          <td><span class="role-badge role-<%= u.role %>"><%= u.role.replace('_', ' ') %></span></td>
+          <td data-label="Name"><%= u.firstname %> <%= u.lastname %></td>
+          <td data-label="E-Mail"><%= u.email %></td>
+          <td data-label="Abbreviation" class="mono"><%= u.username %></td>
+          <td data-label="Department"><%= u.department %></td>
+          <td data-label="Role"><span class="role-badge role-<%= u.role %>"><%= u.role.replace('_', ' ') %></span></td>
           <td class="actions">
             <a href="/users/<%= u.id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
             <% if (u.id !== user.id) { %>

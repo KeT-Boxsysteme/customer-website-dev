@@ -11,6 +11,7 @@ const userRoutes = require('./routes/users');
 const boxRoutes = require('./routes/boxes');
 const monitoringRoutes = require('./routes/monitoring');
 const diagramRoutes = require('./routes/diagrams');
+const dashboardRoutes = require('./routes/dashboard');
 const { requireAuth } = require('./middleware/auth');
 
 const app = express();
@@ -79,9 +80,7 @@ app.get('/terms', (req, res) => {
   res.render('terms', { title: 'Terms & Conditions' });
 });
 
-app.get('/dashboard', requireAuth, (req, res) => {
-  res.render('dashboard/index', { currentPage: 'dashboard' });
-});
+app.use('/dashboard', requireAuth, dashboardRoutes);
 
 app.use('/auth', authRoutes);
 app.use('/users', requireAuth, userRoutes);

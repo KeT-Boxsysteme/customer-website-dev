@@ -1,10 +1,17 @@
 <% const u = locals.user; %>
 <nav class="sidebar">
   <div class="sidebar-logo">
-    <span class="logo-text">Glovebox-Monitoring</span>
-    <span class="logo-sub">by KeT</span>
+    <span class="sidebar-logo__text">
+      <span class="logo-text">Glovebox-Monitoring</span>
+      <span class="logo-sub">by KeT</span>
+    </span>
+    <!-- nur bei schmalen Bildschirmen sichtbar (Handy/Tablet): klappt das Menue auf -->
+    <button type="button" class="nav-toggle" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
   </div>
 
+  <div class="sidebar-menu" id="sidebarMenu">
   <ul class="sidebar-nav">
     <li class="nav-item <%= currentPage === 'dashboard' ? 'active' : '' %>">
       <a href="/dashboard">Dashboard</a>
@@ -32,5 +39,6 @@
     <span class="sidebar-user"><%= u.firstname %> <%= u.lastname %></span>
     <% } %>
     <a href="/auth/logout" class="logout-btn">Logout</a>
+  </div>
   </div>
 </nav>

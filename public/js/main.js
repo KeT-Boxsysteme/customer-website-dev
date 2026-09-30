@@ -15,3 +15,19 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dismissFlashes);
   else dismissFlashes();
 })();
+
+// Menue-Knopf fuer schmale Bildschirme (Handy/Tablet): klappt die Navigation auf und zu
+(function () {
+  function bindNavToggle() {
+    const btn = document.querySelector('.nav-toggle');
+    const nav = btn && btn.closest('.sidebar');
+    if (!btn || !nav || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', () => {
+      const open = nav.classList.toggle('is-open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindNavToggle);
+  else bindNavToggle();
+})();

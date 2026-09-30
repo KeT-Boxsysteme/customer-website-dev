@@ -383,3 +383,20 @@ describe('box changes reach an open monitoring page (state key, E-21 rev.)', () 
     expect(boxState.version(11)).not.toBe(before);
   });
 });
+
+describe('phone/tablet width (Betreiber 01.10.)', () => {
+  test('menu button for the collapsed navigation is in the page', async () => {
+    const res = await agent.get('/boxes');
+    expect(res.text).toMatch(/<button[^>]*class="nav-toggle"[^>]*aria-controls="sidebarMenu"[^>]*aria-expanded="false"/);
+    expect(res.text).toContain('id="sidebarMenu"');
+  });
+
+  test('box list turns into cards: every cell carries its column label', async () => {
+    Box.findAllByCompany.mockResolvedValue([{ id: 3, box_alias: 'Lab', project_number: 'P-3', manufacturer: 'M', box_type: 'T', build_year: 2020 }]);
+    const res = await agent.get('/boxes');
+    expect(res.text).toContain('class="data-table data-table--cards"');
+    for (const label of ['Alias / Name', 'Project No.', 'Manufacturer', 'Type', 'Build Year']) {
+      expect(res.text).toContain(`data-label="${label}"`);
+    }
+  });
+});

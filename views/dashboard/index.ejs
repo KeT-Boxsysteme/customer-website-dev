@@ -31,6 +31,39 @@
       </div>
     </div>
 
+    <!-- Box status (Betreiber 01.10.): same traffic light as the monitoring page -->
+    <section class="box-status" aria-labelledby="boxStatusTitle">
+      <div class="box-status__head">
+        <h2 class="box-status__title" id="boxStatusTitle">Your gloveboxes</h2>
+        <% if (boxes.length) { const nRed = boxes.filter(b => b.status === 'red').length, nYellow = boxes.filter(b => b.status === 'yellow').length; %>
+        <p class="box-status__summary">
+          <%= boxes.length %> <%= boxes.length === 1 ? 'box' : 'boxes' %><% if (nRed) { %> · <span class="txt-red"><%= nRed %> critical</span><% } %><% if (nYellow) { %> · <span class="txt-yellow"><%= nYellow %> need attention</span><% } %>
+        </p>
+        <% } %>
+      </div>
+      <% if (statusError) { %>
+      <p class="empty-state empty-state--plain">Box status could not be loaded right now. Please try again in a moment.</p>
+      <% } else if (!boxes.length) { %>
+      <p class="empty-state empty-state--plain">No gloveboxes yet.<% if (user.role === 'admin' || user.role === 'controller') { %> <a href="/boxes/create">Add your first box</a>.<% } %></p>
+      <% } else { %>
+      <div class="box-tiles">
+        <% boxes.forEach(b => { %>
+        <a href="/monitoring/<%= b.id %>" class="box-tile box-tile--<%= b.status %>">
+          <span class="box-tile__top">
+            <span class="box-tile__name"><%= b.alias %></span>
+            <span class="box-tile__no mono">#<%= b.projectNumber %></span>
+          </span>
+          <span class="box-tile__status"><span class="box-tile__dot" aria-hidden="true"></span><%= b.statusLabel %><% if (b.alertCount) { %> · <%= b.alertCount %> <%= b.alertCount === 1 ? 'alert' : 'alerts' %><% } %></span>
+          <% if (b.hasSensor) { %>
+          <span class="box-tile__temp"><%= b.liveTemp !== null ? Number(b.liveTemp).toFixed(1) + ' °C' : '— °C' %><% if (b.target !== null) { %><span class="box-tile__target"> / target <%= b.target %> °C</span><% } %></span>
+          <% } %>
+          <% if (b.topAlert) { %><span class="box-tile__alert"><%= b.topAlert %></span><% } %>
+        </a>
+        <% }) %>
+      </div>
+      <% } %>
+    </section>
+
     <!-- Quick Access -->
     <div class="dash-grid">
 
@@ -63,7 +96,7 @@
         </div>
         <div>
           <p class="dash-card__title">Diagrams</p>
-          <p class="dash-card__desc">View time-series charts for O₂, H₂O and fridge temperature over the last 6 to 12 months.</p>
+          <p class="dash-card__desc">Charts for O₂, H₂O and fridge temperature — from the last 24 hours up to one year.</p>
         </div>
         <div class="dash-card__cta">
           View Diagrams

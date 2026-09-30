@@ -6,11 +6,12 @@ const AlertAck = require('../models/alertAck');
 const SensorReading = require('../models/sensorReading');
 const liveReadings = require('../services/liveReadings');
 const boxState = require('../services/boxState');
+const { liveFridge, statusForBox } = require('../services/boxStatus');
 const { storeWindowSeconds, validateReading } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
-const { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlert } = require('../services/alerts');
+const { fieldLevels, fieldMessages, fridgeAlert } = require('../services/alerts');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
 
 // Expliziter Rollen-Guard analog zu routes/diagrams.js (admin, controller, user, box_user)
@@ -54,12 +55,6 @@ router.get('/sensors', async (req, res) => {
   }
 });
 
-// Frischer Live-Wert des zugeordneten Fuehlers (E-21), sonst null
-function liveFridge(box) {
-  const v = liveReadings.get(box.id);
-  if (!v || !v.fresh || !box.sensor_serial || v.serial !== box.sensor_serial) return null;
-  return { temp: v.temp };
-}
 
 // GET /monitoring/:id – Box-Detail mit Werteeingabe
 router.get('/:id', async (req, res) => {
@@ -67,16 +62,11 @@ router.get('/:id', async (req, res) => {
     const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
     if (!box) return res.status(404).render('errors/404');
 
-    // Unabhaengige Queries parallel statt nacheinander (spart 2 DB-Roundtrips)
-    const [usernames, latestMeasurement, acks] = await Promise.all([
+    // Unabhaengige Abfragen parallel; Ampel-Status aus services/boxStatus (gleiche Regel wie Dashboard)
+    const [usernames, { latestMeasurement, alerts, statusColor }] = await Promise.all([
       User.getUsernamesByCompany(req.session.user.companyId),
-      Measurement.findLatestByBox(box.id),
-      AlertAck.latestAcks(box.id)
+      statusForBox(box)
     ]);
-
-    // Ampel-Status aus der Alert-Engine (Wartungszyklen + ppm-Werte + Acks + Kuehlschrank live)
-    const alerts = buildAlerts({ box, latestMeasurement, acks, fridgeLive: liveFridge(box) });
-    const statusColor = overallStatus(alerts);
     const stateKey = boxState.stateKey(box.id, alerts.find(a => a.key.startsWith('fridge')) || null);
 
     res.render('monitoring/detail', {
