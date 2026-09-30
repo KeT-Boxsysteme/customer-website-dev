@@ -83,14 +83,33 @@
     reconnectTimer = setTimeout(tryReconnect, 10000);
   }
 
+  let connecting = false;
   async function tryReconnect() {
+    if (connecting || (device && device.gatt.connected)) return;
+    connecting = true;
+    clearTimeout(reconnectTimer);
     try { await connectGatt(); }
-    catch (err) { reconnectTimer = setTimeout(tryReconnect, 10000); }
+    catch (err) {
+      // Fuehler meldet sich nur selten — weiter versuchen statt aufgeben
+      status('Sensor ' + serial + ' – waiting for the sensor to respond …');
+      reconnectTimer = setTimeout(tryReconnect, 10000);
+    }
+    finally { connecting = false; }
   }
 
   function adopt(d) {
     device = d;
+    try { localStorage.setItem('bluedan-device:' + serial, d.id); } catch (e) { /* egal */ }
     device.addEventListener('gattserverdisconnected', onDisconnected);
+    // Fuehler meldet sich nur selten: wenn der Browser es kann, genau beim naechsten Signal verbinden
+    if (device.watchAdvertisements) {
+      device.addEventListener('advertisementreceived', () => { if (!device.gatt.connected) tryReconnect(); });
+      device.watchAdvertisements().catch(() => { /* nicht verfuegbar -> 10-s-Wiederholung reicht */ });
+    }
+  }
+
+  function rememberedId() {
+    try { return localStorage.getItem('bluedan-device:' + serial); } catch (e) { return null; }
   }
 
   // Bereits erlaubten Fuehler ohne Klick wiederfinden (falls der Browser getDevices anbietet)
@@ -101,15 +120,15 @@
     if (!navigator.bluetooth) { status(idle + ' (Bluetooth not available in this browser)'); return; }
     if (!navigator.bluetooth.getDevices) { status(idle + ' (this browser requires one click per visit)'); return; }
     try {
-      const known = (await navigator.bluetooth.getDevices()).find(d => B.serialFromName(d.name) === serial);
+      const id = rememberedId();
+      const known = (await navigator.bluetooth.getDevices())
+        .find(d => B.serialFromName(d.name) === serial || (id && d.id === id));
       if (!known) { status(idle + ' (click once to allow this browser to use the sensor)'); return; }
       adopt(known);
       status('Sensor ' + serial + ' – connecting …');
-      await connectGatt();
+      await tryReconnect();
     } catch (err) {
-      // Fuehler meldet sich nur selten — weiter versuchen statt aufgeben
-      status('Sensor ' + serial + ' – not reachable yet, retrying …');
-      reconnectTimer = setTimeout(tryReconnect, 10000);
+      status(idle + ' (' + err.message + ')');
     }
   }
 

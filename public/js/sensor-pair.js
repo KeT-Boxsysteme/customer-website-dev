@@ -39,6 +39,9 @@
     });
     const serial = B.serialFromName(device.name);
     if (!serial) throw new Error('Unknown sensor: ' + device.name);
+    // Geraete-Kennung merken: das Monitoring findet den Fuehler darueber per getDevices wieder,
+    // auch wenn der Browser dort keinen Namen liefert (nur Komfort — Speicher darf fehlen)
+    try { localStorage.setItem('bluedan-device:' + serial, device.id); } catch (e) { /* egal */ }
     let lastError = null;
     for (let attempt = 1; attempt <= 3; attempt++) {
       status('Sensor ' + serial + ' selected – getting a test reading (attempt ' + attempt + ' of 3) …');
