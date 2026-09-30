@@ -50,11 +50,12 @@
           </select>
         </div>
 
-        <!-- Sensor values – only shown if box has the respective sensor/component -->
+        <!-- Sensor values – only shown if box has the respective sensor/component.
+             Each field takes the colour of its own alert, so it is clear which point causes the traffic light -->
         <div class="monitoring-values">
         <div class="sensor-values">
           <% if (box.has_o2_sensor) { %>
-          <div class="form-group sensor-field">
+          <div class="form-group sensor-field<%= fieldLevel.o2 ? ' sensor-field--' + fieldLevel.o2 : '' %>"<% if (fieldTitle.o2) { %> title="<%= fieldTitle.o2 %>"<% } %>>
             <label for="o2Value">O₂ <span class="hint">(ppm)</span></label>
             <input type="number" id="o2Value" name="o2Value" step="0.01" min="0" max="999"
                    placeholder="0.00">
@@ -62,7 +63,7 @@
           <% } %>
 
           <% if (box.has_h2o_sensor) { %>
-          <div class="form-group sensor-field">
+          <div class="form-group sensor-field<%= fieldLevel.h2o ? ' sensor-field--' + fieldLevel.h2o : '' %>"<% if (fieldTitle.h2o) { %> title="<%= fieldTitle.h2o %>"<% } %>>
             <label for="h2oValue">H₂O <span class="hint">(ppm)</span></label>
             <input type="number" id="h2oValue" name="h2oValue" step="0.01" min="0" max="999"
                    placeholder="0.00">
@@ -70,7 +71,7 @@
           <% } %>
 
           <% if (box.has_fridge) { %>
-          <div class="form-group sensor-field">
+          <div class="form-group sensor-field<%= fieldLevel.fridge ? ' sensor-field--' + fieldLevel.fridge : '' %>"<% if (fieldTitle.fridge) { %> title="<%= fieldTitle.fridge %>"<% } %>>
             <label for="fridgeTemp">Fridge Temp <span class="hint">(°C)</span></label>
             <input type="number" id="fridgeTemp" name="fridgeTemp" step="0.1"
                    placeholder="0.0">

@@ -585,3 +585,36 @@ describe('the monitoring page stays live: state key changes on every relevant ch
     expect(await stateKey()).toBe(before);
   });
 });
+
+describe('value fields show which point causes the traffic light (Betreiber 01.10.)', () => {
+  const live = require('../services/liveReadings');
+  beforeEach(() => {
+    live.reset();
+    SensorReading.createIfDue.mockResolvedValue(true);
+  });
+  const fieldClass = (html, id) => {
+    const m = html.match(new RegExp('<div class="([^"]*)"[^>]*>\\s*<label for="' + id + '"'));
+    return m ? m[1] : null;
+  };
+
+  test('fridge 10 °C off -> fridge field red, O2/H2O fine -> not coloured', async () => {
+    Box.findById.mockResolvedValue(makeBox({ has_o2_sensor: 1, has_h2o_sensor: 1, has_fridge: 1, fridge_temp: -30,
+      sensor_serial: '740B3B', sensor_store_minutes: 1 }));
+    Measurement.findLatestByBox.mockResolvedValue({ o2_value: 1, h2o_value: 1, measured_at: new Date() });
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -20 });
+    const page = (await agent.get(`/monitoring/${BOX_ID}`)).text;
+    expect(fieldClass(page, 'fridgeTemp')).toContain('sensor-field--red');
+    expect(fieldClass(page, 'o2Value')).not.toMatch(/sensor-field--/);
+    expect(fieldClass(page, 'h2oValue')).not.toMatch(/sensor-field--/);
+  });
+
+  test('O2 12 ppm -> O2 field red; fridge in range -> fridge field not red', async () => {
+    Box.findById.mockResolvedValue(makeBox({ has_o2_sensor: 1, has_fridge: 1, fridge_temp: -30,
+      sensor_serial: '740B3B', sensor_store_minutes: 1 }));
+    Measurement.findLatestByBox.mockResolvedValue({ o2_value: 12, h2o_value: null, measured_at: new Date() });
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -30 });
+    const page = (await agent.get(`/monitoring/${BOX_ID}`)).text;
+    expect(fieldClass(page, 'o2Value')).toContain('sensor-field--red');
+    expect(fieldClass(page, 'fridgeTemp')).not.toMatch(/sensor-field--(red|yellow)/);
+  });
+});

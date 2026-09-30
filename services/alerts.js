@@ -258,6 +258,36 @@ function buildAlerts({ box, latestMeasurement, acks = [], fridgeLive = null, now
   return [...red, ...yellow];
 }
 
+// Which value field an alert belongs to (explicit list: h2o_sensor_cleaning is maintenance, not the H2O value)
+const FIELD_OF_ALERT = {
+  o2_high: 'o2', o2_elevated: 'o2',
+  h2o_high: 'h2o', h2o_elevated: 'h2o',
+  fridge_temp: 'fridge', fridge_sensor_offline: 'fridge'
+};
+
+/**
+ * Severity per value field, so the monitoring page shows WHICH point causes the traffic light
+ * (Betreiber 2026-10-01). Returns e.g. { fridge: 'red', o2: 'yellow' }; red wins over yellow.
+ */
+function fieldLevels(alerts) {
+  const levels = {};
+  for (const a of alerts) {
+    const field = FIELD_OF_ALERT[a.key];
+    if (field && levels[field] !== 'red') levels[field] = a.severity;
+  }
+  return levels;
+}
+
+/** Alert messages per value field (tooltip on the field), e.g. { fridge: 'Fridge temperature …' }. */
+function fieldMessages(alerts) {
+  const messages = {};
+  for (const a of alerts) {
+    const field = FIELD_OF_ALERT[a.key];
+    if (field) messages[field] = messages[field] ? messages[field] + ' · ' + a.message : a.message;
+  }
+  return messages;
+}
+
 /** Overall traffic-light status: any red → red, else any yellow → yellow, else green. */
 function overallStatus(alerts) {
   if (alerts.some(a => a.severity === 'red')) return 'red';
@@ -265,4 +295,4 @@ function overallStatus(alerts) {
   return 'green';
 }
 
-module.exports = { buildAlerts, overallStatus, fridgeAlert, fridgeDeviationLevel };
+module.exports = { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlert, fridgeDeviationLevel };

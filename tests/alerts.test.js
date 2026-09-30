@@ -489,3 +489,28 @@ describe('buildAlerts – fridge temperature vs. target (E-21 rev.: live, 3 / 5 
     expect(overallStatus(alerts)).toBe('red');
   });
 });
+
+describe('fieldLevels – which value field causes the traffic light (Betreiber 01.10.)', () => {
+  const { fieldLevels } = require('../services/alerts');
+  const a = (key, severity) => ({ key, severity });
+
+  test('each value alert colours its own field; red wins over yellow', () => {
+    expect(fieldLevels([a('fridge_temp', 'red'), a('o2_elevated', 'yellow')]))
+      .toEqual({ fridge: 'red', o2: 'yellow' });
+    expect(fieldLevels([a('h2o_elevated', 'yellow'), a('h2o_high', 'red')])).toEqual({ h2o: 'red' });
+    expect(fieldLevels([a('fridge_sensor_offline', 'yellow')])).toEqual({ fridge: 'yellow' });
+  });
+
+  test('maintenance alerts do not colour a value field (h2o_sensor_cleaning is not the H2O value)', () => {
+    expect(fieldLevels([a('h2o_sensor_cleaning', 'yellow'), a('oil_change', 'yellow')])).toEqual({});
+  });
+});
+
+describe('fieldMessages – tooltip text per value field', () => {
+  const { fieldMessages } = require('../services/alerts');
+  test('messages go to their field only', () => {
+    expect(fieldMessages([
+      { key: 'fridge_temp', message: 'Fridge off' }, { key: 'oil_change', message: 'Oil' }
+    ])).toEqual({ fridge: 'Fridge off' });
+  });
+});

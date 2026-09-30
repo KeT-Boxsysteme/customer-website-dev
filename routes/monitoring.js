@@ -10,7 +10,7 @@ const { storeWindowSeconds, validateReading } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
-const { buildAlerts, overallStatus, fridgeAlert } = require('../services/alerts');
+const { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlert } = require('../services/alerts');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
 
 // Expliziter Rollen-Guard analog zu routes/diagrams.js (admin, controller, user, box_user)
@@ -87,7 +87,9 @@ router.get('/:id', async (req, res) => {
       latestMeasurement,
       alerts,
       statusColor,
-      stateKey
+      stateKey,
+      fieldLevel: fieldLevels(alerts),
+      fieldTitle: fieldMessages(alerts)
     });
   } catch (err) {
     console.error(err);

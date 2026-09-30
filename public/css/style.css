@@ -865,6 +865,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .sensor-field input { font-size: 20px; font-weight: 600; text-align: center; width: 100%; }
 .sensor-field input.is-live { background: transparent; color: #1b5e20; }
 .monitoring-form .form-group:has(input.is-live) { border-color: #8fbf8f; background: #f3faf3; }
+/* Feld in der Farbe seiner Warnung (Betreiber 01.10.): zeigt, welcher Punkt die Ampel verursacht.
+   Hoehere Spezifitaet als das Live-Gruen darueber — eine Warnung schlaegt "live". */
+.monitoring-form .sensor-values .form-group.sensor-field--yellow { border-color: #f59e0b; background: #fffbeb; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); }
+.monitoring-form .sensor-values .form-group.sensor-field--red { border-color: #e53935; background: #fef2f2; box-shadow: 0 0 0 3px rgba(229,57,53,0.15); }
+.sensor-field.sensor-field--yellow input.is-live, .sensor-field.sensor-field--yellow label { color: #854d0e; }
+.sensor-field.sensor-field--red input.is-live, .sensor-field.sensor-field--red label { color: #b71c1c; }
 
 /* Fusszeile: Warnsymbol mittig unter den Werten (Konzept), Senden rechts */
 .monitoring-footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--color-border-soft); }
