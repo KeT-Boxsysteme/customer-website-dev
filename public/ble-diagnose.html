@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sensor Diagnostics</title>
+  <!-- Temporaeres Messwerkzeug (Vault: Offene Punkte, Bluetooth-Fuehler). Nur lesen/abonnieren,
+       schreibt NICHTS an den Fuehler. Vor dem naechsten main-Merge entfernen oder hinter Login legen. -->
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: #f4f6fa; color: #1c2430; }
+    h1 { font-size: 1.3rem; margin: 0 0 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    button { font-size: 1rem; padding: 12px 16px; border: 0; border-radius: 8px; background: #2f5d9e; color: #fff; }
+    button:disabled { background: #9aa7b8; }
+    #status { font-weight: 600; margin-bottom: 8px; }
+    #latest { font-size: 2.4rem; font-weight: 700; margin: 8px 0 16px; }
+    #log { font-family: ui-monospace, monospace; font-size: .85rem; background: #fff; border-radius: 8px;
+           padding: 8px; max-height: 60vh; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+    .entry { border-bottom: 1px solid #e3e7ee; padding: 4px 0; }
+  </style>
+</head>
+<body>
+  <h1>Temperature sensor diagnostics</h1>
+  <div id="status">Not connected</div>
+  <div id="latest">–</div>
+  <div class="row">
+    <button id="connectBtn">Connect sensor</button>
+    <button id="readBtn" disabled>Read once</button>
+    <button id="autoBtn" disabled>Auto-read every 5 s: off</button>
+    <button id="disconnectBtn" disabled>Disconnect</button>
+  </div>
+  <div id="log"></div>
+
+  <script>
+    const SERVICE = 0x2220;
+    const RX_CHAR = 0x2221; // Read + Notify (nRF Connect, 2026-09-30)
+
+    let device = null, rx = null, autoTimer = null, count = 0;
+    const $ = id => document.getElementById(id);
+
+    // CP437: 0xF8 ist das Gradzeichen; sonst ASCII, nicht druckbare Bytes als <xx>
+    function decode(bytes) {
+      let s = '';
+      for (const b of bytes) {
+        if (b === 0xF8) s += '°';
+        else if (b === 0x09) s += '\t';
+        else if (b === 0x0A) s += '\\n';
+        else if (b === 0x0D) s += '\\r';
+        else if (b >= 0x20 && b < 0x7F) s += String.fromCharCode(b);
+        else s += '<' + b.toString(16).padStart(2, '0') + '>';
+      }
+      return s;
+    }
+    const hex = bytes => [...bytes].map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+
+    function log(source, dataView) {
+      const bytes = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
+      const text = decode(bytes);
+      const m = text.match(/-?\d+(\.\d+)?/);
+      if (m) $('latest').textContent = m[0] + ' °C';
+      count++;
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.textContent = `#${count} ${new Date().toLocaleTimeString()} [${source}] ${text}\n    HEX ${hex(bytes)}`;
+      $('log').prepend(div);
+    }
+    function info(msg) {
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.textContent = `${new Date().toLocaleTimeString()} ${msg}`;
+      $('log').prepend(div);
+    }
+
+    async function connect() {
+      if (!navigator.bluetooth) {
+        $('status').textContent = 'Web Bluetooth is not available in this browser (use Chrome on Android).';
+        return;
+      }
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'BD ' }, { services: [SERVICE] }],
+          optionalServices: [SERVICE]
+        });
+        device.addEventListener('gattserverdisconnected', () => {
+          $('status').textContent = 'Disconnected';
+          info('Sensor disconnected');
+          setButtons(false);
+        });
+        $('status').textContent = 'Connecting to ' + device.name + ' …';
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE);
+        rx = await service.getCharacteristic(RX_CHAR);
+        info('Connected to ' + device.name + ' — properties of 2221: ' +
+             ['read', 'notify', 'indicate', 'write'].filter(p => rx.properties[p]).join(', '));
+        rx.addEventListener('characteristicvaluechanged', e => log('notify', e.target.value));
+        await rx.startNotifications();
+        info('Notifications enabled on 2221 — waiting for messages from the sensor …');
+        $('status').textContent = 'Connected: ' + device.name;
+        setButtons(true);
+      } catch (err) {
+        $('status').textContent = 'Error: ' + err.message;
+        info('Error: ' + err.name + ' – ' + err.message);
+      }
+    }
+    async function readOnce() {
+      try { log('read', await rx.readValue()); }
+      catch (err) { info('Read error: ' + err.message); }
+    }
+    function toggleAuto() {
+      if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+      else { autoTimer = setInterval(readOnce, 5000); readOnce(); }
+      $('autoBtn').textContent = 'Auto-read every 5 s: ' + (autoTimer ? 'on' : 'off');
+    }
+    function setButtons(on) {
+      $('readBtn').disabled = !on; $('autoBtn').disabled = !on; $('disconnectBtn').disabled = !on;
+      if (!on && autoTimer) toggleAuto();
+    }
+
+    $('connectBtn').addEventListener('click', connect);
+    $('readBtn').addEventListener('click', readOnce);
+    $('autoBtn').addEventListener('click', toggleAuto);
+    $('disconnectBtn').addEventListener('click', () => device && device.gatt.disconnect());
+  </script>
+</body>
+</html>
