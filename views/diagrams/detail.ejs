@@ -15,7 +15,7 @@
         <h2 class="section-title">
           <%= box.box_alias %> <span class="mono text-muted">&nbsp;#<%= box.project_number %></span>
         </h2>
-        <p class="section-desc">Measured values and trends for the selected period.</p>
+        <p class="section-desc">Temperature history from the sensor and manually entered values for the selected period.</p>
       </div>
     </div>
 
@@ -35,7 +35,40 @@
       </label>
     </div>
 
-    <!-- Data Table -->
+    <!-- Charts: temperature (sensor history + manual entries + target) and ppm (manual entries) -->
+    <% if (charts.temp) { %>
+    <section class="chart-card">
+      <div class="chart-card__head">
+        <h3 class="chart-card__title">Fridge temperature <span class="hint">(°C)</span></h3>
+        <% if (charts.temp.target !== null) { %>
+        <p class="chart-card__meta">Target <%= charts.temp.target %> °C · yellow from ±<%= charts.temp.limits.yellow %> °C · red from ±<%= charts.temp.limits.red %> °C</p>
+        <% } %>
+      </div>
+      <% if (charts.temp.hasData) { %>
+      <div class="chart-card__canvas"><canvas id="tempChart"></canvas></div>
+      <p class="chart-card__note">Sensor: hourly average with min–max band. Dots: manual entries.</p>
+      <% } else { %>
+      <p class="empty-state empty-state--plain">No temperature values in this period.</p>
+      <% } %>
+    </section>
+    <% } %>
+
+    <% if (charts.ppm) { %>
+    <section class="chart-card">
+      <div class="chart-card__head">
+        <h3 class="chart-card__title">O₂ / H₂O <span class="hint">(ppm)</span></h3>
+        <p class="chart-card__meta">yellow from 5 ppm · red from 10 ppm</p>
+      </div>
+      <% if (charts.ppm.hasData) { %>
+      <div class="chart-card__canvas"><canvas id="ppmChart"></canvas></div>
+      <% } else { %>
+      <p class="empty-state empty-state--plain">No O₂ / H₂O values in this period.</p>
+      <% } %>
+    </section>
+    <% } %>
+
+    <!-- Manual entries (Werteeingabe im Monitoring) -->
+    <h3 class="chart-card__title">Manual entries</h3>
     <div class="table-scroll">
       <table class="data-table">
         <thead>
@@ -67,73 +100,78 @@
       </table>
     </div>
 
-    <!-- Chart -->
-    <div class="chart-container">
-      <canvas id="valuesChart"></canvas>
-    </div>
     </div><!-- /.detail-column -->
   </main>
 
   <script src="<%= asset('/js/vendor/chart.umd.min.js') %>"></script>
   <script>
   (function () {   // eigener Bereich: Turbo fuehrt das Skript bei jedem Besuch erneut aus
-    const labels = <%- chartLabels %>;
-    const o2Data = <%- o2Data %>;
-    const h2oData = <%- h2oData %>;
-    const fridgeData = <%- fridgeData %>;
-
-    const datasets = [];
-    <% if (box.has_o2_sensor) { %>
-    datasets.push({
-      label: 'O₂ (ppm)',
-      data: o2Data,
-      borderColor: '#1565c0',
-      backgroundColor: 'rgba(21,101,192,0.1)',
-      tension: 0.3,
-      pointRadius: 3
-    });
-    <% } %>
-    <% if (box.has_h2o_sensor) { %>
-    datasets.push({
-      label: 'H₂O (ppm)',
-      data: h2oData,
-      borderColor: '#2e7d32',
-      backgroundColor: 'rgba(46,125,50,0.1)',
-      tension: 0.3,
-      pointRadius: 3
-    });
-    <% } %>
-    <% if (box.has_fridge) { %>
-    datasets.push({
-      label: 'Fridge (°C)',
-      data: fridgeData,
-      borderColor: '#f59e0b',
-      backgroundColor: 'rgba(245,158,11,0.1)',
-      tension: 0.3,
-      pointRadius: 3
-    });
-    <% } %>
-
-    new Chart(document.getElementById('valuesChart'), {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        scales: {
-          y: {
-            min: 0,
-            max: 20,
-            title: { display: true, text: 'ppm' }
-          },
-          x: {
-            title: { display: true, text: 'Date' }
-          }
-        },
-        plugins: {
-          legend: { position: 'top' }
-        }
+    const charts = <%- chartsJson %>;
+    const fmtDate = ms => new Date(ms).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const fmtFull = ms => new Date(ms).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const timeAxis = {
+      type: 'linear',
+      ticks: { callback: v => fmtDate(v), maxTicksLimit: 8 },
+      grid: { display: false }
+    };
+    const common = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true } },
+        tooltip: { callbacks: { title: items => items.length ? fmtFull(items[0].parsed.x) : '' } }
       }
-    });
+    };
+    // Waagerechte Linie ueber den ganzen Zeitraum (Soll und Grenzen)
+    function hline(label, y, color, dash, xs) {
+      return { label, data: [{ x: xs[0], y }, { x: xs[1], y }], borderColor: color, borderWidth: 1,
+               borderDash: dash, pointRadius: 0, fill: false, tension: 0 };
+    }
+
+    const tempEl = document.getElementById('tempChart');
+    if (tempEl && charts.temp) {
+      const t = charts.temp;
+      const all = t.avg.concat(t.manual).map(p => p.x);
+      const xs = [Math.min.apply(null, all), Math.max.apply(null, all)];
+      const datasets = [
+        { label: 'Max', data: t.max, borderWidth: 0, pointRadius: 0, fill: false, backgroundColor: 'rgba(245,158,11,0.18)' },
+        { label: 'Min', data: t.min, borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: 'rgba(245,158,11,0.18)' },
+        { label: 'Sensor (hourly avg)', data: t.avg, borderColor: '#d97706', borderWidth: 2, pointRadius: 0, tension: 0.2, fill: false },
+        { label: 'Manual entry', data: t.manual, borderColor: '#1e293b', backgroundColor: '#1e293b', showLine: false, pointRadius: 4 }
+      ];
+      if (t.target !== null) {
+        datasets.push(hline('Target', t.target, '#2e7d32', [], xs));
+        datasets.push(hline('±' + t.limits.red + ' °C', t.target + t.limits.red, '#e53935', [6, 4], xs));
+        datasets.push(hline('', t.target - t.limits.red, '#e53935', [6, 4], xs));
+      }
+      new Chart(tempEl, {
+        type: 'line',
+        data: { datasets },
+        options: Object.assign({}, common, {
+          scales: { x: timeAxis, y: { title: { display: true, text: '°C' } } },
+          plugins: Object.assign({}, common.plugins, {
+            legend: { position: 'top', labels: { boxWidth: 12, usePointStyle: true,
+              filter: item => item.text && item.text !== 'Max' && item.text !== 'Min' } }
+          })
+        })
+      });
+    }
+
+    const ppmEl = document.getElementById('ppmChart');
+    if (ppmEl && charts.ppm) {
+      const datasets = [];
+      if (charts.ppm.o2) datasets.push({ label: 'O₂ (ppm)', data: charts.ppm.o2, borderColor: '#1565c0', backgroundColor: '#1565c0', tension: 0.2, pointRadius: 3 });
+      if (charts.ppm.h2o) datasets.push({ label: 'H₂O (ppm)', data: charts.ppm.h2o, borderColor: '#0f766e', backgroundColor: '#0f766e', tension: 0.2, pointRadius: 3 });
+      new Chart(ppmEl, {
+        type: 'line',
+        data: { datasets },
+        options: Object.assign({}, common, {
+          scales: { x: timeAxis, y: { beginAtZero: true, suggestedMax: 12, title: { display: true, text: 'ppm' } } }
+        })
+      });
+    }
   })();
   </script>
 <%- include('../partials/footer') %>

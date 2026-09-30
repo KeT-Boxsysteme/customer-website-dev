@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const Box = require('../models/box');
 const Measurement = require('../models/measurement');
+const SensorReading = require('../models/sensorReading');
+const { buildCharts } = require('../services/diagramData');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
 
 // All diagram pages require one of the roles allowed for "diagrams"
@@ -34,10 +36,9 @@ router.get('/:id', async (req, res) => {
     ]);
     if (!box) return res.status(404).render('errors/404');
 
-    const chartLabels = measurements.map(m => new Date(m.measured_at).toLocaleDateString('en-GB')).reverse();
-    const o2Data    = measurements.map(m => m.o2_value).reverse();
-    const h2oData   = measurements.map(m => m.h2o_value).reverse();
-    const fridgeData = measurements.map(m => m.fridge_temp).reverse();
+    // Fuehler-Verlauf erst nach dem Box-Check (Werte nur fuer Boxen der eigenen Firma)
+    const sensorHours = box.has_fridge ? await SensorReading.hourlyByBox(boxId, months) : [];
+    const charts = buildCharts({ box, measurements, sensorHours });
 
     res.render('diagrams/detail', {
       title: `Diagrams: ${box.box_alias}`,
@@ -45,10 +46,9 @@ router.get('/:id', async (req, res) => {
       box,
       measurements,
       months,
-      chartLabels: JSON.stringify(chartLabels),
-      o2Data:      JSON.stringify(o2Data),
-      h2oData:     JSON.stringify(h2oData),
-      fridgeData:  JSON.stringify(fridgeData)
+      charts,
+      // fuer das Inline-Skript: JSON ohne "</script>"-Ausbruch
+      chartsJson: JSON.stringify(charts).replace(/</g, '\\u003c')
     });
   } catch (err) {
     console.error(err);

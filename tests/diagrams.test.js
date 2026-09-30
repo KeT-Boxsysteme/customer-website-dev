@@ -19,11 +19,13 @@ jest.mock('../models/box');
 jest.mock('../models/company');
 jest.mock('../models/measurement');
 jest.mock('../models/alertAck');
+jest.mock('../models/sensorReading');
 
 const app = require('../server');
 const User = require('../models/user');
 const Box = require('../models/box');
 const Measurement = require('../models/measurement');
+const SensorReading = require('../models/sensorReading');
 const { loginAgent, COMPANY_ID } = require('./helpers/login');
 
 const BOX_ID = 5;
@@ -53,6 +55,7 @@ beforeEach(async () => {
   Box.findAllByCompany.mockResolvedValue([]);
   Box.findById.mockResolvedValue(makeBox());
   Measurement.findByBox.mockResolvedValue(measurementRows);
+  SensorReading.hourlyByBox.mockResolvedValue([]);
   agent = await loginAgent(app, User, 'user');
 });
 
@@ -71,9 +74,12 @@ describe('GET /diagrams/:id', () => {
     expect(res.text).not.toMatch(/value="12"\s+checked/);
 
     // chart datasets (chronologically reversed: oldest first)
-    expect(res.text).toContain('const o2Data = [2,1.2];');
-    expect(res.text).toContain('const h2oData = [1.1,0.6];');
-    expect(res.text).toContain('const fridgeData = [5,4.5];');
+    // Werte als Zeitreihe, aelteste zuerst (Mai vor Juni)
+    const may = new Date('2026-05-01T08:00:00Z').getTime();
+    const june = new Date('2026-06-20T10:00:00Z').getTime();
+    expect(res.text).toContain(`"o2":[{"x":${may},"y":2},{"x":${june},"y":1.2}]`);
+    expect(res.text).toContain(`"h2o":[{"x":${may},"y":1.1},{"x":${june},"y":0.6}]`);
+    expect(res.text).toContain(`"manual":[{"x":${may},"y":5},{"x":${june},"y":4.5}]`);
 
     // table shows the measurement rows incl. the user abbreviation
     expect(res.text).toContain('TSTU');
@@ -127,5 +133,25 @@ describe('GET /diagrams/:id', () => {
     const res = await agent.get(`/diagrams/${BOX_ID}?months=12`);
     expect(res.status).toBe(200);
     expect(res.text).toContain('No data available for this period.');
+  });
+});
+
+describe('GET /diagrams/:id – sensor history (Fund 01.10.: sensor box showed no diagram)', () => {
+  test('fridge box -> hourly sensor history for the chosen period is loaded and drawn', async () => {
+    SensorReading.hourlyByBox.mockResolvedValue([
+      { bucket: '2026-09-30T18:00:00Z', avg_temp: 24.9, min_temp: 24.5, max_temp: 25.3 }
+    ]);
+    const res = await agent.get(`/diagrams/${BOX_ID}?months=9`);
+    expect(res.status).toBe(200);
+    expect(SensorReading.hourlyByBox).toHaveBeenCalledWith(BOX_ID, 9);
+    expect(res.text).toContain('id="tempChart"');
+    expect(res.text).toContain('24.9');
+  });
+
+  test('box without fridge -> no sensor query, no temperature chart', async () => {
+    Box.findById.mockResolvedValue(makeBox({ has_fridge: 0 }));
+    const res = await agent.get(`/diagrams/${BOX_ID}`);
+    expect(SensorReading.hourlyByBox).not.toHaveBeenCalled();
+    expect(res.text).not.toContain('id="tempChart"');
   });
 });

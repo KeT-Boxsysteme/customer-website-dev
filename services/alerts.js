@@ -295,4 +295,5 @@ function overallStatus(alerts) {
   return 'green';
 }
 
-module.exports = { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlert, fridgeDeviationLevel };
+module.exports = { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlert, fridgeDeviationLevel,
+                   FRIDGE_YELLOW_DELTA, FRIDGE_RED_DELTA };
