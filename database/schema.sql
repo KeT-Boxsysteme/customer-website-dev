@@ -146,3 +146,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sensor_readings')
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sensor_readings_box_time' AND object_id = OBJECT_ID('dbo.sensor_readings'))
   CREATE INDEX idx_sensor_readings_box_time ON sensor_readings (box_id, measured_at);
+
+-- Login-Sitzungen (Betreiber 01.10.): ueberleben Deploys/Neustarts. Nur services/sessionStore.js liest/schreibt.
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sessions')
+  CREATE TABLE sessions (
+    sid      NVARCHAR(255)  NOT NULL PRIMARY KEY,
+    session  NVARCHAR(MAX)  NOT NULL,
+    expires  DATETIME2      NOT NULL
+  );
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sessions_expires' AND object_id = OBJECT_ID('dbo.sessions'))
+  CREATE INDEX idx_sessions_expires ON sessions (expires);

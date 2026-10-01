@@ -60,3 +60,13 @@ describe('versioned asset URLs (no stale JS after a deploy)', () => {
     expect(res.text).toMatch(/\/js\/main\.js\?v=[0-9a-f]{10}"/);
   });
 });
+
+describe('deploys do not force a full reload (Betreiber 01.10.: a reload drops the Bluetooth connection)', () => {
+  const request = require('supertest');
+  const tag = (html, file) => (html.match(new RegExp('<(?:script|link)[^>]*' + file.split('.').join('\\.') + '\\?v=[^>]*>')) || [''])[0];
+  test('only Turbo itself is tracked with reload; CSS is swapped dynamically', async () => {
+    const res = await request(app).get('/auth/login');
+    expect(tag(res.text, 'turbo.umd.js')).toContain('data-turbo-track="reload"');
+    expect(tag(res.text, 'style.css')).toContain('data-turbo-track="dynamic"');
+  });
+});

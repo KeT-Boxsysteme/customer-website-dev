@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const { sessionStoreFor } = require('./services/sessionStore');
 const flash = require('connect-flash');
 const methodOverride = require('method-override');
 const compression = require('compression');
@@ -51,7 +52,9 @@ app.use(express.static(path.join(__dirname, 'public'), {
   }
 }));
 
+// Sitzungen in der DB (Betreiber 01.10.): ueberleben Deploys und Render-Neustarts (services/sessionStore.js)
 app.use(session({
+  store: sessionStoreFor(process.env.NODE_ENV),
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
   resave: false,
   saveUninitialized: false,

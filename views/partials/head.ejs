@@ -7,14 +7,17 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="<%= asset('/css/style.css') %>" data-turbo-track="reload">
+  <!-- Deploys laden NICHT neu (Betreiber 01.10.: Neuladen trennt die Bluetooth-Verbindung). CSS wird von Turbo
+       getauscht (dynamic); neue Skripte laedt Turbo nach — der Verbinder startet dank Schutz nicht doppelt.
+       Nur ein Wechsel der Turbo-Version selbst erzwingt ein Neuladen (zwei Turbos waeren gefaehrlich). -->
+  <link rel="stylesheet" href="<%= asset('/css/style.css') %>" data-turbo-track="dynamic">
   <!-- Turbo: Seitenwechsel ohne Neuladen, damit der Fuehler-Verbinder die Bluetooth-Verbindung haelt -->
   <script src="<%= asset('/js/vendor/turbo.umd.js') %>" data-turbo-track="reload"></script>
   <!-- Aktualisieren derselben Seite (Monitoring am Tablet) ohne sichtbares Neuladen: nur Geaendertes tauschen -->
   <meta name="turbo-refresh-method" content="morph">
   <meta name="turbo-refresh-scroll" content="preserve">
   <% if (locals.user) { %>
-  <script src="<%= asset('/js/bluedan.js') %>" data-turbo-track="reload"></script>
-  <script src="<%= asset('/js/sensor-hub.js') %>" data-turbo-track="reload"></script>
+  <script src="<%= asset('/js/bluedan.js') %>"></script>
+  <script src="<%= asset('/js/sensor-hub.js') %>"></script>
   <% } %>
 </head>

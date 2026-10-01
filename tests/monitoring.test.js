@@ -671,3 +671,12 @@ describe('reconnect button as safety net (Betreiber 01.10., E-27)', () => {
     expect(page.text).not.toContain('data-sensor-reconnect');
   });
 });
+
+describe('sensor scripts in the head are not reload-tracked (deploy keeps the connection, 01.10.)', () => {
+  test('bluedan.js and sensor-hub.js carry no data-turbo-track="reload"', async () => {
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    const tags = page.text.match(/<script[^>]*(bluedan|sensor-hub)\.js[^>]*>/g) || [];
+    expect(tags).toHaveLength(2);
+    tags.forEach(t => expect(t).not.toContain('data-turbo-track="reload"'));
+  });
+});
