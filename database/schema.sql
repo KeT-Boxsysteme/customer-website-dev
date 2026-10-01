@@ -195,3 +195,17 @@ BEGIN
   IF @old IS NOT NULL EXEC('ALTER TABLE users DROP CONSTRAINT [' + @old + ']')
   ALTER TABLE users ADD CONSTRAINT ck_users_role CHECK (role IN ('admin','controller','user','box_user','service'))
 END;
+
+-- Passwort-Reset-Links (Fund 01.10.: lagen im Arbeitsspeicher, jeder Deploy machte sie ungueltig).
+-- Nur der SHA-256-Hash des Links; einmal einloesbar (used_at). Nur models/passwordReset.js liest/schreibt.
+IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'password_resets')
+  CREATE TABLE password_resets (
+    token_hash  CHAR(64)   NOT NULL PRIMARY KEY,
+    user_id     INT        NOT NULL REFERENCES users(id),
+    expires_at  DATETIME2  NOT NULL,
+    used_at     DATETIME2  NULL,
+    created_at  DATETIME2  NOT NULL DEFAULT SYSUTCDATETIME()
+  );
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_password_resets_user' AND object_id = OBJECT_ID('dbo.password_resets'))
+  CREATE INDEX idx_password_resets_user ON password_resets (user_id, used_at);

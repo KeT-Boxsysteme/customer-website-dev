@@ -1,17 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const crypto = require('crypto');
 const User = require('../models/user');
 const Company = require('../models/company');
 const emailService = require('../services/email');
+const PasswordReset = require('../models/passwordReset');
+const { RESET_VALID_MS, newToken, hashToken } = require('../services/resetToken');
 const { loginDecision } = require('../services/access');
 const { createLoginLimiter } = require('../services/loginLimiter');
 
 // Sperre gegen Durchprobieren: 5 Fehlversuche je Konto bzw. 30 je IP in 15 Minuten (AUFTRAG Abschnitt 6)
 const loginLimiter = createLoginLimiter();
 
-// Einfacher In-Memory Token Store – später in DB auslagern
-const resetTokens = new Map();
 
 // GET /auth/login
 router.get('/login', (req, res) => {
@@ -162,8 +161,9 @@ router.post('/forgot-password', async (req, res) => {
     const user = await User.findByEmail(email.trim().toLowerCase());
 
     if (user) {
-      const token = crypto.randomBytes(32).toString('hex');
-      resetTokens.set(token, { userId: user.id, expires: Date.now() + 3600000 });
+      // Link ueberlebt Deploys/Neustarts: in der DB, nur als Hash (models/passwordReset.js)
+      const token = newToken();
+      await PasswordReset.create(user.id, hashToken(token), new Date(Date.now() + RESET_VALID_MS));
       await emailService.sendPasswordResetEmail(user.email, token).catch(console.error);
     }
 
@@ -178,32 +178,42 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 // GET /auth/reset-password/:token
-router.get('/reset-password/:token', (req, res) => {
-  const entry = resetTokens.get(req.params.token);
-  if (!entry || entry.expires < Date.now()) {
-    req.flash('error', 'This reset link is invalid or has expired.');
-    return res.redirect('/auth/forgot-password');
+router.get('/reset-password/:token', async (req, res) => {
+  try {
+    if (!(await PasswordReset.findValidUserId(hashToken(req.params.token), new Date()))) {
+      req.flash('error', 'This reset link is invalid or has expired.');
+      return res.redirect('/auth/forgot-password');
+    }
+    res.render('auth/reset-password', { title: 'Set New Password', token: req.params.token });
+  } catch (err) {
+    console.error(err);
+    req.flash('error', 'Something went wrong. Please try again.');
+    res.redirect('/auth/forgot-password');
   }
-  res.render('auth/reset-password', { title: 'Set New Password', token: req.params.token });
 });
 
 // POST /auth/reset-password/:token
 router.post('/reset-password/:token', async (req, res) => {
   try {
-    const entry = resetTokens.get(req.params.token);
-    if (!entry || entry.expires < Date.now()) {
-      req.flash('error', 'This reset link is invalid or has expired.');
-      return res.redirect('/auth/forgot-password');
-    }
-
+    const tokenHash = hashToken(req.params.token);
     const { password, passwordConfirm } = req.body;
-    if (password !== passwordConfirm) {
+    if (!password || password !== passwordConfirm) {
+      // Link NICHT verbrauchen — nur zurueck zum Formular, solange er gueltig ist
+      if (!(await PasswordReset.findValidUserId(tokenHash, new Date()))) {
+        req.flash('error', 'This reset link is invalid or has expired.');
+        return res.redirect('/auth/forgot-password');
+      }
       req.flash('error', 'Passwords do not match.');
       return res.redirect(`/auth/reset-password/${req.params.token}`);
     }
 
-    await User.updatePassword(entry.userId, password);
-    resetTokens.delete(req.params.token);
+    // genau einmal einloesbar (ein bedingtes UPDATE in der DB)
+    const userId = await PasswordReset.consume(tokenHash, new Date());
+    if (!userId) {
+      req.flash('error', 'This reset link is invalid or has expired.');
+      return res.redirect('/auth/forgot-password');
+    }
+    await User.updatePassword(userId, password);
 
     req.flash('success', 'Password updated successfully. Please log in.');
     res.redirect('/auth/login');

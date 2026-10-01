@@ -19,6 +19,7 @@ jest.mock('../models/box');
 jest.mock('../models/company');
 jest.mock('../models/measurement');
 jest.mock('../models/alertAck');
+jest.mock('../models/passwordReset');
 
 const bcrypt = require('bcryptjs');
 const request = require('supertest');
@@ -26,6 +27,8 @@ const app = require('../server');
 const User = require('../models/user');
 const Company = require('../models/company');
 const emailService = require('../services/email');
+const PasswordReset = require('../models/passwordReset');
+const { hashToken } = require('../services/resetToken');
 const { loginAgent, buildDbUser, passwordHash, TEST_PASSWORD, ACCESS_CODE } = require('./helpers/login');
 const sessionGuard = require('../middleware/auth');
 
@@ -371,5 +374,54 @@ describe('login page has the access number field', () => {
   test('field accessCode, numeric', async () => {
     const res = await request(app).get('/auth/login');
     expect(res.text).toMatch(/<input[^>]*name="accessCode"[^>]*inputmode="numeric"/);
+  });
+});
+
+describe('password reset survives restarts (tokens in the DB, Fund: in-memory map lost on every deploy)', () => {
+  test('forgot-password stores only the SHA-256 hash of the mailed token, valid for 1 hour', async () => {
+    User.findByEmail.mockReset();
+    User.findByEmail.mockResolvedValueOnce(buildDbUser('admin', { id: 42 }));
+    const before = Date.now();
+    await request(app).post('/auth/forgot-password').type('form').send({ email: 'admin@example.com' });
+    const mailedToken = emailService.sendPasswordResetEmail.mock.calls[0][1];
+    expect(PasswordReset.create).toHaveBeenCalledTimes(1);
+    const [userId, storedHash, expiresAt] = PasswordReset.create.mock.calls[0];
+    expect(userId).toBe(42);
+    expect(storedHash).toBe(hashToken(mailedToken));
+    expect(storedHash).not.toBe(mailedToken);
+    expect(expiresAt.getTime() - before).toBeGreaterThanOrEqual(3600000 - 1000);
+    expect(expiresAt.getTime() - before).toBeLessThanOrEqual(3600000 + 5000);
+  });
+
+  test('a valid link (found in the DB) shows the form', async () => {
+    PasswordReset.findValidUserId.mockResolvedValueOnce(42);
+    const res = await request(app).get('/auth/reset-password/' + 'a'.repeat(64));
+    expect(res.status).toBe(200);
+    expect(PasswordReset.findValidUserId).toHaveBeenCalledWith(hashToken('a'.repeat(64)), expect.any(Date));
+  });
+
+  test('setting the password consumes the token once and updates exactly that user', async () => {
+    PasswordReset.consume.mockResolvedValueOnce(42);
+    const res = await request(app).post('/auth/reset-password/' + 'b'.repeat(64)).type('form')
+      .send({ password: 'NewSecret123!', passwordConfirm: 'NewSecret123!' });
+    expect(res.headers.location).toBe('/auth/login');
+    expect(PasswordReset.consume).toHaveBeenCalledWith(hashToken('b'.repeat(64)), expect.any(Date));
+    expect(User.updatePassword).toHaveBeenCalledWith(42, 'NewSecret123!');
+  });
+
+  test('used / expired / unknown token -> no password change', async () => {
+    PasswordReset.consume.mockResolvedValueOnce(null);
+    const res = await request(app).post('/auth/reset-password/' + 'c'.repeat(64)).type('form')
+      .send({ password: 'NewSecret123!', passwordConfirm: 'NewSecret123!' });
+    expect(res.headers.location).toBe('/auth/forgot-password');
+    expect(User.updatePassword).not.toHaveBeenCalled();
+  });
+
+  test('mismatching passwords do not burn the token', async () => {
+    PasswordReset.findValidUserId.mockResolvedValueOnce(42);
+    await request(app).post('/auth/reset-password/' + 'd'.repeat(64)).type('form')
+      .send({ password: 'NewSecret123!', passwordConfirm: 'other' });
+    expect(PasswordReset.consume).not.toHaveBeenCalled();
+    expect(User.updatePassword).not.toHaveBeenCalled();
   });
 });
