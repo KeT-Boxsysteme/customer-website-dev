@@ -23,7 +23,12 @@
     <!-- 7.3: der admin sieht die Nutz-Nummer und gibt sie an neue Benutzer weiter -->
     <div class="access-code-note">
       <span class="access-code-note__label">Access number of your organization</span>
-      <span class="access-code-note__value mono"><%= accessCode %></span>
+      <!-- versteckt bis Klick (Betreiber 01.10.: nicht als Klartext auf dem Bildschirm); Logik in public/js/main.js -->
+      <button type="button" class="access-code-reveal" data-access-code="<%= accessCode %>" aria-pressed="false"
+              aria-label="Show access number">
+        <span class="access-code-note__value mono" data-access-code-value>••••••</span>
+        <span class="access-code-reveal__action" data-access-code-action>Show</span>
+      </button>
       <span class="access-code-note__hint">Every user needs it to log in, together with their email and password.</span>
     </div>
     <% } %>

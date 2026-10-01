@@ -788,7 +788,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 }
 .data-table tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover td { background: rgba(59,130,246,0.05); }
-.actions { display: flex; gap: 8px; }
+td.actions { white-space: nowrap; }
+td.actions > * { vertical-align: middle; }
+td.actions > * + * { margin-left: 8px; }
 .inline-form { display: inline; }
 .table-scroll { overflow-x: auto; padding: 2px 2px 28px; margin: -2px -2px -28px; }
 .empty-cell { text-align: center; color: var(--color-text-muted); font-size: 13.5px; padding: 28px !important; }
@@ -995,6 +997,7 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
 .role-badge { display: inline-block; padding: 3px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: capitalize; border: 1px solid transparent; }
 .role-admin      { background: #e9effc; color: #1e40af; border-color: #d8e2f8; }
 .role-controller { background: #f3ecfb; color: #6b21a8; border-color: #e8dcf6; }
+.role-service    { background: #eef2f6; color: #334155; border-color: #dde3ea; }
 .role-user       { background: #e7f4ea; color: #166534; border-color: #d4ead9; }
 .role-box_user   { background: #fdf1e2; color: #92400e; border-color: #f6e2c8; }
 
@@ -1369,6 +1372,7 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
   .data-table--cards td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 16px; border: none; text-align: right; }
   .data-table--cards td[data-label]::before { content: attr(data-label); font-family: var(--font-main); font-size: 12px; font-weight: 600; color: var(--color-text-muted); text-align: left; }
   .data-table--cards td.actions { justify-content: flex-end; padding-top: 8px; }
+  .data-table--cards td.actions > * + * { margin-left: 0; }
   .data-table--cards td.empty-cell { justify-content: center; text-align: center; }
   .data-table--cards tbody tr:hover td { background: transparent; }
   .table-scroll { overflow-x: visible; }
@@ -1376,7 +1380,7 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
 }
 
 /* Benutzerverwaltung: Nutz-Nummer der Einrichtung (7.3), service-Benutzer nur ansehen (7.13) */
-.access-code-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 14px 18px; margin: 0 0 18px;
+.access-code-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 14px 18px; margin-bottom: 18px;
   background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
 .access-code-note__label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
 .access-code-note__value { font-size: 20px; font-weight: 700; letter-spacing: 0.12em; color: var(--color-ink); }
@@ -1385,3 +1389,11 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
 
 /* Passwort-Regel unter dem Passwortfeld (Betreiber 01.10.) */
 .pw-rule { margin: 6px 0 12px; font-size: 12.5px; line-height: 1.4; color: var(--color-text-muted); }
+
+/* Nutz-Nummer: Klick zeigt/versteckt (Betreiber 01.10.) */
+.access-code-reveal { display: inline-flex; align-items: center; gap: 10px; padding: 4px 10px; margin: 0; border: 1px solid var(--color-border);
+  border-radius: 999px; background: var(--color-bg); cursor: pointer; font: inherit; color: inherit; }
+.access-code-reveal:hover { border-color: var(--color-primary); }
+.access-code-reveal:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+.access-code-reveal .access-code-note__value { min-width: 6.5ch; }
+.access-code-reveal__action { font-size: 12px; font-weight: 600; color: var(--color-primary); }

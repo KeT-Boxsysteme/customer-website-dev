@@ -31,3 +31,14 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindNavToggle);
   else bindNavToggle();
 })();
+
+// Nutz-Nummer in der Benutzerverwaltung: versteckt, Klick zeigt bzw. versteckt sie wieder (Betreiber 01.10.)
+document.addEventListener('click', e => {
+  const btn = e.target.closest('[data-access-code]');
+  if (!btn) return;
+  const shown = btn.getAttribute('aria-pressed') === 'true';
+  btn.setAttribute('aria-pressed', String(!shown));
+  btn.setAttribute('aria-label', shown ? 'Show access number' : 'Hide access number');
+  btn.querySelector('[data-access-code-value]').textContent = shown ? '••••••' : btn.dataset.accessCode;
+  btn.querySelector('[data-access-code-action]').textContent = shown ? 'Show' : 'Hide';
+});

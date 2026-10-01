@@ -112,9 +112,13 @@ describe('service role has admin rights (7.10)', () => {
 });
 
 describe('access number for the admin (7.3)', () => {
-  test('user management shows the number of the own organization', async () => {
+  test('user management offers the number of the own organization — hidden until clicked (Betreiber 01.10.)', async () => {
     const page = await agent.get('/users');
-    expect(page.text).toContain(ACCESS_CODE);
+    // nur im Datenattribut des Knopfes, nicht als sichtbarer Text
+    expect(page.text).toMatch(new RegExp('<button[^>]*data-access-code="' + ACCESS_CODE + '"[^>]*aria-pressed="false"'));
+    const visibleText = page.text.replace(/<[^>]+>/g, ' ');
+    expect(visibleText).not.toContain(ACCESS_CODE);
+    expect(visibleText).toContain('Show');
   });
 
   test('the mail to a newly created user carries the number', async () => {
