@@ -15,6 +15,9 @@ const transporter = nodemailer.createTransport({
 const FROM = `"Glovebox-Monitoring by KeT" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
 const KET_EMAIL = process.env.KET_EMAIL;
 const APP_URL = process.env.APP_URL || 'https://glovebox-monitoring.com';
+// Antworten von Kunden an das Postfach REPLY_TO (Betreiber 01.10. ueber KET-Sitzung: Antworten sollen in
+// software@ketbox.de landen). Nur an Kundenmails; ohne REPLY_TO kein Reply-To-Kopf.
+const customerReply = () => (process.env.REPLY_TO ? { replyTo: process.env.REPLY_TO } : {});
 
 // Eingaben von Kunden (Firmenname, Nachricht) nie als HTML in Mails (Fund 01.10.: vorher ungeprueft eingesetzt)
 function escapeHtml(v) {
@@ -27,6 +30,7 @@ async function sendWelcomeEmail(toEmail, companyName) {
   await transporter.sendMail({
     from: FROM,
     to: toEmail,
+    ...customerReply(),
     subject: 'Welcome to Glovebox-Monitoring by KeT',
     html: `
       <h2>Welcome to Glovebox-Monitoring by KeT</h2>
@@ -59,6 +63,7 @@ async function sendPasswordResetEmail(toEmail, resetToken) {
   await transporter.sendMail({
     from: FROM,
     to: toEmail,
+    ...customerReply(),
     subject: 'Password Reset – Glovebox-Monitoring by KeT',
     html: `
       <h2>Password Reset</h2>
@@ -78,6 +83,7 @@ async function sendUserCreatedEmail(toEmail, companyName, accessCode) {
   await transporter.sendMail({
     from: FROM,
     to: toEmail,
+    ...customerReply(),
     subject: 'Your account has been created – Glovebox-Monitoring by KeT',
     html: `
       <h2>Account Created</h2>
@@ -96,6 +102,7 @@ async function sendAccessCodeEmail(toEmails, companyName, accessCode, { isNewCod
   await transporter.sendMail({
     from: FROM,
     to: toEmails.join(', '),
+    ...customerReply(),
     subject: isNewCode
       ? 'Your new access number – Glovebox-Monitoring by KeT'
       : 'Your access has been approved – Glovebox-Monitoring by KeT',

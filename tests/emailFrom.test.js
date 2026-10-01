@@ -28,3 +28,19 @@ test('EMAIL_FROM not set -> EMAIL_USER stays the sender (Strato unchanged)', asy
   restore();
   expect(sent[0].from).toBe('"Glovebox-Monitoring by KeT" <software@ketbox.de>');
 });
+
+test('REPLY_TO set -> customer mails carry it as Reply-To (replies reach the real mailbox)', async () => {
+  const { email, restore } = loadWith({ EMAIL_USER: 'resend', EMAIL_FROM: 'ket@glovebox-monitoring.de', REPLY_TO: 'software@ketbox.de' });
+  await email.sendWelcomeEmail('a@b.de', 'X');
+  await email.sendPasswordResetEmail('a@b.de', 'f'.repeat(64));
+  restore(); delete process.env.REPLY_TO;
+  expect(sent.map(m => m.replyTo)).toEqual(['software@ketbox.de', 'software@ketbox.de']);
+});
+
+test('REPLY_TO not set -> no Reply-To header', async () => {
+  delete process.env.REPLY_TO;
+  const { email, restore } = loadWith({ EMAIL_USER: 'software@ketbox.de' });
+  await email.sendWelcomeEmail('a@b.de', 'X');
+  restore();
+  expect(sent[0].replyTo).toBeUndefined();
+});
