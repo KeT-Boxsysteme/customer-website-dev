@@ -91,7 +91,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   justify-content: center;
   padding: 48px 20px 64px;
   position: relative;
-  overflow: hidden;
+  /* KEIN overflow:hidden (Fund 01.10.): am <body> sperrt es das Scrollen des ganzen Fensters — auf
+     niedrigen Bildschirmen war das Formular abgeschnitten. Die Blobs sind position:fixed. */
 }
 /* Zwei ruhige organische Blobs in den Ecken (statisch, sehr dezent) */
 .auth-page::before {

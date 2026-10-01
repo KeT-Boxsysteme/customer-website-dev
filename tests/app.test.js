@@ -82,3 +82,15 @@ describe('brand font Skyload (Konzept.txt: "Glovebox-Monitoring by KeT" in Skylo
     expect(font.body.length).toBeGreaterThan(10000);
   });
 });
+
+describe('login/register pages stay scrollable on low screens (Fund 01.10.: form cut off, no scrolling)', () => {
+  // overflow on <body> propagates to the viewport and blocks wheel scrolling; the decorative blobs are
+  // position:fixed and need no clipping. Verified in a real browser with wheel events (scratch test).
+  test('.auth-page sets no overflow hidden/clip', () => {
+    const css = require('fs').readFileSync(require('path').join(__dirname, '../public/css/style.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '');   // Kommentare raus — sonst findet die Wache die eigene Erklaerung
+    const rule = css.match(/\.auth-page\s*\{([^}]*)\}/);
+    expect(rule).not.toBeNull();
+    expect(rule[1]).not.toMatch(/overflow(-[xy])?\s*:\s*(hidden|clip)/);
+  });
+});
