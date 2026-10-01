@@ -506,10 +506,22 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .section-head .section-title { margin-bottom: 4px; }
 .section-desc { font-size: 13.5px; color: var(--color-text-muted); line-height: 1.55; }
 
-/* === FLASH MESSAGES === */
-.flash { padding: 12px 16px; border-radius: var(--radius-sm); border: 1px solid transparent; margin-bottom: 18px; font-size: 13.5px; font-weight: 500; }
-.flash-success { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-.flash-error   { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+/* === MELDUNGS-PILLEN (Betreiber 01.10.) ===
+   Eine Groesse fuer alle Seiten: oben mittig, schmal. Bestaetigung schliesst nach 5 s, Fehler bleibt bis
+   "Dismiss" (public/js/main.js). Ohne JS stehen sie als Pille an Ort und Stelle. */
+.toast-stack { position: fixed; top: 16px; left: 16px; right: 16px; z-index: 2000; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
+.toast { display: inline-flex; align-items: center; gap: 10px; max-width: min(440px, 100%); padding: 8px 16px; margin: 0 0 12px; border: 1px solid transparent; border-radius: 999px; font-size: 13.5px; font-weight: 500; line-height: 1.4; box-shadow: var(--shadow); pointer-events: auto; }
+.toast-stack .toast { margin: 0; animation: toast-in 0.2s ease-out; }
+.toast__text { min-width: 0; overflow-wrap: anywhere; }
+.toast--success { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.toast--error   { background: #fef2f2; color: #991b1b; border-color: #fecaca; padding-right: 6px; }
+/* Knopf ragt per negativem Rand in die Polsterung: rote und gruene Pille gleich hoch (gemessen 37 px) */
+.toast__close { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin: -4px 0; border: 0; border-radius: 50%; background: transparent; color: inherit; font: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+.toast__close:hover { background: rgba(153, 27, 27, 0.08); }
+.toast__close:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+.toast.is-leaving { opacity: 0; transform: translateY(-6px); transition: opacity 0.25s, transform 0.25s; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .toast-stack .toast { animation: none; } .toast.is-leaving { transition: none; } }
 
 /* === BUTTONS === */
 .btn {

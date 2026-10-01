@@ -727,3 +727,15 @@ describe('fridge alarm latch in the routes (Betreiber 01.10.)', () => {
     expect(AlertAck.insertAck).not.toHaveBeenCalledWith(BOX_ID, 'fridge_temp', expect.anything());
   });
 });
+
+describe('message after "Send Message to KeT" survives the live polling (Betreiber 01.10.)', () => {
+  test('a poll between redirect and page load does not swallow the confirmation', async () => {
+    await agent.post(`/monitoring/${BOX_ID}/message`).type('form').send({ message: '   ', username: 'LAB' });
+    await agent.get(`/monitoring/${BOX_ID}/live`);          // Tablet fragt alle 5 s
+    await agent.get('/monitoring/sensors');
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toContain('Message cannot be empty.');
+    // und nur EINMAL: die naechste Seite zeigt sie nicht erneut
+    expect((await agent.get(`/monitoring/${BOX_ID}`)).text).not.toContain('Message cannot be empty.');
+  });
+});

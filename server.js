@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const { sessionStoreFor } = require('./services/sessionStore');
 const flash = require('connect-flash');
+const { flashMiddleware } = require('./middleware/flash');
 const methodOverride = require('method-override');
 const compression = require('compression');
 const path = require('path');
@@ -68,6 +69,7 @@ app.use(session({
 }));
 
 app.use(flash());
+app.use(flashMiddleware);   // Meldungen nur von gerenderten Seiten verbraucht, Weiterleitung nach dem Speichern
 
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
@@ -76,8 +78,6 @@ app.use((req, res, next) => {
   const role = req.session.user && req.session.user.role;
   res.locals.isAdmin = !!role && allowed(role, [ROLES.ADMIN]);
   res.locals.canManageBoxes = !!role && allowed(role, [ROLES.ADMIN, ROLES.CONTROLLER]);
-  res.locals.success = req.flash('success');
-  res.locals.error = req.flash('error');
   next();
 });
 

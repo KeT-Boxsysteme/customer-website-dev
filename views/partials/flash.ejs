@@ -1,6 +1,8 @@
-<% if (locals.success && success.length) { %>
-  <div class="flash flash-success"><%= success[0] %></div>
-<% } %>
-<% if (locals.error && error.length) { %>
-  <div class="flash flash-error"><%= error[0] %></div>
-<% } %>
+<%# Meldungs-Pillen (Betreiber 01.10.): Bestaetigung schliesst nach 5 s, Fehler bleibt bis "Dismiss".
+    Stehen ohne JS hier an Ort und Stelle; public/js/main.js schiebt sie in den Stapel #toast-stack (Footer). %>
+<% (locals.success || []).forEach(function (m) { %>
+  <div class="toast toast--success" role="status" data-autoclose data-toast><span class="toast__text"><%= m %></span></div>
+<% }) %>
+<% (locals.error || []).forEach(function (m) { %>
+  <div class="toast toast--error" role="alert" data-toast><span class="toast__text"><%= m %></span><button type="button" class="toast__close" aria-label="Dismiss">&times;</button></div>
+<% }) %>

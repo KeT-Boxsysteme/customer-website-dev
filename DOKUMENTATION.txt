@@ -19,7 +19,9 @@
   │   └── schema.sql          → SQL-Schema aller Tabellen
   ├── middleware/
   │   ├── auth.js             → Prüft ob User eingeloggt ist
-  │   └── authorize.js        → Prüft ob User die nötige Rolle hat
+  │   ├── authorize.js        → Prüft ob User die nötige Rolle hat
+  │   └── flash.js            → Meldungen: nur gerenderte Seiten verbrauchen sie (nicht /live, /sensors),
+  │                             bei offener Meldung erst Sitzung speichern, dann weiterleiten (2026-10-01)
   ├── models/
   │   ├── user.js             → Alle Datenbankoperationen für User
   │   ├── box.js              → Alle Datenbankoperationen für Boxen

@@ -1,3 +1,5 @@
+  <%# Stapel der Meldungs-Pillen: direkt unter body (fixed), bleibt bei Turbo-Morphing/Seitenwechsel stehen %>
+  <div id="toast-stack" class="toast-stack" data-turbo-permanent aria-live="polite"></div>
   <script src="<%= asset('/js/main.js') %>"></script>
   <%- typeof extraScripts !== 'undefined' ? extraScripts : '' %>
 </body>
