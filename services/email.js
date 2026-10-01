@@ -10,7 +10,9 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-const FROM = `"Glovebox-Monitoring by KeT" <${process.env.EMAIL_USER}>`;
+// Absender: EMAIL_FROM, sonst EMAIL_USER. Bei Resend ist EMAIL_USER nur der SMTP-Login ("resend"),
+// keine Adresse (Hinweis der KET-Sitzung 01.10.). Strato-Betrieb ohne EMAIL_FROM bleibt unveraendert.
+const FROM = `"Glovebox-Monitoring by KeT" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`;
 const KET_EMAIL = process.env.KET_EMAIL;
 const APP_URL = process.env.APP_URL || 'https://glovebox-monitoring.com';
 
