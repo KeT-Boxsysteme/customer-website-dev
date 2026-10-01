@@ -447,7 +447,7 @@ describe('GET /monitoring/:id – no pairing button at all (Betreiber 30.09.)', 
 
   test('box name is shown under the brand', async () => {
     const page = await agent.get(`/monitoring/${BOX_ID}`);
-    expect(page.text).toContain('class="monitoring-box-name"');
+    expect(page.text).toContain('box-identity__value box-identity__value--alias');
   });
 });
 
@@ -678,5 +678,15 @@ describe('sensor scripts in the head are not reload-tracked (deploy keeps the co
     const tags = page.text.match(/<script[^>]*(bluedan|sensor-hub)\.js[^>]*>/g) || [];
     expect(tags).toHaveLength(2);
     tags.forEach(t => expect(t).not.toContain('data-turbo-track="reload"'));
+  });
+});
+
+describe('monitoring header (Betreiber 01.10.: alias was not recognisable as the box name)', () => {
+  test('alias, project no. and manufacturer as labelled fields; brand name "KeT" not uppercased', async () => {
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    expect(page.text).toMatch(/box-identity__label">Box<\/span>\s*<span class="box-identity__value[^"]*">[^<]+</);
+    expect(page.text).toMatch(/box-identity__label">Project No\.<\/span>/);
+    expect(page.text).toMatch(/box-identity__label">Manufacturer<\/span>/);
+    expect(page.text).toContain('<h3 class="contact-section__title">Contact KeT Service</h3>');
   });
 });

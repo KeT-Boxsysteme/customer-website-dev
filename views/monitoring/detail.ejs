@@ -6,19 +6,22 @@
     <div class="page-header">
       <h1 class="page-brand"><span class="brand-main">Glovebox-Monitoring by KeT</span></h1>
     </div>
-    <p class="monitoring-box-name"><%= box.box_alias %></p>
 
     <%- include('../partials/flash') %>
 
-    <!-- Read-only box info -->
-    <div class="info-row">
-      <div class="info-field">
-        <label>Project No.</label>
-        <span class="mono"><%= box.project_number %></span>
+    <!-- Box-Kopf: Alias als Box-Name, dazu Projekt-Nr. und Hersteller (nicht editierbar, Konzept.txt) -->
+    <div class="box-identity">
+      <div class="box-identity__item box-identity__item--alias">
+        <span class="box-identity__label">Box</span>
+        <span class="box-identity__value box-identity__value--alias"><%= box.box_alias %></span>
       </div>
-      <div class="info-field">
-        <label>Manufacturer</label>
-        <span><%= box.manufacturer %></span>
+      <div class="box-identity__item">
+        <span class="box-identity__label">Project No.</span>
+        <span class="box-identity__value mono"><%= box.project_number %></span>
+      </div>
+      <div class="box-identity__item">
+        <span class="box-identity__label">Manufacturer</span>
+        <span class="box-identity__value"><%= box.manufacturer %></span>
       </div>
     </div>
 
@@ -147,7 +150,7 @@
 
     <!-- Contact KeT -->
     <div class="contact-section">
-      <h3>Contact KeT Service</h3>
+      <h3 class="contact-section__title">Contact KeT Service</h3>
       <form action="/monitoring/<%= box.id %>/message" method="POST" id="contactForm">
         <input type="hidden" name="username" id="contactUsername" value="">
         <div class="form-group">

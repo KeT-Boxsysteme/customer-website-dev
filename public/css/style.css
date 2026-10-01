@@ -1,17 +1,14 @@
 /*
-  FONT: "Skyload" by Modern Sense
-  Place the font files in /public/fonts/ and uncomment the @font-face below.
-  Fallback is Georgia (similar serif character).
+  FONT: "Skyload" by Modern Sense (cm-skyload-modern-sans) — Konzept.txt: nur der Schriftzug
+  "Glovebox-Monitoring by KeT" (Klassen mit var(--font-brand)). OTF (17 KB), in allen aktuellen Browsern.
 */
-/*
 @font-face {
   font-family: 'Skyload';
-  src: url('/fonts/Skyload.woff2') format('woff2'),
-       url('/fonts/Skyload.woff')  format('woff');
+  src: url('/fonts/Skyload.otf') format('opentype');
   font-weight: normal;
   font-style: normal;
+  font-display: swap;
 }
-*/
 
 /* === VARIABLES === */
 :root {
@@ -832,10 +829,6 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 
 /* === MONITORING === */
 /* Zentrierte Komposition: Info-Felder + Box-Visual bilden eine ruhige Mittelachse */
-.info-row { display: flex; gap: 56px; justify-content: center; text-align: center; margin-bottom: 24px; flex-wrap: wrap; }
-.info-field { display: flex; flex-direction: column; gap: 3px; align-items: center; }
-.info-field label { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
-.info-field span { font-size: 16px; font-weight: 600; }
 
 /* Box status visual: weiche Tint-Flaechen, 1px getoente Border, mehrschichtiger Schatten */
 /* margin-inline auto NICHT per Shorthand ueberschreiben - .main-content > * zentriert die Spalte */
@@ -882,7 +875,19 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .monitoring-submit { grid-column: 3; justify-self: end; }
 
 /* Boxname unter dem Schriftzug */
-.monitoring-box-name { text-align: center; font-size: 15px; font-weight: 600; color: var(--color-text-muted); margin: -22px 0 22px; }
+/* Kopf des Monitorings (Betreiber 01.10.): Alias klar als Box-Name erkennbar, gleiche Machart wie Projekt-Nr./Hersteller */
+.box-identity { display: flex; justify-content: center; align-items: stretch; flex-wrap: wrap; margin: -6px auto 22px;
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
+  width: fit-content; max-width: 100%; }
+.box-identity__item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 12px 28px; min-width: 0; }
+.box-identity__item + .box-identity__item { border-left: 1px solid var(--color-border-soft); }
+.box-identity__label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); }
+.box-identity__value { font-size: 16px; font-weight: 600; color: var(--color-ink); overflow-wrap: anywhere; text-align: center; }
+.box-identity__value--alias { font-size: 22px; font-weight: 700; line-height: 1.2; }
+@media (max-width: 560px) {
+  .box-identity { width: 100%; flex-wrap: nowrap; }
+  .box-identity__item { flex: 1 1 0; padding: 10px 8px; }
+}
 
 @media (max-width: 900px) {
   .monitoring-row { grid-template-columns: 1fr; }
@@ -942,7 +947,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 /* Contact section */
 .contact-section { background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 28px; box-shadow: var(--shadow-card); max-width: 880px; margin-inline: auto; }
 .contact-section .form-group { margin-bottom: 14px; }
-.contact-section h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; color: var(--color-text-muted); }
+/* Kein text-transform: aus "KeT" wurde sonst "KET" (Betreiber 01.10.) */
+.contact-section__title { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: var(--color-ink); }
 
 /* === DIAGRAMS === */
 /* Zentrierte Detail-Spalte: Kopf, Zeitraum-Pillen, Tabelle und Chart auf einer Achse */

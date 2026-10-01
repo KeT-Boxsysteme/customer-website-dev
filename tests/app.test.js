@@ -70,3 +70,15 @@ describe('deploys do not force a full reload (Betreiber 01.10.: a reload drops t
     expect(tag(res.text, 'style.css')).toContain('data-turbo-track="dynamic"');
   });
 });
+
+describe('brand font Skyload (Konzept.txt: "Glovebox-Monitoring by KeT" in Skyload)', () => {
+  const request = require('supertest');
+  test('the font file referenced by the stylesheet is actually served', async () => {
+    const css = await request(app).get('/css/style.css');
+    const m = css.text.match(/@font-face\s*\{[^}]*font-family:\s*'Skyload'[^}]*url\('([^']+)'\)/);
+    expect(m).not.toBeNull();
+    const font = await request(app).get(m[1]);
+    expect(font.status).toBe(200);
+    expect(font.body.length).toBeGreaterThan(10000);
+  });
+});
