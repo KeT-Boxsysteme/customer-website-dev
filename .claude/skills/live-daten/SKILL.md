@@ -19,7 +19,8 @@ Ein Code-Deploy ändert keine Daten. Schema-Änderungen (`npm run setup` → `da
 
 ## 2. Sicherheitskopie (immer)
 Vor dem Schreiben einen Stand sichern, auf den man zurück kann — z. B. Datenbank-Kopie im Azure-Portal bzw. `CREATE DATABASE <name>_vor_<runde> AS COPY OF <db>` oder Export als `.bacpac`, mit Rundennamen.
-⚠ Welcher Weg hier verfügbar ist (Tarif, Point-in-Time-Restore, Aufbewahrungsdauer), ist **noch nicht belegt** — vor dem ersten Lauf im Portal nachsehen und im Vault festhalten (Offene Punkte).
+Belegt 01.10.2026: Tarif GP Serverless, automatische Sicherungen laufen (jüngste Protokollsicherung Minuten alt) — Vault `03 Betrieb/Azure SQL.md`.
+⚠ Aufbewahrungsdauer und ein echter Wiederherstellungstest sind **noch nicht belegt** (nur im Portal) — siehe dort.
 
 ## 3. Probelauf ist Pflicht — jedes Skript, jedes Mal
 Ohne Schreiben: Zählungen vorher (`SELECT COUNT(*)` je betroffener Tabelle), erwartete Änderung benennen. Neue Datenskripte bekommen einen Probelauf als Standard und schreiben nur mit `--apply`; das Ziel ist Pflichtangabe ohne Vorgabewert (die bestehenden `setup`/`seed` haben das nicht — dort ersetzt die Zählung vorher den Probelauf). **Weicht eine Zahl nach unten ab: STOPPEN.** (Fremdschlüssel/Löschungen nehmen Kundendaten mit.) `schema.sql` ist idempotent (`IF OBJECT_ID … IS NULL`) — neue Teile genauso schreiben.
