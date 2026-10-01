@@ -67,7 +67,7 @@ IF OBJECT_ID('dbo.boxes', 'U') IS NULL
     last_solvent_test            DATETIME2      NOT NULL DEFAULT GETDATE(),
     last_oil_done                DATETIME2      NOT NULL DEFAULT GETDATE(),
     last_lmf_replacement         DATETIME2      NOT NULL DEFAULT GETDATE(),
-    operating_hours              INT            NOT NULL DEFAULT 0,
+    operating_hours              INT            NOT NULL DEFAULT 0,   -- UNBENUTZT: Betriebsstunden = Echtzeit (E-02), bleibt bewusst stehen (Betreiber 01.10.2026)
     created_at                   DATETIME2      NOT NULL DEFAULT GETDATE(),
     CONSTRAINT uq_box_project_number UNIQUE (company_id, project_number)
   );
