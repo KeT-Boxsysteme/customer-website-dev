@@ -1,4 +1,5 @@
 const { getPool, sql } = require('../config/database');
+const { PLAN, buildDeletionSql } = require('../services/companyDeletion');
 
 // Neue Einrichtungen bekommen status 'pending' (DB-Vorgabe): sie warten auf Freischaltung durch KeT
 async function create({ name, type, city, street, housenumber, zip }) {
@@ -45,4 +46,16 @@ async function releaseNotification(id, code) {
     .query('UPDATE companies SET notified_code = NULL WHERE id = @id AND notified_code = @code');
 }
 
-module.exports = { create, findById, claimNotification, releaseNotification };
+// Einrichtung vollständig löschen (services/companyDeletion.js). Ergebnis: not_found | is_active | deleted (+ Zählungen)
+async function deleteCompletely(id) {
+  const pool = await getPool();
+  const r = await pool.request().input('id', sql.Int, id).query(buildDeletionSql());
+  const sets = r.recordsets || [r.recordset];
+  const row = (sets[sets.length - 1] || [])[0] || {};
+  if (row.result !== 'deleted') return { result: row.result || 'not_found' };
+  const counts = {};
+  for (const s of PLAN) counts[s.key] = row[s.key] || 0;
+  return { result: 'deleted', counts };
+}
+
+module.exports = { create, findById, claimNotification, releaseNotification, deleteCompletely };

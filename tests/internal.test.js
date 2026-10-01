@@ -137,3 +137,42 @@ describe('not configured', () => {
     expect(res.body).toEqual({ ok: false, error: 'not_configured' });
   });
 });
+
+describe('POST /internal/companies/:id/delete (Betreiber 01.10.: delete website data, nothing in KET)', () => {
+  const counts = { password_resets: 1, alert_acks: 2, measurements: 30, measurements_detached: 0, alert_acks_detached: 0, sensor_readings: 400, boxes: 2, sessions: 3, users: 4, companies: 1 };
+
+  test('without secret -> 401, nothing deleted', async () => {
+    const res = await post('/internal/companies/17/delete', null);
+    expect(res.status).toBe(401);
+    expect(Company.deleteCompletely).not.toHaveBeenCalled();
+  });
+
+  test('suspended company -> deleted, counts returned, no mail', async () => {
+    Company.deleteCompletely.mockResolvedValue({ result: 'deleted', counts });
+    const res = await post('/internal/companies/17/delete');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, deleted: counts });
+    expect(Company.deleteCompletely).toHaveBeenCalledWith(17);
+    expect(emailService.sendAccessCodeEmail).not.toHaveBeenCalled();
+  });
+
+  test('active company -> 409 is_active (suspend first), checked inside the delete transaction', async () => {
+    Company.deleteCompletely.mockResolvedValue({ result: 'is_active' });
+    const res = await post('/internal/companies/17/delete');
+    expect(res.status).toBe(409);
+    expect(res.body).toEqual({ ok: false, error: 'is_active' });
+  });
+
+  test('already gone -> 404 not_found (KET treats it as already deleted)', async () => {
+    Company.deleteCompletely.mockResolvedValue({ result: 'not_found' });
+    const res = await post('/internal/companies/17/delete');
+    expect(res.status).toBe(404);
+    expect(res.body).toEqual({ ok: false, error: 'not_found' });
+  });
+
+  test('invalid id -> 400', async () => {
+    const res = await post('/internal/companies/abc/delete');
+    expect(res.status).toBe(400);
+    expect(Company.deleteCompletely).not.toHaveBeenCalled();
+  });
+});

@@ -101,4 +101,22 @@ router.post('/companies/:id/service-password', async (req, res) => {
   }
 });
 
+// Einrichtung löschen "als hätte es sie nie gegeben" (Betreiber 01.10.2026): nur Website-Daten, in KET bleibt alles.
+// Nur pending/rejected/suspended — aktive zuerst sperren (409 is_active). Zweiter Aufruf: 404 not_found.
+// Keine Mails, keine anderen Nebenwirkungen. Antwort: {ok:true, deleted:{tabelle: anzahl, ...}}
+router.post('/companies/:id/delete', checkSecret, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ ok: false, error: 'invalid_id' });
+  try {
+    const out = await Company.deleteCompletely(id);
+    if (out.result === 'not_found') return res.status(404).json({ ok: false, error: 'not_found' });
+    if (out.result === 'is_active') return res.status(409).json({ ok: false, error: 'is_active' });
+    console.log('[KET] Einrichtung geloescht', id, JSON.stringify(out.counts));
+    res.json({ ok: true, deleted: out.counts });
+  } catch (err) {
+    console.error('[KET] Loeschen fehlgeschlagen', id, err.message);
+    res.status(500).json({ ok: false, error: 'server_error' });
+  }
+});
+
 module.exports = router;

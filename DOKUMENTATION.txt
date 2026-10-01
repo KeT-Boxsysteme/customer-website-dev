@@ -38,7 +38,8 @@
   │   ├── access.js           → Freischaltung: Login-Entscheidung, Nutz-Nummer, Rollen (service), reine Regeln
   │   ├── loginLimiter.js     → Sperre gegen Durchprobieren beim Login
   │   (routes/internal.js     → Adressen fuer KeT Management: /internal/companies/:id/activated,
-  │                             /code-changed, /service-password; Header X-KeT-Secret = Env KET_API_SECRET.
+  │                             /code-changed, /service-password, /delete; Header X-KeT-Secret = Env KET_API_SECRET.
+  │   ├── companyDeletion.js  → Einrichtung vollständig löschen (Plan als Daten, Test prüft ihn gegen schema.sql)
   │                             Beschreibung: KETAUFTRAG_Website-Freischaltung.txt Abschnitt 9)
   │   (scripts/activate-existing.js → einmalig: Bestand aktiv + Nummer, Probelauf Standard, --apply schreibt)
   │   (database/ket-management-user.sql → SQL-Benutzer fuer KET mit minimalen Rechten, fuehrt der Betreiber aus)
