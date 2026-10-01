@@ -174,4 +174,35 @@ async function setSensor(id, companyId, serial, storeMinutes) {
   return { movedFrom: (result.recordset || []).map(r => r.box_alias) };
 }
 
-module.exports = { findAllByCompany, findById, create, update, softDelete, updateMaintenanceDate, setSensor };
+/**
+ * Store a fridge alarm until "Done" (services/alerts.js fridgeLatchUpdate decides). One UPDATE for
+ * level, value and source; the WHERE only lets a new alarm or an escalation yellow -> red through, so a
+ * parallel request can never downgrade it. The start time is kept on escalation.
+ */
+async function escalateFridgeAlarm(id, level, temp, source) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('id', sql.Int, id)
+    .input('level', sql.NVarChar(10), level)
+    .input('temp', sql.Float, temp)
+    .input('source', sql.NVarChar(10), source)
+    .query(`UPDATE boxes SET fridge_alarm_level = @level, fridge_alarm_temp = @temp, fridge_alarm_source = @source,
+                   fridge_alarm_since = CASE WHEN fridge_alarm_level IS NULL THEN GETDATE() ELSE fridge_alarm_since END
+            WHERE id = @id AND (fridge_alarm_level IS NULL OR (fridge_alarm_level = 'yellow' AND @level = 'red'))`);
+  return result.rowsAffected[0] > 0;
+}
+
+/** "Done" on the fridge alarm: clears all four fields together (own company only). */
+async function clearFridgeAlarm(id, companyId) {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input('id', sql.Int, id)
+    .input('companyId', sql.Int, companyId)
+    .query(`UPDATE boxes SET fridge_alarm_level = NULL, fridge_alarm_since = NULL, fridge_alarm_temp = NULL,
+                   fridge_alarm_source = NULL
+            WHERE id = @id AND company_id = @companyId`);
+  return result.rowsAffected[0] > 0;
+}
+
+module.exports = { findAllByCompany, findById, create, update, softDelete, updateMaintenanceDate, setSensor,
+                   escalateFridgeAlarm, clearFridgeAlarm };

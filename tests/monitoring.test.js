@@ -513,12 +513,12 @@ describe('fridge temperature in the traffic light, live (E-21 rev.)', () => {
     SensorReading.createIfDue.mockResolvedValue(true);
   });
 
-  test('sensor 20 °C at target -30 °C -> box red immediately, alert without Done button', async () => {
+  test('sensor 20 °C at target -30 °C -> box red immediately, alert with Done button (Betreiber 01.10.)', async () => {
     await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: 20 });
     const page = await agent.get(`/monitoring/${BOX_ID}`);
     expect(page.text).toContain('status-red');
     expect(page.text).toContain('Fridge temperature 20.0 °C deviates from the target of -30 °C');
-    expect(page.text).not.toContain('data-target="fridge_temp"');
+    expect(page.text).toContain('data-target="fridge_temp"');
     const liveRes = await agent.get(`/monitoring/${BOX_ID}/live`);
     expect(liveRes.body).toMatchObject({ temp: 20, fresh: true, fridgeAlert: 'red' });
   });
@@ -688,5 +688,42 @@ describe('monitoring header (Betreiber 01.10.: alias was not recognisable as the
     expect(page.text).toMatch(/box-identity__label">Project No\.<\/span>/);
     expect(page.text).toMatch(/box-identity__label">Manufacturer<\/span>/);
     expect(page.text).toContain('<h3 class="contact-section__title">Contact KeT Service</h3>');
+  });
+});
+
+describe('fridge alarm latch in the routes (Betreiber 01.10.)', () => {
+  const live = require('../services/liveReadings');
+  const fbox = (o = {}) => makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1,
+    fridge_alarm_level: null, fridge_alarm_since: null, fridge_alarm_temp: null, fridge_alarm_source: null, ...o });
+  beforeEach(() => { live.reset(); Box.escalateFridgeAlarm.mockResolvedValue(true); Box.clearFridgeAlarm.mockResolvedValue(true); });
+
+  test('live value off target -> alarm stored once (escalation only)', async () => {
+    Box.findById.mockResolvedValue(fbox());
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -24 });
+    expect(Box.escalateFridgeAlarm).toHaveBeenCalledWith(BOX_ID, 'red', -24, 'sensor');
+    Box.escalateFridgeAlarm.mockClear();
+    Box.findById.mockResolvedValue(fbox({ fridge_alarm_level: 'red', fridge_alarm_since: new Date().toISOString() }));
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -23 });
+    expect(Box.escalateFridgeAlarm).not.toHaveBeenCalled();
+  });
+
+  test('live value on target -> nothing stored', async () => {
+    Box.findById.mockResolvedValue(fbox());
+    await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: '740B3B', temp: -30 });
+    expect(Box.escalateFridgeAlarm).not.toHaveBeenCalled();
+  });
+
+  test('manually entered fridge value off target -> alarm stored with source manual', async () => {
+    Box.findById.mockResolvedValue(fbox({ sensor_serial: null }));
+    await agent.post(`/monitoring/${BOX_ID}/submit`).type('form').send({ username: 'MM', fridgeTemp: '-26' });
+    expect(Box.escalateFridgeAlarm).toHaveBeenCalledWith(BOX_ID, 'yellow', -26, 'manual');
+  });
+
+  test('Done on the fridge alarm clears the stored alarm (own company only)', async () => {
+    Box.findById.mockResolvedValue(fbox({ fridge_alarm_level: 'red' }));
+    const res = await agent.post(`/monitoring/${BOX_ID}/ack/fridge_temp`);
+    expect(res.status).toBe(200);
+    expect(Box.clearFridgeAlarm).toHaveBeenCalledWith(BOX_ID, COMPANY_ID);
+    expect(AlertAck.insertAck).not.toHaveBeenCalledWith(BOX_ID, 'fridge_temp', expect.anything());
   });
 });

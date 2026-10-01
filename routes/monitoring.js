@@ -11,7 +11,7 @@ const { storeWindowSeconds, validateReading, sanitizeHubDiag, sanitizeHubReport 
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
-const { buildAlerts, fieldLevels, fieldMessages } = require('../services/alerts');
+const { buildAlerts, fieldLevels, fieldMessages, fridgeLatchUpdate } = require('../services/alerts');
 const { authorize, PERMISSIONS } = require('../middleware/authorize');
 
 // Expliziter Rollen-Guard analog zu routes/diagrams.js (admin, controller, user, box_user)
@@ -97,6 +97,13 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Kuehlschrank-Alarm festhalten, bis quittiert: schreibt nur bei neuem Alarm oder Eskalation gelb -> rot
+async function latchFridgeAlarm(box, temp, source) {
+  const latch = fridgeLatchUpdate(box, temp, source);
+  if (!latch) return;
+  if (await Box.escalateFridgeAlarm(box.id, latch.level, latch.temp, latch.source)) boxState.bump(box.id);
+}
+
 // POST /monitoring/:id/submit – Werte speichern
 router.post('/:id/submit', async (req, res) => {
   try {
@@ -108,6 +115,9 @@ router.post('/:id/submit', async (req, res) => {
       req.flash('error', 'Please select your user abbreviation before submitting.');
       return res.redirect(`/monitoring/${req.params.id}`);
     }
+
+    // Handwert ausserhalb der Soll-Temperatur: Alarm festhalten, bis quittiert (Betreiber 01.10.)
+    await latchFridgeAlarm(box, fridgeTemp, 'manual');
 
     // User-ID anhand des Kürzels ermitteln
     const abbrevUser = await findUserByAbbreviation(username, req.session.user.companyId);
@@ -152,6 +162,13 @@ router.post('/:id/ack/:key', async (req, res) => {
     const box = await Box.findById(parseInt(req.params.id), req.session.user.companyId);
     if (!box) return res.status(404).json({ error: 'Box not found' });
 
+    // Kuehlschrank-Alarm: "Done" loescht den festgehaltenen Alarm an der Box (kein Quittungs-Eintrag)
+    if (req.params.key === 'fridge_temp') {
+      await Box.clearFridgeAlarm(box.id, req.session.user.companyId);
+      boxState.bump(box.id);
+      return res.json({ success: true });
+    }
+
     const allowedKeys = ['o2_high', 'o2_elevated', 'h2o_high', 'h2o_elevated'];
     if (!allowedKeys.includes(req.params.key)) {
       return res.status(400).json({ error: 'Invalid alert key' });
@@ -182,6 +199,7 @@ router.post('/:id/readings', async (req, res) => {
 
     // Jeder Wert ist sofort live (Speicher); die DB wird nur im Takt der Box gefragt
     liveReadings.record(box.id, serial, temp, Date.now(), sanitizeHubDiag(req.body.diag));
+    await latchFridgeAlarm(box, temp, 'sensor');
     const stored = liveReadings.dueForHistory(box.id, box.sensor_store_minutes)
       ? await SensorReading.createIfDue(box.id, serial, temp, storeWindowSeconds(box.sensor_store_minutes))
       : false;

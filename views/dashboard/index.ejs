@@ -46,16 +46,16 @@
       <% } else if (!boxes.length) { %>
       <p class="empty-state empty-state--plain">No gloveboxes yet.<% if (canManageBoxes) { %> <a href="/boxes/create">Add your first box</a>.<% } %></p>
       <% } else { %>
-      <div class="box-tiles">
+      <div class="box-tiles" data-dashboard-live data-live-url="/dashboard/live">
         <% boxes.forEach(b => { %>
-        <a href="/monitoring/<%= b.id %>" class="box-tile box-tile--<%= b.status %>">
+        <a href="/monitoring/<%= b.id %>" class="box-tile box-tile--<%= b.status %>" data-box-tile="<%= b.id %>" data-state-key="<%= b.stateKey %>">
           <span class="box-tile__top">
             <span class="box-tile__name"><%= b.alias %></span>
             <span class="box-tile__no mono">#<%= b.projectNumber %></span>
           </span>
           <span class="box-tile__status"><span class="box-tile__dot" aria-hidden="true"></span><%= b.statusLabel %><% if (b.alertCount) { %> · <%= b.alertCount %> <%= b.alertCount === 1 ? 'alert' : 'alerts' %><% } %></span>
           <% if (b.hasSensor) { %>
-          <span class="box-tile__temp"><%= b.liveTemp !== null ? Number(b.liveTemp).toFixed(1) + ' °C' : '— °C' %><% if (b.target !== null) { %><span class="box-tile__target"> / target <%= b.target %> °C</span><% } %></span>
+          <span class="box-tile__temp"><span data-live-temp><%= b.liveTemp !== null ? Number(b.liveTemp).toFixed(1) + ' °C' : '— °C' %></span><% if (b.target !== null) { %><span class="box-tile__target"> / target <%= b.target %> °C</span><% } %></span>
           <% } %>
           <% if (b.topAlert) { %><span class="box-tile__alert"><%= b.topAlert %></span><% } %>
         </a>
@@ -184,5 +184,6 @@
     var label = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
     document.getElementById('dashGreetingLabel').textContent = label;
   </script>
+  <% if (boxes.length) { %><script src="<%= asset('/js/dashboard-live.js') %>"></script><% } %>
 
 <%- include('../partials/footer') %>

@@ -80,3 +80,16 @@ describe('GET /dashboard – box status', () => {
     expect(res.text).not.toContain('box-tile--green');
   });
 });
+
+describe('GET /dashboard/live — tiles stay live (Betreiber 01.10.)', () => {
+  const live = require('../services/liveReadings');
+  test('per box: live temperature and a state key (one DB query, no measurements)', async () => {
+    live.reset();
+    Box.findAllByCompany.mockResolvedValue([{ id: 3, has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', fridge_alarm_level: null, created_at: '2026-01-01' }]);
+    live.record(3, '740B3B', -29.5);
+    const res = await agent.get('/dashboard/live');
+    expect(res.status).toBe(200);
+    expect(res.body.boxes).toEqual([expect.objectContaining({ id: 3, temp: -29.5, stateKey: expect.any(String) })]);
+    expect(Box.findAllByCompany).toHaveBeenCalledWith(COMPANY_ID);
+  });
+});

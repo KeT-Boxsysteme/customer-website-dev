@@ -133,6 +133,22 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'ux_boxes_company_sensor' 
 IF COL_LENGTH('dbo.boxes', 'sensor_store_minutes') IS NULL
   ALTER TABLE boxes ADD sensor_store_minutes INT NULL;
 
+-- Nachtraegliche Spalten: Kuehlschrank-Alarm bleibt bis "Done" (Betreiber 01.10.2026). Geschrieben nur bei
+-- neuem Alarm oder Eskalation gelb -> rot (models/box.js escalateFridgeAlarm), geleert von "Done".
+IF COL_LENGTH('dbo.boxes', 'fridge_alarm_level') IS NULL
+  ALTER TABLE boxes ADD fridge_alarm_level NVARCHAR(10) NULL
+    CONSTRAINT ck_boxes_fridge_alarm_level CHECK (fridge_alarm_level IN ('yellow','red'));
+
+IF COL_LENGTH('dbo.boxes', 'fridge_alarm_since') IS NULL
+  ALTER TABLE boxes ADD fridge_alarm_since DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.boxes', 'fridge_alarm_temp') IS NULL
+  ALTER TABLE boxes ADD fridge_alarm_temp FLOAT NULL;
+
+IF COL_LENGTH('dbo.boxes', 'fridge_alarm_source') IS NULL
+  ALTER TABLE boxes ADD fridge_alarm_source NVARCHAR(10) NULL
+    CONSTRAINT ck_boxes_fridge_alarm_source CHECK (fridge_alarm_source IN ('sensor','manual'));
+
 -- Verlauf der Live-Werte vom Bluetooth-Fuehler (Paket 2). Getrennt von measurements, weil dort
 -- Eingaben von Personen (Kuerzel) stehen und die Ampel daran haengt.
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sensor_readings')

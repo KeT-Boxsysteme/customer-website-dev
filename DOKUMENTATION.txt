@@ -92,6 +92,9 @@
   Routen-Übersicht:
     GET  /              → Weiterleitung zu /auth/login oder /dashboard
     GET  /dashboard     → Startseite nach Login (erfordert Login)
+    GET  /dashboard/live → je Box Live-Temperatur + Zustands-Schlüssel (JSON);
+                          public/js/dashboard-live.js fragt alle 5 s, Kacheln
+                          aktualisieren sich per Turbo-Morphing (Betreiber 01.10.)
     /auth/...           → Login, Registrierung, Passwort (routes/auth.js)
     /users/...          → Userverwaltung (routes/users.js)
     /boxes/...          → Boxenverwaltung (routes/boxes.js)
@@ -643,8 +646,9 @@
   │ Kühlschrank >= 3 °C neben Soll,   │ Gelb       │ fridge_temp (Soll) +     │
   │ sofort (zu warm oder zu kalt)     │            │ Live-Wert des Fühlers    │
   ├───────────────────────────────────┼────────────┼──────────────────────────┤
-  │ Kühlschrank >= 5 °C neben Soll,   │ Rot        │ (kein Done: verschwindet │
-  │ sofort                            │            │  wenn Temperatur passt)  │
+  │ Kühlschrank >= 5 °C neben Soll,   │ Rot        │ Done (Betreiber 01.10.): │
+  │ sofort; auch HANDWERTE lösen aus  │            │ Alarm bleibt bis Done,   │
+  │ (Quelle sensor|manual)            │            │ boxes.fridge_alarm_*     │
   ├───────────────────────────────────┼────────────┼──────────────────────────┤
   │ Fühler zugeordnet, aber > 20 s    │ Gelb       │ sensor_serial + Live-    │
   │ kein Wert                         │            │ Speicher (kein Done)     │
@@ -871,7 +875,14 @@
     ppm-Meldungen. ACHTUNG: Tabelle auf Azure noch anlegen (npm run setup
     oder sqlcmd mit database/schema.sql – idempotent).
   - POST /monitoring/:id/ack/:key (Whitelist o2_high/o2_elevated/h2o_high/
-    h2o_elevated).
+    h2o_elevated; fridge_temp = Kühlschrank-Alarm an der Box löschen,
+    Box.clearFridgeAlarm, kein alert_acks-Eintrag).
+  - Kühlschrank-Alarm bis quittiert (2026-10-01): boxes.fridge_alarm_level/
+    _since/_temp/_source. services/alerts.js fridgeLatchUpdate entscheidet
+    (nur neuer Alarm oder Eskalation gelb -> rot), models/box.js
+    escalateFridgeAlarm schreibt in EINEM UPDATE; /readings (sensor) und
+    /submit (manual) rufen es. Angezeigt wird die schlimmere Stufe aus Live
+    und festgehaltenem Alarm.
   - views/terms.ejs + GET /terms (öffentlich): Platzhalter-AGB, aus der
     Registrierung verlinkt (vorher toter /agb-Link).
   - public/js/vendor/chart.umd.min.js: Chart.js lokal statt CDN.

@@ -30,8 +30,13 @@
  *    time): live sensor value vs. the target temperature of the box (boxes.fridge_temp,
  *    E-18). >= 3 °C off -> yellow, >= 5 °C off -> red, in BOTH directions, immediately.
  *    A box with an assigned sensor but no fresh live value is yellow right away
- *    ("sensor not delivering values") — never a false all-clear. No "Done": the alerts
- *    disappear on their own. Boxes without a sensor (manual entry) get no fridge alert.
+ *    ("sensor not delivering values") — never a false all-clear.
+ *  - Fridge alarm stays until acknowledged (Betreiber 2026-10-01): a deviation — live sensor
+ *    value OR a manually entered value — is stored on the box (fridge_alarm_*; fridgeLatchUpdate
+ *    decides, written only when the alarm starts or escalates yellow -> red). The stored alarm is
+ *    shown until someone presses "Done", even when the temperature is back to normal; the shown
+ *    level is the worse of stored and current live level. "Sensor not delivering values" is not
+ *    stored and disappears on its own.
  *  - Sorting (Konzept line 118): red alerts are prioritized and always
  *    listed first; order is otherwise stable.
  */
@@ -56,26 +61,55 @@ function fridgeDeviationLevel(temp, target) {
   return null;
 }
 
+const LEVEL_RANK = { yellow: 1, red: 2 };
+
 /**
- * Fridge alert from the live value, or null. fridgeLive = { temp } (fresh value of the
- * assigned sensor) or null when the sensor delivers nothing.
+ * What to store on the box for a new fridge value, or null (nothing to write).
+ * Writes only when an alarm starts or escalates yellow -> red; the start time is kept.
+ * source: 'sensor' | 'manual'.
  */
-function fridgeAlert(box, fridgeLive) {
-  if (!box.has_fridge) return null;
-  if (!fridgeLive) {
-    if (!box.sensor_serial) return null;
-    return { key: 'fridge_sensor_offline', severity: 'yellow',
-             message: 'Temperature sensor not delivering values', action: 'none' };
+function fridgeLatchUpdate(box, temp, source, now = new Date()) {
+  if (!box || !box.has_fridge) return null;
+  // Same reading as models/measurement.js: empty field = no value (Number('') would be 0 °C)
+  const value = temp === undefined || temp === null || temp === '' ? NaN : parseFloat(temp);
+  if (!Number.isFinite(value)) return null;
+  const level = fridgeDeviationLevel(value, box.fridge_temp);
+  if (!level) return null;
+  const stored = LEVEL_RANK[box.fridge_alarm_level] ? box.fridge_alarm_level : null;
+  if (stored && LEVEL_RANK[stored] >= LEVEL_RANK[level]) return null;
+  return { level, since: stored ? box.fridge_alarm_since : now, temp: value, source };
+}
+
+/**
+ * Fridge alerts: the deviation alarm (live or stored until "Done") and "sensor not delivering
+ * values". fridgeLive = { temp } (fresh value of the assigned sensor) or null.
+ */
+function fridgeAlerts(box, fridgeLive) {
+  if (!box.has_fridge) return [];
+  const out = [];
+  const liveLevel = fridgeLive ? fridgeDeviationLevel(fridgeLive.temp, box.fridge_temp) : null;
+  const stored = LEVEL_RANK[box.fridge_alarm_level] ? box.fridge_alarm_level : null;
+  if (liveLevel || stored) {
+    const severity = (LEVEL_RANK[liveLevel] || 0) >= (LEVEL_RANK[stored] || 0) ? liveLevel : stored;
+    const fromLive = severity === liveLevel;
+    const temp = fromLive ? fridgeLive.temp : box.fridge_alarm_temp;
+    const manual = !fromLive && box.fridge_alarm_source === 'manual';
+    const shown = temp === null || temp === undefined ? '' : ` ${Number(temp).toFixed(1)} °C`;
+    out.push({
+      key: 'fridge_temp',
+      severity,
+      message: (fromLive
+        ? `Fridge temperature${shown} deviates from the target of ${box.fridge_temp} °C`
+        : `Fridge temperature${shown}${manual ? ' (entered manually)' : ''} deviated from the target of ${box.fridge_temp} °C`) +
+        (severity === 'red' ? ' — check the fridge' : ''),
+      action: 'ack'
+    });
   }
-  const severity = fridgeDeviationLevel(fridgeLive.temp, box.fridge_temp);
-  if (!severity) return null;
-  return {
-    key: 'fridge_temp',
-    severity,
-    message: `Fridge temperature ${Number(fridgeLive.temp).toFixed(1)} °C deviates from the target of ${box.fridge_temp} °C` +
-      (severity === 'red' ? ' — check the fridge' : ''),
-    action: 'none'
-  };
+  if (!fridgeLive && box.sensor_serial) {
+    out.push({ key: 'fridge_sensor_offline', severity: 'yellow',
+               message: 'Temperature sensor not delivering values', action: 'none' });
+  }
+  return out;
 }
 
 /** Baseline date for a maintenance field: field value, else box.created_at, else now. */
@@ -124,8 +158,7 @@ function buildAlerts({ box, latestMeasurement, acks = [], fridgeLive = null, now
   const yellow = [];
 
   // --- fridge temperature vs. target (E-21) ---
-  const fridge = fridgeAlert(box, fridgeLive);
-  if (fridge) (fridge.severity === 'red' ? red : yellow).push(fridge);
+  for (const fridge of fridgeAlerts(box, fridgeLive)) (fridge.severity === 'red' ? red : yellow).push(fridge);
 
   // --- ppm alerts (red has priority; an acked alert is fully suppressed) ---
   if (latestMeasurement) {
@@ -298,6 +331,6 @@ function overallStatus(alerts) {
 // Warnungen aus der letzten manuellen Messung (aendern sich nur durch Eingabe/Done)
 const PPM_ALERT_KEYS = ['o2_high', 'o2_elevated', 'h2o_high', 'h2o_elevated'];
 
-module.exports = { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlert, fridgeDeviationLevel,
+module.exports = { buildAlerts, overallStatus, fieldLevels, fieldMessages, fridgeAlerts, fridgeLatchUpdate, fridgeDeviationLevel,
                    PPM_ALERT_KEYS,
                    FRIDGE_YELLOW_DELTA, FRIDGE_RED_DELTA };

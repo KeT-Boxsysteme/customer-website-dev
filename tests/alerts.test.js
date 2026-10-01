@@ -450,10 +450,10 @@ describe('buildAlerts – fridge temperature vs. target (E-21 rev.: live, 3 / 5 
   const run = (fridgeLive, box = fridgeBox()) =>
     buildAlerts({ box, latestMeasurement: null, fridgeLive, now: NOW }).filter(a => a.key.startsWith('fridge'));
 
-  test('6 °C too warm -> red immediately, without a Done button', () => {
+  test('6 °C too warm -> red immediately, with a Done button (Betreiber 01.10.: stays until acknowledged)', () => {
     const alerts = run({ temp: -24 });
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]).toMatchObject({ key: 'fridge_temp', severity: 'red', action: 'none' });
+    expect(alerts[0]).toMatchObject({ key: 'fridge_temp', severity: 'red', action: 'ack' });
     expect(alerts[0].message).toContain('-24.0 °C');
     expect(alerts[0].message).toContain('-30 °C');
   });
@@ -512,5 +512,60 @@ describe('fieldMessages – tooltip text per value field', () => {
     expect(fieldMessages([
       { key: 'fridge_temp', message: 'Fridge off' }, { key: 'oil_change', message: 'Oil' }
     ])).toEqual({ fridge: 'Fridge off' });
+  });
+});
+
+describe('fridge alarm stays until acknowledged (Betreiber 01.10.: latch, manual values count)', () => {
+  const { fridgeLatchUpdate, buildAlerts } = require('../services/alerts');
+  const NOW2 = new Date('2026-10-01T12:00:00Z');
+  const fbox = (o = {}) => ({ id: 1, has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', created_at: '2026-01-01',
+    fridge_alarm_level: null, fridge_alarm_since: null, fridge_alarm_temp: null, fridge_alarm_source: null, ...o });
+
+  test('no deviation -> nothing to store', () => {
+    expect(fridgeLatchUpdate(fbox(), -29, 'sensor', NOW2)).toBeNull();
+  });
+  test('first deviation -> store level, time, value and source', () => {
+    expect(fridgeLatchUpdate(fbox(), -25, 'sensor', NOW2)).toEqual({ level: 'red', since: NOW2, temp: -25, source: 'sensor' });
+    expect(fridgeLatchUpdate(fbox(), -27, 'manual', NOW2)).toEqual({ level: 'yellow', since: NOW2, temp: -27, source: 'manual' });
+  });
+  test('only escalation writes again (yellow -> red keeps the start time); same or lower level writes nothing', () => {
+    const since = new Date('2026-10-01T10:00:00Z');
+    expect(fridgeLatchUpdate(fbox({ fridge_alarm_level: 'yellow', fridge_alarm_since: since }), -20, 'sensor', NOW2))
+      .toEqual({ level: 'red', since, temp: -20, source: 'sensor' });
+    expect(fridgeLatchUpdate(fbox({ fridge_alarm_level: 'red', fridge_alarm_since: since }), -27, 'sensor', NOW2)).toBeNull();
+    expect(fridgeLatchUpdate(fbox({ fridge_alarm_level: 'yellow', fridge_alarm_since: since }), -27, 'sensor', NOW2)).toBeNull();
+  });
+  test('manual form value: empty field is no value (not 0 °C), text value is read like the measurement', () => {
+    expect(fridgeLatchUpdate(fbox(), '', 'manual', NOW2)).toBeNull();
+    expect(fridgeLatchUpdate(fbox(), undefined, 'manual', NOW2)).toBeNull();
+    expect(fridgeLatchUpdate(fbox(), '-26', 'manual', NOW2)).toEqual({ level: 'yellow', since: NOW2, temp: -26, source: 'manual' });
+  });
+  test('box without fridge or without target -> never stored', () => {
+    expect(fridgeLatchUpdate(fbox({ has_fridge: 0 }), 20, 'sensor', NOW2)).toBeNull();
+    expect(fridgeLatchUpdate(fbox({ fridge_temp: null }), 20, 'manual', NOW2)).toBeNull();
+  });
+
+  test('stored alarm stays although the live value is back to normal, with a Done button', () => {
+    const box = fbox({ fridge_alarm_level: 'red', fridge_alarm_since: '2026-10-01T10:00:00Z', fridge_alarm_temp: -22, fridge_alarm_source: 'sensor' });
+    const a = buildAlerts({ box, latestMeasurement: null, fridgeLive: { temp: -30 }, now: NOW2 }).find(x => x.key === 'fridge_temp');
+    expect(a.severity).toBe('red');
+    expect(a.action).toBe('ack');
+    expect(a.message).toMatch(/-22\.0 °C/);
+  });
+  test('current live deviation worse than the stored one -> the worse level is shown', () => {
+    const box = fbox({ fridge_alarm_level: 'yellow', fridge_alarm_since: '2026-10-01T10:00:00Z', fridge_alarm_temp: -27, fridge_alarm_source: 'sensor' });
+    const a = buildAlerts({ box, latestMeasurement: null, fridgeLive: { temp: -20 }, now: NOW2 }).find(x => x.key === 'fridge_temp');
+    expect(a.severity).toBe('red');
+  });
+  test('stored alarm from a manual value on a box WITHOUT sensor is shown', () => {
+    const box = fbox({ sensor_serial: null, fridge_alarm_level: 'yellow', fridge_alarm_since: '2026-10-01T10:00:00Z', fridge_alarm_temp: -26, fridge_alarm_source: 'manual' });
+    const alerts = buildAlerts({ box, latestMeasurement: null, fridgeLive: null, now: NOW2 });
+    expect(alerts.map(x => x.key)).toEqual(['fridge_temp']);
+    expect(alerts[0].message).toMatch(/entered manually|manual/i);
+  });
+  test('stored alarm + sensor offline -> both are shown', () => {
+    const box = fbox({ fridge_alarm_level: 'red', fridge_alarm_since: '2026-10-01T10:00:00Z', fridge_alarm_temp: -22, fridge_alarm_source: 'sensor' });
+    const keys = buildAlerts({ box, latestMeasurement: null, fridgeLive: null, now: NOW2 }).map(x => x.key).sort();
+    expect(keys).toEqual(['fridge_sensor_offline', 'fridge_temp']);
   });
 });
