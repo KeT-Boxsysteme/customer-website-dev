@@ -101,8 +101,8 @@ describe('Registration', () => {
     username: 'jd',
     department: 'management',
     departmentOther: '',
-    password: 'secret123',
-    passwordConfirm: 'secret123',
+    password: 'Secret#2026',
+    passwordConfirm: 'Secret#2026',
     agb: 'on'
   };
 
@@ -135,7 +135,7 @@ describe('Registration', () => {
       username: 'JD',
       department: 'management',
       role: 'admin',
-      password: 'secret123'
+      password: 'Secret#2026'
     });
 
     // Welcome mail to the customer + notification to KeT (Konzept line 38)
@@ -423,5 +423,58 @@ describe('password reset survives restarts (tokens in the DB, Fund: in-memory ma
       .send({ password: 'NewSecret123!', passwordConfirm: 'other' });
     expect(PasswordReset.consume).not.toHaveBeenCalled();
     expect(User.updatePassword).not.toHaveBeenCalled();
+  });
+});
+
+describe('password rule at every place a person sets a password (Betreiber 01.10.)', () => {
+  test('registration with a weak password -> rejected, nothing created', async () => {
+    [User.findByEmail, Company.create, User.create].forEach(m => m.mockReset());
+    User.findByEmail.mockResolvedValue(null);
+    const agent = request.agent(app);
+    const res = await agent.post('/auth/register').type('form').send({
+      companyType: 'company', companyName: 'X', city: 'X', street: 'Y', housenumber: '1', zip: '1',
+      firstname: 'A', lastname: 'B', email: 'weak@example.com', username: 'WK', department: 'management',
+      password: 'secret123', passwordConfirm: 'secret123', agb: 'on'
+    });
+    expect(res.headers.location).toBe('/auth/register');
+    expect(Company.create).not.toHaveBeenCalled();
+    expect((await agent.get('/auth/register')).text).toContain('at least 10 characters');
+  });
+
+  test('reset with a weak password -> rejected, link NOT used up', async () => {
+    PasswordReset.findValidUserId.mockResolvedValueOnce(42);
+    await request(app).post('/auth/reset-password/' + 'e'.repeat(64)).type('form')
+      .send({ password: 'short', passwordConfirm: 'short' });
+    expect(PasswordReset.consume).not.toHaveBeenCalled();
+    expect(User.updatePassword).not.toHaveBeenCalled();
+  });
+});
+
+describe('forgot-password is rate limited (Betreiber 01.10.: 3 per email, 10 per IP per hour)', () => {
+  test('4th request for the same email in an hour sends no mail, same neutral answer', async () => {
+    const email = 'flood@example.com';
+    User.findByEmail.mockReset();
+    User.findByEmail.mockResolvedValue(buildDbUser('admin', { email }));
+    emailService.sendPasswordResetEmail.mockClear();
+    const answers = [];
+    for (let i = 0; i < 4; i++) {
+      const agent = request.agent(app);
+      const res = await agent.post('/auth/forgot-password').type('form').send({ email });
+      answers.push(res.headers.location);
+      expect((await agent.get('/auth/login')).text).toContain('If an account exists for that email');
+    }
+    expect(emailService.sendPasswordResetEmail).toHaveBeenCalledTimes(3);
+    expect(new Set(answers)).toEqual(new Set(['/auth/login']));
+    User.findByEmail.mockReset();
+  });
+});
+
+describe('forms name the password rule before submitting', () => {
+  test('register and reset pages show the rule and require 10 characters', async () => {
+    PasswordReset.findValidUserId.mockResolvedValueOnce(42);
+    for (const page of [await request(app).get('/auth/register'), await request(app).get('/auth/reset-password/' + 'f'.repeat(64))]) {
+      expect(page.text).toContain('At least 10 characters, with an upper case letter');
+      expect(page.text).toMatch(/name="password"[^>]*minlength="10"/);
+    }
   });
 });

@@ -122,3 +122,10 @@ describe('access number for the admin (7.3)', () => {
     expect(emailService.sendUserCreatedEmail).toHaveBeenCalledWith('a@b.de', 'Test GmbH', ACCESS_CODE);
   });
 });
+
+describe('password rule when an admin creates a user (Betreiber 01.10.)', () => {
+  test('weak password -> not created', async () => {
+    await agent.post('/users').type('form').send({ ...form(), password: 'secret123' });
+    expect(User.create).not.toHaveBeenCalled();
+  });
+});

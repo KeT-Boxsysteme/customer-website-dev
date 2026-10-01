@@ -75,7 +75,8 @@
             <% if (!editUser) { %>
             <div class="form-group">
               <label for="password">Password</label>
-              <input type="password" id="password" name="password" required>
+              <input type="password" id="password" name="password" required minlength="10" aria-describedby="pwRule" autocomplete="new-password">
+              <p class="pw-rule" id="pwRule"><%= passwordHint %></p>
             </div>
             <% } %>
           </div>

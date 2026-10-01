@@ -5,6 +5,7 @@ const { authorize, ROLES } = require('../middleware/authorize');
 const emailService = require('../services/email');
 const Company = require('../models/company');
 const { canAssignRole, canManageUser } = require('../services/access');
+const { passwordProblem } = require('../services/passwordPolicy');
 
 const adminOnly = authorize(ROLES.ADMIN);   // service hat dieselben Rechte (middleware/authorize.js)
 
@@ -57,6 +58,11 @@ router.post('/', adminOnly, async (req, res) => {
     }
     if (!canAssignRole(req.session.user.role, role)) {
       req.flash('error', 'Please choose a valid role.');
+      return res.redirect('/users/create');
+    }
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) {
+      req.flash('error', pwProblem);
       return res.redirect('/users/create');
     }
     // Department ist optional (Konzept Z. 57): leer -> NULL (Spalte ist nullable)

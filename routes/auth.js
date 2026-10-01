@@ -5,11 +5,14 @@ const Company = require('../models/company');
 const emailService = require('../services/email');
 const PasswordReset = require('../models/passwordReset');
 const { RESET_VALID_MS, newToken, hashToken } = require('../services/resetToken');
+const { passwordProblem } = require('../services/passwordPolicy');
 const { loginDecision } = require('../services/access');
 const { createLoginLimiter } = require('../services/loginLimiter');
 
 // Sperre gegen Durchprobieren: 5 Fehlversuche je Konto bzw. 30 je IP in 15 Minuten (AUFTRAG Abschnitt 6)
 const loginLimiter = createLoginLimiter();
+// "Passwort vergessen": 3 Anforderungen je E-Mail bzw. 10 je IP pro Stunde (Betreiber 01.10.) — gegen Mail-Flut
+const resetLimiter = createLoginLimiter({ maxPerAccount: 3, maxPerIp: 10, windowMs: 60 * 60 * 1000 });
 
 
 // GET /auth/login
@@ -103,6 +106,11 @@ router.post('/register', async (req, res) => {
       req.flash('error', 'Passwords do not match.');
       return res.redirect('/auth/register');
     }
+    const pwProblem = passwordProblem(password);
+    if (pwProblem) {
+      req.flash('error', pwProblem);
+      return res.redirect('/auth/register');
+    }
     if (username.trim().length > 4) {
       req.flash('error', 'Username must be max. 4 characters.');
       return res.redirect('/auth/register');
@@ -158,7 +166,11 @@ router.get('/forgot-password', (req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findByEmail(email.trim().toLowerCase());
+    const who = { email, ip: req.ip };
+    // ueber der Grenze: gleiche neutrale Antwort, aber keine Mail (verraet nicht, ob es das Konto gibt)
+    const limited = resetLimiter.blocked(who);
+    resetLimiter.fail(who);
+    const user = limited ? null : await User.findByEmail(String(email || '').trim().toLowerCase());
 
     if (user) {
       // Link ueberlebt Deploys/Neustarts: in der DB, nur als Hash (models/passwordReset.js)
@@ -197,13 +209,14 @@ router.post('/reset-password/:token', async (req, res) => {
   try {
     const tokenHash = hashToken(req.params.token);
     const { password, passwordConfirm } = req.body;
-    if (!password || password !== passwordConfirm) {
+    const pwProblem = password && password === passwordConfirm ? passwordProblem(password) : null;
+    if (!password || password !== passwordConfirm || pwProblem) {
       // Link NICHT verbrauchen — nur zurueck zum Formular, solange er gueltig ist
       if (!(await PasswordReset.findValidUserId(tokenHash, new Date()))) {
         req.flash('error', 'This reset link is invalid or has expired.');
         return res.redirect('/auth/forgot-password');
       }
-      req.flash('error', 'Passwords do not match.');
+      req.flash('error', pwProblem || 'Passwords do not match.');
       return res.redirect(`/auth/reset-password/${req.params.token}`);
     }
 

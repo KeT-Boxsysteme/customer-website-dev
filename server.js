@@ -16,6 +16,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const internalRoutes = require('./routes/internal');
 const { requireAuth } = require('./middleware/auth');
 const { allowed, ROLES } = require('./middleware/authorize');
+const { PASSWORD_HINT } = require('./services/passwordPolicy');
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use(flash());
 
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
+  res.locals.passwordHint = PASSWORD_HINT;   // Passwort-Regel, eine Quelle (services/passwordPolicy.js)
   // Rechte fuer die Ansichten an EINER Stelle (service = Rechte wie admin, 7.10)
   const role = req.session.user && req.session.user.role;
   res.locals.isAdmin = !!role && allowed(role, [ROLES.ADMIN]);
