@@ -44,7 +44,7 @@
       <% if (statusError) { %>
       <p class="empty-state empty-state--plain">Box status could not be loaded right now. Please try again in a moment.</p>
       <% } else if (!boxes.length) { %>
-      <p class="empty-state empty-state--plain">No gloveboxes yet.<% if (user.role === 'admin' || user.role === 'controller') { %> <a href="/boxes/create">Add your first box</a>.<% } %></p>
+      <p class="empty-state empty-state--plain">No gloveboxes yet.<% if (canManageBoxes) { %> <a href="/boxes/create">Add your first box</a>.<% } %></p>
       <% } else { %>
       <div class="box-tiles">
         <% boxes.forEach(b => { %>
@@ -107,7 +107,7 @@
       </a>
 
       <!-- Box Management: admin + controller -->
-      <% if (user.role === 'admin' || user.role === 'controller') { %>
+      <% if (canManageBoxes) { %>
       <a href="/boxes" class="dash-card">
         <div class="dash-card__icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -129,7 +129,7 @@
       <% } %>
 
       <!-- User Management: admin only -->
-      <% if (user.role === 'admin') { %>
+      <% if (isAdmin) { %>
       <a href="/users" class="dash-card">
         <div class="dash-card__icon">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

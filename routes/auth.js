@@ -4,6 +4,11 @@ const crypto = require('crypto');
 const User = require('../models/user');
 const Company = require('../models/company');
 const emailService = require('../services/email');
+const { loginDecision } = require('../services/access');
+const { createLoginLimiter } = require('../services/loginLimiter');
+
+// Sperre gegen Durchprobieren: 5 Fehlversuche je Konto bzw. 30 je IP in 15 Minuten (AUFTRAG Abschnitt 6)
+const loginLimiter = createLoginLimiter();
 
 // Einfacher In-Memory Token Store – später in DB auslagern
 const resetTokens = new Map();
@@ -14,28 +19,40 @@ router.get('/login', (req, res) => {
   res.render('auth/login', { title: 'Login' });
 });
 
-// POST /auth/login
+// Login-Meldungen je Entscheidung (services/access.js). 'invalid' verraet nicht, was falsch war.
+const LOGIN_MESSAGES = {
+  invalid: 'Invalid email, password or access number.',
+  pending: 'Your registration is awaiting approval by KeT. You will receive your access number by email.',
+  rejected: 'Your registration was not approved. Please contact KeT.',
+  suspended: 'Access for your organization is suspended. Please contact KeT.'
+};
+
+// POST /auth/login — E-Mail + Passwort + Nutz-Nummer der eigenen Einrichtung (Freischaltung)
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, accessCode } = req.body;
     if (!email || !password) {
       req.flash('error', 'Please enter email and password.');
       return res.redirect('/auth/login');
     }
+    const who = { email, ip: req.ip };
+    if (loginLimiter.blocked(who)) {
+      req.flash('error', 'Too many failed attempts. Please wait 15 minutes and try again.');
+      return res.redirect('/auth/login');
+    }
 
     const user = await User.findByEmail(email.trim().toLowerCase());
-    if (!user) {
-      req.flash('error', 'Invalid email or password.');
+    const passwordOk = user ? await User.verifyPassword(password, user.password_hash) : false;
+    const decision = loginDecision({ user, passwordOk, code: accessCode });
+    if (decision !== 'ok') {
+      if (decision === 'invalid') loginLimiter.fail(who);
+      req.flash('error', LOGIN_MESSAGES[decision] || LOGIN_MESSAGES.invalid);
       return res.redirect('/auth/login');
     }
-
-    const valid = await User.verifyPassword(password, user.password_hash);
-    if (!valid) {
-      req.flash('error', 'Invalid email or password.');
-      return res.redirect('/auth/login');
-    }
+    loginLimiter.succeed(who);
 
     req.session.user = {
+      accessCode: user.company_access_code,   // neue Nummer beendet alte Sitzungen (middleware/auth.js)
       id: user.id,
       companyId: user.company_id,
       firstname: user.firstname,
@@ -123,7 +140,8 @@ router.post('/register', async (req, res) => {
     await emailService.sendWelcomeEmail(email, companyName).catch(console.error);
     await emailService.sendNewRegistrationToKeT(companyName, companyType, email).catch(console.error);
 
-    req.flash('success', 'Registration successful! Please log in.');
+    // Neue Einrichtungen warten auf Freischaltung durch KeT (status pending, DB-Vorgabe)
+    req.flash('success', 'Thank you for registering. KeT will review your registration and send your access number by email once your access is approved.');
     res.redirect('/auth/login');
   } catch (err) {
     console.error(err);

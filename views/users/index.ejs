@@ -19,6 +19,15 @@
       </div>
     </div>
 
+    <% if (accessCode) { %>
+    <!-- 7.3: der admin sieht die Nutz-Nummer und gibt sie an neue Benutzer weiter -->
+    <div class="access-code-note">
+      <span class="access-code-note__label">Access number of your organization</span>
+      <span class="access-code-note__value mono"><%= accessCode %></span>
+      <span class="access-code-note__hint">Every user needs it to log in, together with their email and password.</span>
+    </div>
+    <% } %>
+
     <% if (users.length === 0) { %>
       <div class="empty-state">
         <p class="empty-state__title">No users yet</p>
@@ -46,8 +55,12 @@
           <td data-label="Department"><%= u.department %></td>
           <td data-label="Role"><span class="role-badge role-<%= u.role %>"><%= u.role.replace('_', ' ') %></span></td>
           <td class="actions">
+            <% if (!canManage(u)) { %>
+            <span class="actions__note" title="Internal KeT service account — managed by KeT">Managed by KeT</span>
+            <% } else { %>
             <a href="/users/<%= u.id %>/edit" class="btn btn-sm btn-secondary">Edit</a>
-            <% if (u.id !== user.id) { %>
+            <% } %>
+            <% if (canManage(u) && u.id !== user.id) { %>
             <form action="/users/<%= u.id %>?_method=DELETE" method="POST" class="inline-form" onsubmit="return confirm('Delete this user?')">
               <button type="submit" class="btn btn-sm btn-danger">Delete</button>
             </form>

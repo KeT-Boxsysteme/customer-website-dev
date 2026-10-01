@@ -1373,3 +1373,11 @@ h3.chart-card__title + .table-scroll { margin-top: 10px; }
   .table-scroll { overflow-x: visible; }
   .section-head { align-items: stretch; }
 }
+
+/* Benutzerverwaltung: Nutz-Nummer der Einrichtung (7.3), service-Benutzer nur ansehen (7.13) */
+.access-code-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 14px 18px; margin: 0 0 18px;
+  background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.access-code-note__label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+.access-code-note__value { font-size: 20px; font-weight: 700; letter-spacing: 0.12em; color: var(--color-ink); }
+.access-code-note__hint { flex-basis: 100%; font-size: 13px; color: var(--color-text-muted); }
+.actions__note { font-size: 12.5px; color: var(--color-text-muted); }

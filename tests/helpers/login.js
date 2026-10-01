@@ -19,6 +19,7 @@ const request = require('supertest');
 const TEST_PASSWORD = 'correct-horse-battery';
 const COMPANY_ID = 7;
 const USER_ID = 42;
+const ACCESS_CODE = '482913';   // Nutz-Nummer der Test-Einrichtung (Freischaltung)
 
 let cachedHash = null;
 async function passwordHash() {
@@ -39,6 +40,8 @@ function buildDbUser(role, overrides = {}) {
     department: 'management',
     role,
     is_active: 1,
+    company_status: 'active',
+    company_access_code: ACCESS_CODE,
     ...overrides
   };
 }
@@ -53,12 +56,17 @@ async function loginAgent(app, User, role, overrides = {}) {
 
   User.findByEmail.mockResolvedValueOnce(user);
   User.verifyPassword.mockImplementation((plain, h) => bcrypt.compare(plain, h));
+  // laufende Sitzungen werden je Anfrage gegen die DB geprueft (middleware/auth.js)
+  User.sessionState.mockResolvedValue({
+    is_active: 1, company_status: user.company_status, company_access_code: user.company_access_code
+  });
+  require('../../middleware/auth').clearCache();
 
   const agent = request.agent(app);
   const res = await agent
     .post('/auth/login')
     .type('form')
-    .send({ email: user.email, password: TEST_PASSWORD });
+    .send({ email: user.email, password: TEST_PASSWORD, accessCode: ACCESS_CODE });
 
   if (res.status !== 302 || res.headers.location !== '/dashboard') {
     throw new Error(
@@ -68,4 +76,4 @@ async function loginAgent(app, User, role, overrides = {}) {
   return agent;
 }
 
-module.exports = { loginAgent, buildDbUser, passwordHash, TEST_PASSWORD, COMPANY_ID, USER_ID };
+module.exports = { loginAgent, buildDbUser, passwordHash, TEST_PASSWORD, COMPANY_ID, USER_ID, ACCESS_CODE };

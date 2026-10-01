@@ -26,7 +26,8 @@ const app = require('../server');
 const User = require('../models/user');
 const Company = require('../models/company');
 const emailService = require('../services/email');
-const { loginAgent, buildDbUser, passwordHash, TEST_PASSWORD } = require('./helpers/login');
+const { loginAgent, buildDbUser, passwordHash, TEST_PASSWORD, ACCESS_CODE } = require('./helpers/login');
+const sessionGuard = require('../middleware/auth');
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -57,7 +58,7 @@ describe('Login', () => {
 
     // Flash message shown on the login page, session NOT established
     const loginPage = await agent.get('/auth/login');
-    expect(loginPage.text).toContain('Invalid email or password.');
+    expect(loginPage.text).toContain('Invalid email, password or access number.');
     const dash = await agent.get('/dashboard');
     expect(dash.status).toBe(302);
     expect(dash.headers.location).toBe('/auth/login');
@@ -268,5 +269,107 @@ describe('Logout', () => {
     const dash = await agent.get('/dashboard');
     expect(dash.status).toBe(302);
     expect(dash.headers.location).toBe('/auth/login');
+  });
+});
+
+describe('Login with access number (Freischaltung, KET\AUFTRAG section 3)', () => {
+  const tryLogin = async (dbUser, body) => {
+    const hash = await passwordHash();
+    User.findByEmail.mockReset();   // ein gesperrter Versuch fragt die DB nicht — nichts darf liegen bleiben
+    User.findByEmail.mockResolvedValueOnce(dbUser && { ...dbUser, password_hash: hash });
+    User.verifyPassword.mockImplementation((plain, h) => bcrypt.compare(plain, h));
+    const agent = request.agent(app);
+    const res = await agent.post('/auth/login').type('form').send(body);
+    const page = await agent.get('/auth/login');
+    return { res, page };
+  };
+  const body = (o = {}) => ({ email: 'admin@example.com', password: TEST_PASSWORD, accessCode: ACCESS_CODE, ...o });
+
+  test('correct password + number of the own active company -> logged in', async () => {
+    const { res } = await tryLogin(buildDbUser('admin'), body());
+    expect(res.headers.location).toBe('/dashboard');
+  });
+
+  test('missing or wrong number -> not logged in, generic message', async () => {
+    for (const accessCode of ['', '999999', '12345']) {
+      const { res, page } = await tryLogin(buildDbUser('admin'), body({ accessCode }));
+      expect(res.headers.location).toBe('/auth/login');
+      expect(page.text).toContain('Invalid email, password or access number.');
+    }
+  });
+
+  test('pending registration -> told that approval is pending (only with correct password)', async () => {
+    const pending = buildDbUser('admin', { company_status: 'pending', company_access_code: null });
+    const ok = await tryLogin(pending, body({ accessCode: '' }));
+    expect(ok.res.headers.location).toBe('/auth/login');
+    expect(ok.page.text).toContain('awaiting approval');
+    const wrongPw = await tryLogin(pending, body({ accessCode: '', password: 'nope' }));
+    expect(wrongPw.page.text).not.toContain('awaiting approval');
+  });
+
+  test('suspended company -> no login, message names KeT', async () => {
+    const { res, page } = await tryLogin(buildDbUser('admin', { company_status: 'suspended' }), body());
+    expect(res.headers.location).toBe('/auth/login');
+    expect(page.text).toContain('suspended');
+  });
+
+  test('after 5 failed attempts the account is blocked, even with correct data', async () => {
+    const email = 'blocked@example.com';
+    for (let i = 0; i < 5; i++) await tryLogin(buildDbUser('admin', { email }), body({ email, accessCode: '111111' }));
+    const { res, page } = await tryLogin(buildDbUser('admin', { email }), body({ email }));
+    expect(res.headers.location).toBe('/auth/login');
+    expect(page.text).toContain('Too many failed attempts');
+  });
+});
+
+describe('running sessions end when access ends (section 3)', () => {
+  test('company suspended after login -> next request goes to login', async () => {
+    const agent = await loginAgent(app, User, 'admin');
+    expect((await agent.get('/dashboard')).status).toBe(200);
+    User.sessionState.mockResolvedValue({ is_active: 1, company_status: 'suspended', company_access_code: ACCESS_CODE });
+    sessionGuard.clearCache();
+    const res = await agent.get('/dashboard');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe('/auth/login');
+  });
+
+  test('new access number generated -> old sessions end', async () => {
+    const agent = await loginAgent(app, User, 'admin');
+    User.sessionState.mockResolvedValue({ is_active: 1, company_status: 'active', company_access_code: '555555' });
+    sessionGuard.clearCache();
+    expect((await agent.get('/dashboard')).headers.location).toBe('/auth/login');
+  });
+
+  test('DB not reachable during the check -> session is NOT ended (a hiccup is no verdict)', async () => {
+    const agent = await loginAgent(app, User, 'admin');
+    User.sessionState.mockRejectedValue(new Error('db down'));
+    sessionGuard.clearCache();
+    expect((await agent.get('/dashboard')).status).toBe(200);
+  });
+});
+
+describe('registration waits for approval (section 3)', () => {
+  test('success message says approval is pending, not "please log in"', async () => {
+    [User.findByEmail, Company.create, User.create].forEach(m => m.mockReset());   // keine Reste anderer Tests
+    User.findByEmail.mockResolvedValueOnce(null);
+    Company.create.mockResolvedValueOnce(99);
+    User.create.mockResolvedValueOnce(1);
+    const agent = request.agent(app);
+    const res = await agent.post('/auth/register').type('form').send({
+      companyType: 'company', companyName: 'Neu GmbH', city: 'X', street: 'Y', housenumber: '1', zip: '12345',
+      firstname: 'A', lastname: 'B', email: 'neu@example.com', username: 'NEU', department: 'management',
+      password: 'Secret123!', passwordConfirm: 'Secret123!', agb: 'on'
+    });
+    expect(res.headers.location).toBe('/auth/login');
+    const page = await agent.get('/auth/login');
+    expect(page.text).toContain('KeT will review your registration');
+    expect(page.text).not.toContain('Registration successful! Please log in.');
+  });
+});
+
+describe('login page has the access number field', () => {
+  test('field accessCode, numeric', async () => {
+    const res = await request(app).get('/auth/login');
+    expect(res.text).toMatch(/<input[^>]*name="accessCode"[^>]*inputmode="numeric"/);
   });
 });

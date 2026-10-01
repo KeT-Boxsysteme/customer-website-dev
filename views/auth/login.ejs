@@ -32,6 +32,12 @@
           </div>
         </div>
 
+        <div class="auth-field">
+          <label for="accessCode">Access Number</label>
+          <input type="text" id="accessCode" name="accessCode" inputmode="numeric" pattern="[0-9 ]{6,7}"
+                 maxlength="7" placeholder="6-digit number of your organization" autocomplete="off" required>
+        </div>
+
         <button type="submit" class="auth-btn-submit">
           Sign in
           <span class="auth-btn-submit__arrow">

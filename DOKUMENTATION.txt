@@ -35,6 +35,13 @@
   ├── services/
   │   ├── email.js            → Alle E-Mail-Funktionen (Nodemailer)
   │   ├── sessionStore.js     → Login-Sitzungen in der DB (Tabelle sessions), ueberleben Deploys/Neustarts
+  │   ├── access.js           → Freischaltung: Login-Entscheidung, Nutz-Nummer, Rollen (service), reine Regeln
+  │   ├── loginLimiter.js     → Sperre gegen Durchprobieren beim Login
+  │   (routes/internal.js     → Adressen fuer KeT Management: /internal/companies/:id/activated,
+  │                             /code-changed, /service-password; Header X-KeT-Secret = Env KET_API_SECRET.
+  │                             Beschreibung: KETAUFTRAG_Website-Freischaltung.txt Abschnitt 9)
+  │   (scripts/activate-existing.js → einmalig: Bestand aktiv + Nummer, Probelauf Standard, --apply schreibt)
+  │   (database/ket-management-user.sql → SQL-Benutzer fuer KET mit minimalen Rechten, fuehrt der Betreiber aus)
   │   └── alerts.js           → Ampelsystem: Wartungs-/ppm-Meldungen (pure Logik)
   ├── views/
   │   ├── auth/               → Login, Registrierung, Passwort-Views
@@ -282,8 +289,13 @@
   ┌────────────────────────────────┬──────────────────────────────────────────┐
   │ GET  /auth/login               │ Zeigt Login-Formular an                  │
   ├────────────────────────────────┼──────────────────────────────────────────┤
-  │ POST /auth/login               │ Verarbeitet Login: prüft E-Mail und       │
-  │                                │ Passwort, schreibt User in Session        │
+  │ POST /auth/login               │ Verarbeitet Login: prüft E-Mail,          │
+  │                                │ Passwort UND Nutz-Nummer der Einrichtung  │
+  │                                │ (services/access.js loginDecision); nur   │
+  │                                │ status 'active'. Sperre: 5 Fehlversuche   │
+  │                                │ je Konto / 30 je IP in 15 min             │
+  │                                │ (services/loginLimiter.js).               │
+  │                                │ Schreibt User in Session                  │
   │                                │ (inkl. department + phone), leitet zu     │
   │                                │ /dashboard weiter.                        │
   │                                │ Fehlermeldung unterscheidet zwischen:     │

@@ -13,7 +13,9 @@ const boxRoutes = require('./routes/boxes');
 const monitoringRoutes = require('./routes/monitoring');
 const diagramRoutes = require('./routes/diagrams');
 const dashboardRoutes = require('./routes/dashboard');
+const internalRoutes = require('./routes/internal');
 const { requireAuth } = require('./middleware/auth');
+const { allowed, ROLES } = require('./middleware/authorize');
 
 const app = express();
 
@@ -68,6 +70,10 @@ app.use(flash());
 
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
+  // Rechte fuer die Ansichten an EINER Stelle (service = Rechte wie admin, 7.10)
+  const role = req.session.user && req.session.user.role;
+  res.locals.isAdmin = !!role && allowed(role, [ROLES.ADMIN]);
+  res.locals.canManageBoxes = !!role && allowed(role, [ROLES.ADMIN, ROLES.CONTROLLER]);
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
   next();
@@ -90,6 +96,8 @@ app.use('/users', requireAuth, userRoutes);
 app.use('/boxes', requireAuth, boxRoutes);
 app.use('/monitoring', requireAuth, monitoringRoutes);
 app.use('/diagrams', requireAuth, diagramRoutes);
+// KeT Management (Freischaltung): ohne Login, Schutz per X-KeT-Secret (routes/internal.js)
+app.use('/internal', internalRoutes);
 
 app.use((req, res) => {
   res.status(404).render('errors/404');

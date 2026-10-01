@@ -16,12 +16,12 @@
     <li class="nav-item <%= currentPage === 'dashboard' ? 'active' : '' %>">
       <a href="/dashboard">Dashboard</a>
     </li>
-    <% if (u && u.role === 'admin') { %>
+    <% if (isAdmin) { %>
     <li class="nav-item <%= currentPage === 'users' ? 'active' : '' %>">
       <a href="/users">User Management</a>
     </li>
     <% } %>
-    <% if (u && (u.role === 'admin' || u.role === 'controller')) { %>
+    <% if (canManageBoxes) { %>
     <li class="nav-item <%= currentPage === 'boxes' ? 'active' : '' %>">
       <a href="/boxes">Box Management</a>
     </li>

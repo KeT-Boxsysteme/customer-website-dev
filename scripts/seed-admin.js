@@ -41,11 +41,13 @@ async function run() {
       .input('street',      sql.NVarChar(150), 'Musterstraße')
       .input('housenumber', sql.NVarChar(20),  '1')
       .input('zip',         sql.NVarChar(20),  '12345')
-      .query(`INSERT INTO companies (name, type, city, street, housenumber, zip)
-              OUTPUT INSERTED.id
-              VALUES (@name, @type, @city, @street, @housenumber, @zip)`);
+      .input('code',        sql.Char(6),       String(require('crypto').randomInt(100000, 1000000)))
+      // Test-Einrichtung gleich freigeschaltet, sonst kein Login (Freischaltung + Nutz-Nummer)
+      .query(`INSERT INTO companies (name, type, city, street, housenumber, zip, status, access_code, notified_code, approved_at, approved_by)
+              OUTPUT INSERTED.id, INSERTED.access_code
+              VALUES (@name, @type, @city, @street, @housenumber, @zip, 'active', @code, @code, SYSUTCDATETIME(), 'seed-admin')`);
     companyId = res.recordset[0].id;
-    console.log('Unternehmen erstellt (id=' + companyId + ')');
+    console.log('Unternehmen erstellt (id=' + companyId + '), Nutz-Nummer: ' + res.recordset[0].access_code);
   }
 
   // Admin-User anlegen oder überspringen

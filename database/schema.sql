@@ -157,3 +157,41 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sessions')
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sessions_expires' AND object_id = OBJECT_ID('dbo.sessions'))
   CREATE INDEX idx_sessions_expires ON sessions (expires);
+
+-- Freischaltung + Nutz-Nummer (KETAUFTRAG_Website-Freischaltung.txt, Abschnitt 4, abgestimmt mit KET 2026-10-01).
+-- Neue Einrichtungen warten auf Freischaltung (pending). KET schreibt status/access_code/approved_*/plan/ket_kunde_id.
+IF COL_LENGTH('dbo.companies', 'status') IS NULL
+  ALTER TABLE companies ADD status NVARCHAR(20) NOT NULL CONSTRAINT df_companies_status DEFAULT 'pending'
+    CONSTRAINT ck_companies_status CHECK (status IN ('pending','active','suspended','rejected'));
+
+IF COL_LENGTH('dbo.companies', 'access_code') IS NULL
+  ALTER TABLE companies ADD access_code CHAR(6) NULL
+    CONSTRAINT ck_companies_access_code CHECK (access_code LIKE '[1-9][0-9][0-9][0-9][0-9][0-9]');
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'ux_companies_access_code' AND object_id = OBJECT_ID('dbo.companies'))
+  CREATE UNIQUE INDEX ux_companies_access_code ON companies (access_code) WHERE access_code IS NOT NULL;
+
+IF COL_LENGTH('dbo.companies', 'approved_at') IS NULL
+  ALTER TABLE companies ADD approved_at DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.companies', 'approved_by') IS NULL
+  ALTER TABLE companies ADD approved_by NVARCHAR(100) NULL;
+
+IF COL_LENGTH('dbo.companies', 'plan') IS NULL
+  ALTER TABLE companies ADD [plan] NVARCHAR(20) NULL CONSTRAINT ck_companies_plan CHECK ([plan] IN ('free','premium'));
+
+IF COL_LENGTH('dbo.companies', 'ket_kunde_id') IS NULL
+  ALTER TABLE companies ADD ket_kunde_id INT NULL;
+
+-- Website-intern: fuer welche Nummer die Mail an die Einrichtung schon raus ist (Wiederholung ohne doppelte Mail)
+IF COL_LENGTH('dbo.companies', 'notified_code') IS NULL
+  ALTER TABLE companies ADD notified_code CHAR(6) NULL;
+
+-- Rolle service (7.10): internen KeT-Benutzer erlauben. Alte, unbenannte CHECK-Regel durch eine benannte ersetzen.
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'ck_users_role' AND parent_object_id = OBJECT_ID('dbo.users'))
+BEGIN
+  DECLARE @old SYSNAME = (SELECT TOP 1 name FROM sys.check_constraints
+                          WHERE parent_object_id = OBJECT_ID('dbo.users') AND definition LIKE '%box_user%')
+  IF @old IS NOT NULL EXEC('ALTER TABLE users DROP CONSTRAINT [' + @old + ']')
+  ALTER TABLE users ADD CONSTRAINT ck_users_role CHECK (role IN ('admin','controller','user','box_user','service'))
+END;
