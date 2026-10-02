@@ -7,12 +7,15 @@ const { storeWindowSeconds } = require('./sensor');
 
 const FRESH_SECONDS = 20;   // aelter = kein Live-Wert mehr (fehlend statt falsch)
 
-let values = new Map();      // boxId -> { serial, temp, at, hub }
-let lastStored = new Map();  // boxId -> Zeitpunkt des letzten Verlaufs-Versuchs
+let values = new Map();      // Schluessel (Box + Art) -> { serial, temp, at, hub }
+let lastStored = new Map();  // Schluessel (Box + Art) -> Zeitpunkt des letzten Verlaufs-Versuchs
+
+// Zwei Fuehler je Box (E-34): Kuehlschrank (Vorgabe) und Boxtemperatur ('box') ueberschreiben sich nicht
+const slot = (boxId, kind = 'fridge') => (kind === 'fridge' ? String(boxId) : boxId + ':' + kind);
 
 // hub = gepruefte Zaehler des sendenden Verbinders (services/sensor.sanitizeHubDiag) oder null
-function record(boxId, serial, temp, now = Date.now(), hub = null) {
-  values.set(boxId, { serial, temp, at: now, hub });
+function record(boxId, serial, temp, now = Date.now(), hub = null, kind = 'fridge') {
+  values.set(slot(boxId, kind), { serial, temp, at: now, hub });
 }
 
 // Zustandsmeldungen der Verbinder (je Firma + Benutzer die letzte), nur im Speicher, 2 Min. gueltig
@@ -37,22 +40,23 @@ function reportsFor(companyId, serial, now = Date.now()) {
   return out;
 }
 
-function hubDiag(boxId) {
-  const v = values.get(boxId);
+function hubDiag(boxId, kind = 'fridge') {
+  const v = values.get(slot(boxId, kind));
   return v ? v.hub : null;
 }
 
-function get(boxId, now = Date.now()) {
-  const v = values.get(boxId);
+function get(boxId, now = Date.now(), kind = 'fridge') {
+  const v = values.get(slot(boxId, kind));
   if (!v) return null;
   const ageSeconds = Math.max(0, Math.round((now - v.at) / 1000));
   return { serial: v.serial, temp: v.temp, ageSeconds, fresh: ageSeconds <= FRESH_SECONDS };
 }
 
-function dueForHistory(boxId, storeMinutes, now = Date.now()) {
-  const last = lastStored.get(boxId);
+function dueForHistory(boxId, storeMinutes, now = Date.now(), kind = 'fridge') {
+  const key = slot(boxId, kind);
+  const last = lastStored.get(key);
   if (last !== undefined && now - last < storeWindowSeconds(storeMinutes) * 1000) return false;
-  lastStored.set(boxId, now);
+  lastStored.set(key, now);
   return true;
 }
 

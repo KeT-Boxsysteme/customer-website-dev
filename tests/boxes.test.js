@@ -410,3 +410,36 @@ describe('box form says "assigned", not "connected" (Betreiber 01.10.: text look
     expect(res.text).toContain('data-sensor-live');
   });
 });
+
+describe('box temperature sensor on the box form (E-34: info only, own interval)', () => {
+  beforeEach(() => {
+    Box.create.mockResolvedValue(55);
+    Box.setSensor.mockResolvedValue({ movedFrom: [] });
+  });
+  test('box sensor saved with its own interval, also on a box WITHOUT fridge', async () => {
+    await agent.put('/boxes/11').type('form')
+      .send({ ...fullPayload, hasFridge: '', fridgeTemp: '', boxSensorSerial: 'a1b2c3', boxSensorStoreMinutes: '30' });
+    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, 'A1B2C3', 30, 'box');
+  });
+  test('box sensor field missing -> box sensor untouched', async () => {
+    await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: '740B3B' });
+    expect(Box.setSensor).not.toHaveBeenCalledWith(11, COMPANY_ID, expect.anything(), expect.anything(), 'box');
+  });
+  test('box sensor emptied -> removed', async () => {
+    await agent.put('/boxes/11').type('form').send({ ...fullPayload, boxSensorSerial: '' });
+    expect(Box.setSensor).toHaveBeenCalledWith(11, COMPANY_ID, null, null, 'box');
+  });
+  test('same sensor as fridge and box sensor -> 400, nothing saved', async () => {
+    const res = await agent.put('/boxes/11').type('form').send({ ...fullPayload, sensorSerial: '740B3B', boxSensorSerial: '740b3b' });
+    expect(res.status).toBe(400);
+    expect(Box.update).not.toHaveBeenCalled();
+    expect(Box.setSensor).not.toHaveBeenCalled();
+  });
+  test('form offers the box temperature sensor outside the fridge section', async () => {
+    const page = await agent.get('/boxes/create');
+    expect(page.text).toMatch(/name="boxSensorSerial"/);
+    expect(page.text).toMatch(/name="boxSensorStoreMinutes"/);
+    const fridgeSection = page.text.split('id="fridgeSection"')[1].split('form-group--choice')[0];
+    expect(fridgeSection).not.toContain('boxSensorSerial');
+  });
+});

@@ -99,6 +99,9 @@
         setLive(now, false);
         show(now, ...localHint(now.serial));
       }
+      // Boxtemperatur (E-34): reine Info, ohne frischen Wert "—" (fehlend statt falsch)
+      const boxTempEl = document.querySelector('[data-box-temp]');
+      if (boxTempEl) boxTempEl.textContent = v.boxTemp ? Number(v.boxTemp.temp).toFixed(1) + ' °C' : '— °C';
       checkState(now, v.stateKey);
     } catch (err) {
       const now = el();

@@ -28,6 +28,20 @@ function decideSensorUpdate({ hasFridge, raw, rawMinutes }) {
   return { action: 'set', serial, storeMinutes };
 }
 
+// Zweiter Fuehler je Box (E-34): Boxtemperatur, reine Info. Welche Rolle hat dieser Fuehler an dieser Box?
+// 'fridge' (nur mit Kuehlschrank), 'box' (immer erlaubt) oder null (gehoert nicht zu dieser Box).
+function sensorKindFor(box, serial) {
+  if (!serial) return null;
+  if (box.has_fridge && box.sensor_serial && serial === box.sensor_serial) return 'fridge';
+  if (box.box_sensor_serial && serial === box.box_sensor_serial) return 'box';
+  return null;
+}
+
+// Ein Fuehler kann nicht zugleich Kuehlschrank- und Box-Fuehler derselben Box sein (fridge/box = decideSensorUpdate)
+function sensorConflict(fridge, box) {
+  return fridge.action === 'set' && box.action === 'set' && fridge.serial === box.serial;
+}
+
 // Sperrfenster nach einem gespeicherten Wert: Takt minus 5 s Toleranz (Browser tickt alle 5 s).
 // Unbekannte Werte fallen auf den Vorgabetakt — nie auf ein groesseres Fenster.
 function storeWindowSeconds(minutes) {
@@ -84,5 +98,5 @@ function sanitizeHubReport(r) {
   };
 }
 
-module.exports = { STORE_MINUTES, decideSensorUpdate, storeWindowSeconds, validateReading, sanitizeHubDiag,
+module.exports = { STORE_MINUTES, decideSensorUpdate, sensorKindFor, sensorConflict, storeWindowSeconds, validateReading, sanitizeHubDiag,
                    sanitizeHubReport };

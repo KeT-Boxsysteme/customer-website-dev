@@ -13,6 +13,13 @@ function liveFridge(box) {
   return { temp: v.temp };
 }
 
+// Frischer Live-Wert des Box-Fuehlers (E-34, reine Info: keine Warnung), sonst null — fehlend statt falsch
+function liveBoxTemp(box) {
+  const v = liveReadings.get(box.id, Date.now(), 'box');
+  if (!v || !v.fresh || !box.box_sensor_serial || v.serial !== box.box_sensor_serial) return null;
+  return { temp: v.temp, ageSeconds: v.ageSeconds, fresh: true };
+}
+
 async function statusForBox(box) {
   const [latestMeasurement, acks] = await Promise.all([
     Measurement.findLatestByBox(box.id),
@@ -23,4 +30,4 @@ async function statusForBox(box) {
   return { latestMeasurement, acks, fridgeLive, alerts, statusColor: overallStatus(alerts) };
 }
 
-module.exports = { liveFridge, statusForBox };
+module.exports = { liveFridge, liveBoxTemp, statusForBox };

@@ -739,3 +739,63 @@ describe('message after "Send Message to KeT" survives the live polling (Betreib
     expect((await agent.get(`/monitoring/${BOX_ID}`)).text).not.toContain('Message cannot be empty.');
   });
 });
+
+describe('box temperature sensor in the monitoring (E-34: info, no alarm)', () => {
+  const live = require('../services/liveReadings');
+  const twoSensors = (o = {}) => makeBox({ has_fridge: 1, fridge_temp: -30, sensor_serial: '740B3B', sensor_store_minutes: 1,
+    box_sensor_serial: 'A1B2C3', box_sensor_store_minutes: 15, fridge_alarm_level: null, ...o });
+  beforeEach(() => { live.reset(); SensorReading.createIfDue.mockResolvedValue(true); Box.escalateFridgeAlarm.mockResolvedValue(true); });
+
+  test('box sensor value is accepted, stored as box history with its own interval, never raises an alarm', async () => {
+    Box.findById.mockResolvedValue(twoSensors());
+    const res = await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: 'a1b2c3', temp: 60 });
+    expect(res.status).toBe(200);
+    expect(SensorReading.createIfDue).toHaveBeenCalledWith(BOX_ID, 'A1B2C3', 60, 15 * 60 - 5, 'box');
+    expect(Box.escalateFridgeAlarm).not.toHaveBeenCalled();
+    expect(live.get(BOX_ID)).toBeNull();                      // Kuehlschrank-Wert unberuehrt
+    expect(live.get(BOX_ID, Date.now(), 'box').temp).toBe(60);
+  });
+
+  test('box sensor works on a box without fridge; an unknown sensor is still refused', async () => {
+    Box.findById.mockResolvedValue(twoSensors({ has_fridge: 0, sensor_serial: null }));
+    expect((await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: 'A1B2C3', temp: 22 })).status).toBe(200);
+    expect((await agent.post(`/monitoring/${BOX_ID}/readings`).send({ serial: 'FFFFFF', temp: 22 })).status).toBe(409);
+  });
+
+  test('live endpoint carries the box temperature separately', async () => {
+    Box.findById.mockResolvedValue(twoSensors());
+    live.record(BOX_ID, '740B3B', -30);
+    live.record(BOX_ID, 'A1B2C3', 23.4, Date.now(), null, 'box');
+    const res = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(res.body.temp).toBe(-30);
+    expect(res.body.boxTemp).toMatchObject({ temp: 23.4, fresh: true });
+  });
+
+  test('sensor list for the hub includes box sensors (also without fridge)', async () => {
+    Box.findAllByCompany.mockResolvedValue([twoSensors({ id: 5 }), makeBox({ id: 8, has_fridge: 0, sensor_serial: null, box_sensor_serial: 'B0B0B0', box_sensor_store_minutes: null })]);
+    const res = await agent.get('/monitoring/sensors');
+    expect(res.body).toEqual(expect.arrayContaining([
+      { boxId: 5, serial: '740B3B', storeMinutes: 1, url: '/monitoring/5/readings' },
+      { boxId: 5, serial: 'A1B2C3', storeMinutes: 15, url: '/monitoring/5/readings' },
+      { boxId: 8, serial: 'B0B0B0', storeMinutes: 1, url: '/monitoring/8/readings' }
+    ]));
+    expect(res.body).toHaveLength(3);
+  });
+
+  test('monitoring page shows the box temperature up in the box card, not among the value fields', async () => {
+    Box.findById.mockResolvedValue(twoSensors());
+    const page = await agent.get(`/monitoring/${BOX_ID}`);
+    const card = page.text.split('class="box-identity"')[1].split('box-status-container')[0];
+    expect(card).toMatch(/Box temp/);
+    expect(card).toMatch(/data-box-temp/);
+    Box.findById.mockResolvedValue(twoSensors({ box_sensor_serial: null }));
+    expect((await agent.get(`/monitoring/${BOX_ID}`)).text).not.toMatch(/data-box-temp/);
+  });
+
+  test('box temperature never creates an alert, even far off', async () => {
+    Box.findById.mockResolvedValue(twoSensors({ has_fridge: 0, sensor_serial: null }));
+    live.record(BOX_ID, 'A1B2C3', 120, Date.now(), null, 'box');
+    const res = await agent.get(`/monitoring/${BOX_ID}/live`);
+    expect(res.body.fridgeAlert).toBeNull();
+  });
+});

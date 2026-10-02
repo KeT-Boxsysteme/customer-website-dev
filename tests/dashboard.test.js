@@ -112,3 +112,16 @@ describe('dashboard tile text follows the held fridge alarm (Fund 01.10.)', () =
     expect(await keyAt(18.5)).toBe(await keyAt(18));
   });
 });
+
+describe('dashboard tile shows the box temperature (E-34)', () => {
+  const live = require('../services/liveReadings');
+  test('live endpoint and tile carry the box temperature', async () => {
+    live.reset();
+    Box.findAllByCompany.mockResolvedValue([{ id: 3, box_alias: 'Mia', has_fridge: 0, sensor_serial: null, box_sensor_serial: 'A1B2C3', created_at: '2026-01-01' }]);
+    live.record(3, 'A1B2C3', 23.4, Date.now(), null, 'box');
+    const res = await agent.get('/dashboard/live');
+    expect(res.body.boxes[0]).toMatchObject({ id: 3, boxTemp: 23.4 });
+    const page = await agent.get('/dashboard');
+    expect(page.text).toMatch(/data-live-box-temp[^>]*>\s*23\.4 °C/);
+  });
+});

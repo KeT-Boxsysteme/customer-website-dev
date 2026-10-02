@@ -6,8 +6,8 @@ const AlertAck = require('../models/alertAck');
 const SensorReading = require('../models/sensorReading');
 const liveReadings = require('../services/liveReadings');
 const boxState = require('../services/boxState');
-const { liveFridge, statusForBox } = require('../services/boxStatus');
-const { storeWindowSeconds, validateReading, sanitizeHubDiag, sanitizeHubReport } = require('../services/sensor');
+const { liveFridge, liveBoxTemp, statusForBox } = require('../services/boxStatus');
+const { storeWindowSeconds, validateReading, sanitizeHubDiag, sanitizeHubReport, sensorKindFor } = require('../services/sensor');
 const { normalizeSerial } = require('../public/js/bluedan');
 const User = require('../models/user');
 const emailService = require('../services/email');
@@ -45,10 +45,15 @@ router.get('/', async (req, res) => {
 router.get('/sensors', async (req, res) => {
   try {
     const boxes = await Box.findAllByCompany(req.session.user.companyId);
-    res.json(boxes
-      .filter(b => b.has_fridge && b.sensor_serial)
-      .map(b => ({ boxId: b.id, serial: b.sensor_serial, storeMinutes: b.sensor_store_minutes || 1,
-                   url: `/monitoring/${b.id}/readings` })));
+    // Kuehlschrank-Fuehler (nur mit Kuehlschrank) und Box-Fuehler (E-34, immer) — gleiche Adresse,
+    // der Server erkennt die Art an der Seriennummer (services/sensor.sensorKindFor)
+    const list = [];
+    for (const b of boxes) {
+      const url = `/monitoring/${b.id}/readings`;
+      if (b.has_fridge && b.sensor_serial) list.push({ boxId: b.id, serial: b.sensor_serial, storeMinutes: b.sensor_store_minutes || 1, url });
+      if (b.box_sensor_serial) list.push({ boxId: b.id, serial: b.box_sensor_serial, storeMinutes: b.box_sensor_store_minutes || 1, url });
+    }
+    res.json(list);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Could not load sensors.' });
@@ -87,6 +92,7 @@ router.get('/:id', async (req, res) => {
       alerts,
       statusColor,
       stateKey,
+      boxTemp: liveBoxTemp(box),   // Boxtemperatur (E-34), reine Info
       fieldLevel: fieldLevels(alerts),
       fieldTitle: fieldMessages(alerts)
     });
@@ -191,11 +197,20 @@ router.post('/:id/readings', async (req, res) => {
     if (!box) return res.status(404).json({ error: 'Box not found' });
 
     const serial = normalizeSerial(req.body.serial);
-    if (!box.sensor_serial || serial !== box.sensor_serial) {
-      return res.status(409).json({ error: 'This sensor is not assigned to the box.' });
-    }
+    const kind = sensorKindFor(box, serial);
+    if (!kind) return res.status(409).json({ error: 'This sensor is not assigned to the box.' });
     const temp = validateReading(req.body.temp);
     if (temp === null) return res.status(400).json({ error: 'Implausible temperature.' });
+
+    // Box-Fuehler (E-34): reine Info — live + Verlauf im eigenen Takt, NIE eine Warnung
+    if (kind === 'box') {
+      liveReadings.record(box.id, serial, temp, Date.now(), sanitizeHubDiag(req.body.diag), 'box');
+      const due = liveReadings.dueForHistory(box.id, box.box_sensor_store_minutes, Date.now(), 'box');
+      const storedBox = due
+        ? await SensorReading.createIfDue(box.id, serial, temp, storeWindowSeconds(box.box_sensor_store_minutes), 'box')
+        : false;
+      return res.json({ stored: storedBox });
+    }
 
     // Jeder Wert ist sofort live (Speicher); die DB wird nur im Takt der Box gefragt
     liveReadings.record(box.id, serial, temp, Date.now(), sanitizeHubDiag(req.body.diag));
@@ -221,6 +236,7 @@ router.get('/:id/live', async (req, res) => {
     const alerts = buildAlerts({ box, latestMeasurement: null, acks: [], fridgeLive: liveFridge(box) });
     const alert = alerts.find(a => a.key.startsWith('fridge')) || null;
     const state = { fridgeAlert: alert ? alert.severity : null, stateKey: boxState.stateKey(box.id, alerts),
+                    boxTemp: liveBoxTemp(box),   // Boxtemperatur (E-34), reine Info
                     hubs: box.sensor_serial ? liveReadings.reportsFor(req.session.user.companyId, box.sensor_serial) : [] };
     // Nur Werte des aktuell zugeordneten Fuehlers zaehlen
     if (!v || !box.sensor_serial || v.serial !== box.sensor_serial) {

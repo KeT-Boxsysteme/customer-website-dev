@@ -149,11 +149,20 @@ async function updateMaintenanceDate(id, field) {
     .query(`UPDATE boxes SET ${field} = GETDATE() WHERE id = @id`);
 }
 
-// Einziger Schreiber von boxes.sensor_serial. Ein Fuehler haengt je Firma an hoechstens einer Box
-// (E-17): haengt er schon an einer anderen Box, wird er dort in DERSELBEN Transaktion geloest.
-// serial = null entfernt den Fuehler. Fuehler und Speichertakt (E-19) werden immer ZUSAMMEN geschrieben.
+// Spalten je Fuehler-Art (E-34): fester Text aus dieser Liste, nie aus der Anfrage
+const SENSOR_COLUMNS = {
+  fridge: { serial: 'sensor_serial', minutes: 'sensor_store_minutes', other: { serial: 'box_sensor_serial', minutes: 'box_sensor_store_minutes' } },
+  box:    { serial: 'box_sensor_serial', minutes: 'box_sensor_store_minutes', other: { serial: 'sensor_serial', minutes: 'sensor_store_minutes' } }
+};
+
+// Einziger Schreiber von boxes.sensor_serial und boxes.box_sensor_serial. Ein Fuehler haengt je Firma an
+// hoechstens EINER Stelle (E-17, E-34: Kuehlschrank ODER Box, an einer Box): haengt er schon woanders — auch als
+// andere Art an derselben Box —, wird er dort in DERSELBEN Transaktion geloest. serial = null entfernt ihn.
+// Fuehler und Speichertakt (E-19) werden immer ZUSAMMEN geschrieben. kind: 'fridge' (Vorgabe) | 'box'.
 // Rueckgabe: Aliasse der aktiven Boxen, die ihn verloren haben.
-async function setSensor(id, companyId, serial, storeMinutes) {
+async function setSensor(id, companyId, serial, storeMinutes, kind = 'fridge') {
+  const c = SENSOR_COLUMNS[kind];
+  if (!c) throw new Error('Unknown sensor kind');
   const pool = await getPool();
   const result = await pool.request()
     .input('id',        sql.Int,        id)
@@ -164,10 +173,15 @@ async function setSensor(id, companyId, serial, storeMinutes) {
             BEGIN TRANSACTION;
             DECLARE @moved TABLE (box_alias NVARCHAR(100), is_active BIT);
             IF @serial IS NOT NULL
-              UPDATE boxes SET sensor_serial = NULL
+            BEGIN
+              UPDATE boxes SET ${c.serial} = NULL, ${c.minutes} = NULL
               OUTPUT deleted.box_alias, deleted.is_active INTO @moved
-              WHERE company_id = @companyId AND sensor_serial = @serial AND id <> @id;
-            UPDATE boxes SET sensor_serial = @serial, sensor_store_minutes = @storeMinutes
+              WHERE company_id = @companyId AND ${c.serial} = @serial AND id <> @id;
+              UPDATE boxes SET ${c.other.serial} = NULL, ${c.other.minutes} = NULL
+              OUTPUT deleted.box_alias, deleted.is_active INTO @moved
+              WHERE company_id = @companyId AND ${c.other.serial} = @serial;
+            END
+            UPDATE boxes SET ${c.serial} = @serial, ${c.minutes} = @storeMinutes
             WHERE id = @id AND company_id = @companyId;
             COMMIT TRANSACTION;
             SELECT box_alias FROM @moved WHERE is_active = 1;`);

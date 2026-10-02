@@ -23,6 +23,13 @@
         <span class="box-identity__label">Manufacturer</span>
         <span class="box-identity__value"><%= box.manufacturer %></span>
       </div>
+      <% if (box.box_sensor_serial) { %>
+      <!-- Boxtemperatur (E-34): reine Info vom Box-Fuehler, live per public/js/live-sensor.js -->
+      <div class="box-identity__item" title="Box temperature sensor <%= box.box_sensor_serial %> – information only">
+        <span class="box-identity__label">Box temp</span>
+        <span class="box-identity__value mono" data-box-temp><%= boxTemp ? Number(boxTemp.temp).toFixed(1) + ' °C' : '— °C' %></span>
+      </div>
+      <% } %>
     </div>
 
     <!-- Status indicator (glovebox photo, interior tinted per traffic-light status) -->

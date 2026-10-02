@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Box = require('../models/box');
-const { statusForBox, liveFridge } = require('../services/boxStatus');
+const { statusForBox, liveFridge, liveBoxTemp } = require('../services/boxStatus');
 const boxState = require('../services/boxState');
 const { buildAlerts } = require('../services/alerts');
 
@@ -28,6 +28,8 @@ router.get('/', async (req, res) => {
         hasSensor: !!(box.has_fridge && box.sensor_serial),
         liveTemp: s.fridgeLive ? s.fridgeLive.temp : null,
         stateKey: boxState.stateKey(box.id, s.alerts),
+        hasBoxSensor: !!box.box_sensor_serial,
+        boxTemp: (liveBoxTemp(box) || {}).temp ?? null,
         target: box.has_fridge ? box.fridge_temp : null
       };
     }));
@@ -48,7 +50,9 @@ router.get('/live', async (req, res) => {
     const boxes = list.map(box => {
       const fridgeLive = liveFridge(box);
       const alerts = buildAlerts({ box, latestMeasurement: null, acks: [], fridgeLive });
-      return { id: box.id, temp: fridgeLive ? fridgeLive.temp : null, stateKey: boxState.stateKey(box.id, alerts) };
+      const bt = liveBoxTemp(box);
+      return { id: box.id, temp: fridgeLive ? fridgeLive.temp : null, boxTemp: bt ? bt.temp : null,
+               stateKey: boxState.stateKey(box.id, alerts) };
     });
     res.json({ boxes });
   } catch (err) {

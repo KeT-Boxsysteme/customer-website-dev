@@ -48,3 +48,17 @@ describe('dueForHistory', () => {
   });
 });
 
+describe('two sensors on one box: fridge and box temperature live side by side (E-34)', () => {
+  test('a box value does not overwrite the fridge value and vice versa', () => {
+    live.record(5, '740B3B', -30, sec(0));
+    live.record(5, 'A1B2C3', 24.5, sec(1), null, 'box');
+    expect(live.get(5, sec(2)).temp).toBe(-30);
+    expect(live.get(5, sec(2), 'box')).toEqual({ serial: 'A1B2C3', temp: 24.5, ageSeconds: 1, fresh: true });
+  });
+  test('history interval runs separately per sensor', () => {
+    expect(live.dueForHistory(5, 1, sec(0))).toBe(true);
+    expect(live.dueForHistory(5, 1, sec(1), 'box')).toBe(true);
+    expect(live.dueForHistory(5, 1, sec(2))).toBe(false);
+    expect(live.dueForHistory(5, 1, sec(3), 'box')).toBe(false);
+  });
+});

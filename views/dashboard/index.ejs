@@ -57,6 +57,9 @@
           <% if (b.hasSensor) { %>
           <span class="box-tile__temp"><span data-live-temp><%= b.liveTemp !== null ? Number(b.liveTemp).toFixed(1) + ' °C' : '— °C' %></span><% if (b.target !== null) { %><span class="box-tile__target"> / target <%= b.target %> °C</span><% } %></span>
           <% } %>
+          <% if (b.hasBoxSensor) { %>
+          <span class="box-tile__boxtemp">Box <span data-live-box-temp><%= b.boxTemp !== null ? Number(b.boxTemp).toFixed(1) + ' °C' : '— °C' %></span></span>
+          <% } %>
           <% if (b.topAlert) { %><span class="box-tile__alert"><%= b.topAlert %></span><% } %>
         </a>
         <% }) %>

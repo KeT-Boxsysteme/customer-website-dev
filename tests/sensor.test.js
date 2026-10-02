@@ -123,3 +123,22 @@ describe('sanitizeHubReport – state report of the background hub, sent every 1
     expect(sanitizeHubReport({ x: '' })).toBeNull();   // Formular-Muell ohne Fuehlerliste
   });
 });
+
+describe('which sensor is this? fridge or box temperature (E-34)', () => {
+  const { sensorKindFor, sensorConflict } = require('../services/sensor');
+  const box = { has_fridge: 1, sensor_serial: '740B3B', box_sensor_serial: 'A1B2C3' };
+  test('fridge sensor -> fridge, box sensor -> box, anything else -> not this box', () => {
+    expect(sensorKindFor(box, '740B3B')).toBe('fridge');
+    expect(sensorKindFor(box, 'A1B2C3')).toBe('box');
+    expect(sensorKindFor(box, 'FFFFFF')).toBeNull();
+  });
+  test('fridge sensor on a box without fridge does not count; box sensor needs no fridge', () => {
+    expect(sensorKindFor({ ...box, has_fridge: 0 }, '740B3B')).toBeNull();
+    expect(sensorKindFor({ ...box, has_fridge: 0 }, 'A1B2C3')).toBe('box');
+  });
+  test('one sensor cannot be fridge AND box sensor of the same box', () => {
+    expect(sensorConflict({ action: 'set', serial: '740B3B' }, { action: 'set', serial: '740B3B' })).toBe(true);
+    expect(sensorConflict({ action: 'set', serial: '740B3B' }, { action: 'set', serial: 'A1B2C3' })).toBe(false);
+    expect(sensorConflict({ action: 'clear' }, { action: 'set', serial: '740B3B' })).toBe(false);
+  });
+});

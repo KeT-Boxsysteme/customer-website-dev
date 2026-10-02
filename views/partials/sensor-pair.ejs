@@ -1,0 +1,26 @@
+<%# Bluetooth-Fuehler koppeln (E-16/E-17/E-19) — ein Baustein fuer Kuehlschrank- und Box-Fuehler (E-34).
+    Parameter: label, inputName (verstecktes Feld), minutesName (Speichertakt), serial, minutes, note (optional).
+    public/js/sensor-pair.js arbeitet je [data-sensor-pair] mit [data-sensor-input]. %>
+<div class="form-group sensor-pair" data-sensor-pair>
+  <label><%= label %> <span class="hint">(Bluetooth)</span></label>
+  <% if (locals.note) { %><p class="hint sensor-pair__note"><%= note %></p><% } %>
+  <input type="hidden" name="<%= inputName %>" value="<%= serial %>" data-sensor-input>
+  <p class="sensor-pair__status" data-sensor-status aria-live="polite">
+    <%= serial ? 'Sensor ' + serial + ' assigned to this box.' : 'No sensor assigned.' %>
+  </p>
+  <!-- Echte Bluetooth-Verbindung IN DIESEM BROWSER (sensor-pair.js aus SensorHub) — "assigned" ist nur die Zuordnung -->
+  <p class="sensor-pair__live hint" data-sensor-live aria-live="polite"></p>
+  <div class="sensor-pair__interval">
+    <label for="<%= minutesName %>">Save a reading to the history every</label>
+    <select id="<%= minutesName %>" name="<%= minutesName %>">
+      <% storeMinutesOptions.forEach(m => { %>
+      <option value="<%= m %>" <%= String(m) === String(minutes) ? 'selected' : '' %>><%= m %> min</option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="sensor-pair__actions">
+    <button type="button" class="btn btn-secondary" data-sensor-connect
+            data-label-empty="Connect temperature sensor" data-label-set="Change sensor"><%= serial ? 'Change sensor' : 'Connect temperature sensor' %></button>
+    <button type="button" class="btn btn-sm" data-sensor-remove <%= serial ? '' : 'hidden' %>>Remove</button>
+  </div>
+</div>

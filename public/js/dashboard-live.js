@@ -28,6 +28,8 @@
       if (!tile) { changed = true; continue; }
       const t = tile.querySelector('[data-live-temp]');
       if (t) t.textContent = b.temp !== null ? Number(b.temp).toFixed(1) + ' °C' : '— °C';
+      const bt = tile.querySelector('[data-live-box-temp]');   // Boxtemperatur (E-34)
+      if (bt) bt.textContent = b.boxTemp !== null && b.boxTemp !== undefined ? Number(b.boxTemp).toFixed(1) + ' °C' : '— °C';
       if (b.stateKey !== tile.dataset.stateKey) changed = true;
     }
     if (!changed || state.refreshing) return;

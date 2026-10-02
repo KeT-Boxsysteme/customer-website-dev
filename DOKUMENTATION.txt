@@ -879,6 +879,12 @@
   - POST /monitoring/:id/ack/:key (Whitelist o2_high/o2_elevated/h2o_high/
     h2o_elevated; fridge_temp = Kühlschrank-Alarm an der Box löschen,
     Box.clearFridgeAlarm, kein alert_acks-Eintrag).
+  - Boxtemperatur, zweiter Fühler je Box (E-34, 2026-10-02): boxes.box_sensor_serial/_store_minutes,
+    sensor_readings.kind (fridge|box). Reine Info: keine Warnung. services/sensor.js sensorKindFor
+    (Art an der Seriennummer), Box.setSensor(…, kind) hängt einen Fühler auch zwischen den Arten um
+    (ein Fühler je Firma an EINER Stelle). /monitoring/:id/readings speichert Box-Werte im eigenen Takt,
+    /live liefert boxTemp, /monitoring/sensors listet beide. Anzeige: Box-Karte oben im Monitoring
+    (data-box-temp), Dashboard-Kachel (data-live-box-temp). Formular-Baustein views/partials/sensor-pair.ejs.
   - Kühlschrank-Alarm bis quittiert (2026-10-01): boxes.fridge_alarm_level/
     _since/_temp/_source. services/alerts.js fridgeLatchUpdate entscheidet
     (nur neuer Alarm oder Eskalation gelb -> rot), models/box.js

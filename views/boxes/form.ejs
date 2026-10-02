@@ -249,6 +249,12 @@
                 <span class="choice-card__text">Pressure <span class="hint">(bar)</span></span>
               </label>
             </div>
+
+            <!-- Boxtemperatur (E-34): zweiter Fuehler, reine Info (keine Warnung), eigener Speichertakt, ohne Kuehlschrank moeglich -->
+            <%- include('../partials/sensor-pair', { label: 'Box temperature sensor', inputName: 'boxSensorSerial', minutesName: 'boxSensorStoreMinutes',
+                  note: 'Shows the temperature inside the box live in the monitoring and in the diagrams. Information only — no alerts.',
+                  serial: editBox && editBox.box_sensor_serial ? editBox.box_sensor_serial : '',
+                  minutes: editBox && editBox.box_sensor_store_minutes ? editBox.box_sensor_store_minutes : 1 }) %>
           </div>
         </section>
 
@@ -273,30 +279,9 @@
                 <input type="number" id="fridgeTemp" name="fridgeTemp"
                        value="<%= editBox ? editBox.fridge_temp : '' %>">
               </div>
-              <% const sensorSerial = editBox && editBox.sensor_serial ? editBox.sensor_serial : ''; %>
-              <div class="form-group sensor-pair" data-sensor-pair>
-                <label>Temperature sensor <span class="hint">(Bluetooth)</span></label>
-                <input type="hidden" name="sensorSerial" value="<%= sensorSerial %>">
-                <p class="sensor-pair__status" data-sensor-status aria-live="polite">
-                  <%= sensorSerial ? 'Sensor ' + sensorSerial + ' assigned to this box.' : 'No sensor assigned.' %>
-                </p>
-                <!-- Echte Bluetooth-Verbindung IN DIESEM BROWSER (sensor-pair.js aus SensorHub) — "assigned" ist nur die Zuordnung -->
-                <p class="sensor-pair__live hint" data-sensor-live aria-live="polite"></p>
-                <% const storeMinutes = String(editBox && editBox.sensor_store_minutes ? editBox.sensor_store_minutes : 1); %>
-                <div class="sensor-pair__interval">
-                  <label for="sensorStoreMinutes">Save a reading to the history every</label>
-                  <select id="sensorStoreMinutes" name="sensorStoreMinutes">
-                    <% storeMinutesOptions.forEach(m => { %>
-                    <option value="<%= m %>" <%= String(m) === storeMinutes ? 'selected' : '' %>><%= m %> min</option>
-                    <% }) %>
-                  </select>
-                </div>
-                <div class="sensor-pair__actions">
-                  <button type="button" class="btn btn-secondary" data-sensor-connect
-                          data-label-empty="Connect temperature sensor" data-label-set="Change sensor"><%= sensorSerial ? 'Change sensor' : 'Connect temperature sensor' %></button>
-                  <button type="button" class="btn btn-sm" data-sensor-remove <%= sensorSerial ? '' : 'hidden' %>>Remove</button>
-                </div>
-              </div>
+              <%- include('../partials/sensor-pair', { label: 'Temperature sensor', inputName: 'sensorSerial', minutesName: 'sensorStoreMinutes',
+                    serial: editBox && editBox.sensor_serial ? editBox.sensor_serial : '',
+                    minutes: editBox && editBox.sensor_store_minutes ? editBox.sensor_store_minutes : 1 }) %>
             </div>
 
             <div class="form-group form-group--choice">

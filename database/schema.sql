@@ -149,6 +149,16 @@ IF COL_LENGTH('dbo.boxes', 'fridge_alarm_source') IS NULL
   ALTER TABLE boxes ADD fridge_alarm_source NVARCHAR(10) NULL
     CONSTRAINT ck_boxes_fridge_alarm_source CHECK (fridge_alarm_source IN ('sensor','manual'));
 
+-- Nachtraegliche Spalten: zweiter Fuehler je Box fuer die Boxtemperatur, reine Info (E-34, Betreiber 02.10.2026)
+IF COL_LENGTH('dbo.boxes', 'box_sensor_serial') IS NULL
+  ALTER TABLE boxes ADD box_sensor_serial NVARCHAR(6) NULL;
+
+IF COL_LENGTH('dbo.boxes', 'box_sensor_store_minutes') IS NULL
+  ALTER TABLE boxes ADD box_sensor_store_minutes INT NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'ux_boxes_company_box_sensor' AND object_id = OBJECT_ID('dbo.boxes'))
+  CREATE UNIQUE INDEX ux_boxes_company_box_sensor ON boxes (company_id, box_sensor_serial) WHERE box_sensor_serial IS NOT NULL;
+
 -- Verlauf der Live-Werte vom Bluetooth-Fuehler (Paket 2). Getrennt von measurements, weil dort
 -- Eingaben von Personen (Kuerzel) stehen und die Ampel daran haengt.
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sensor_readings')
@@ -162,6 +172,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sensor_readings')
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sensor_readings_box_time' AND object_id = OBJECT_ID('dbo.sensor_readings'))
   CREATE INDEX idx_sensor_readings_box_time ON sensor_readings (box_id, measured_at);
+
+-- Art des Fuehlers je Wert (E-34): 'fridge' (alle bisherigen Werte) oder 'box' (Boxtemperatur, reine Info)
+IF COL_LENGTH('dbo.sensor_readings', 'kind') IS NULL
+  ALTER TABLE sensor_readings ADD kind NVARCHAR(10) NOT NULL CONSTRAINT df_sensor_readings_kind DEFAULT 'fridge'
+    CONSTRAINT ck_sensor_readings_kind CHECK (kind IN ('fridge','box'));
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sensor_readings_box_kind_time' AND object_id = OBJECT_ID('dbo.sensor_readings'))
+  CREATE INDEX idx_sensor_readings_box_kind_time ON sensor_readings (box_id, kind, measured_at);
 
 -- Login-Sitzungen (Betreiber 01.10.): ueberleben Deploys/Neustarts. Nur services/sessionStore.js liest/schreibt.
 IF NOT EXISTS (SELECT 1 FROM sys.tables WHERE name = 'sessions')

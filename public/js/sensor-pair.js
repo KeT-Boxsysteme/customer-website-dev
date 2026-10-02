@@ -1,6 +1,7 @@
 // Knopf "Connect temperature sensor": sucht einen blueDAN-Fuehler per Web Bluetooth, fragt zur
 // Bestaetigung einmal die Temperatur ab (Befehl B7) und haengt ihn an die Box.
-// Container: [data-sensor-pair] im Box-Formular; schreibt ins versteckte Feld sensorSerial.
+// Container: [data-sensor-pair] im Box-Formular (Kuehlschrank- und Box-Fuehler, E-34); schreibt ins versteckte
+// Feld [data-sensor-input] des jeweiligen Containers.
 (function () {
   const B = window.BlueDAN;
 
@@ -82,7 +83,7 @@
     const liveEl = box.querySelector('[data-sensor-live]');
     const liveTimer = liveEl && setInterval(() => {
       if (!document.body.contains(liveEl)) { clearInterval(liveTimer); return; }
-      const serial = box.querySelector('input[name="sensorSerial"]').value;
+      const serial = box.querySelector('input[data-sensor-input]').value;
       const hub = window.SensorHub;
       if (!serial || !hub) { liveEl.textContent = ''; return; }
       // Ohne getDevices findet der Browser den Fuehler nach dem Neuladen nicht wieder (E-26: KeT richtet
@@ -103,7 +104,7 @@
     }, 2000);
     const connectBtn = box.querySelector('[data-sensor-connect]');
     const removeBtn = box.querySelector('[data-sensor-remove]');
-    const input = box.querySelector('input[name="sensorSerial"]');
+    const input = box.querySelector('input[data-sensor-input]');
     const status = text => { statusEl.textContent = text; };
 
     connectBtn.addEventListener('click', async () => {
