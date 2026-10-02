@@ -25,7 +25,7 @@ function version(boxId) {
 function stateKey(boxId, alerts) {
   const parts = (alerts || [])
     .filter(a => !PPM_ALERT_KEYS.includes(a.key))
-    .map(a => a.key + '-' + a.severity)
+    .map(a => a.key + '-' + a.severity + (a.phase ? '-' + a.phase : ''))   // phase: Kuehlschrank live/festgehalten
     .sort();
   return [BOOT, version(boxId), parts.join('+') || 'ok'].join('.');
 }

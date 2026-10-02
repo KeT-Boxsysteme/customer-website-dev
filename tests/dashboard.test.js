@@ -93,3 +93,22 @@ describe('GET /dashboard/live — tiles stay live (Betreiber 01.10.)', () => {
     expect(Box.findAllByCompany).toHaveBeenCalledWith(COMPANY_ID);
   });
 });
+
+describe('dashboard tile text follows the held fridge alarm (Fund 01.10.)', () => {
+  const live = require('../services/liveReadings');
+  const heldBox = { id: 3, has_fridge: 1, fridge_temp: 18, sensor_serial: '740B3B', created_at: '2026-01-01',
+    fridge_alarm_level: 'red', fridge_alarm_since: '2026-10-01T20:00:00Z', fridge_alarm_temp: 43, fridge_alarm_source: 'sensor' };
+  const keyAt = async temp => {
+    live.reset();
+    Box.findAllByCompany.mockResolvedValue([heldBox]);
+    live.record(3, '740B3B', temp);
+    return (await agent.get('/dashboard/live')).body.boxes[0].stateKey;
+  };
+  test('temperature back on target while the alarm is held -> state changes once (tile rebuilds, says "deviated")', async () => {
+    expect(await keyAt(18)).not.toBe(await keyAt(43));
+  });
+  test('temperature moves but stays off target -> state stays (no reload every 5 s)', async () => {
+    expect(await keyAt(44)).toBe(await keyAt(43));
+    expect(await keyAt(18.5)).toBe(await keyAt(18));
+  });
+});

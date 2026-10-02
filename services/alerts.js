@@ -102,7 +102,9 @@ function fridgeAlerts(box, fridgeLive) {
         ? `Fridge temperature${shown} deviates from the target of ${box.fridge_temp} °C`
         : `Fridge temperature${shown}${manual ? ' (entered manually)' : ''} deviated from the target of ${box.fridge_temp} °C`) +
         (severity === 'red' ? ' — check the fridge' : ''),
-      action: 'ack'
+      action: 'ack',
+      // live = Abweichung jetzt, held = nur noch festgehalten (Text "deviated"); zaehlt im Zustands-Schluessel
+      phase: fromLive ? 'live' : 'held'
     });
   }
   if (!fridgeLive && box.sensor_serial) {
