@@ -125,3 +125,12 @@ describe('dashboard tile shows the box temperature (E-34)', () => {
     expect(page.text).toMatch(/data-live-box-temp[^>]*>\s*23\.4 °C/);
   });
 });
+
+describe('logged-in pages: sidebar shows the full logo on a white plate, headings the small logo (Betreiber 03.10.)', () => {
+  test('dashboard: sidebar logo + "by" logo in the welcome line', async () => {
+    Box.findAllByCompany.mockResolvedValue([]);
+    const html = (await agent.get('/dashboard')).text;
+    expect(html).toMatch(/class="sidebar-logo__plate"[\s\S]*?<img[^>]*src="\/img\/ket-logo-full\.webp[^"]*"[^>]*alt="Glovebox-Monitoring by KeT"/);
+    expect(html).toMatch(/Welcome to <span class="dash-hero__brand">Glovebox-Monitoring by <img[^>]*class="brand-logo"/);
+  });
+});

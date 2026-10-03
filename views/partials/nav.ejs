@@ -1,10 +1,10 @@
 <% const u = locals.user; %>
 <nav class="sidebar">
   <div class="sidebar-logo">
-    <span class="sidebar-logo__text">
-      <span class="logo-text">Glovebox-Monitoring</span>
-      <span class="logo-sub">by KeT</span>
-    </span>
+    <%# Betreiber 03.10.: Logo statt Text, Variante B = Original auf weisser Platte %>
+    <a href="/dashboard" class="sidebar-logo__plate">
+      <img class="sidebar-logo__img" src="<%= asset('/img/ket-logo-full.webp') %>" alt="Glovebox-Monitoring by KeT" width="640" height="99">
+    </a>
     <!-- nur bei schmalen Bildschirmen sichtbar (Handy/Tablet): klappt das Menue auf -->
     <button type="button" class="nav-toggle" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Menu">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>

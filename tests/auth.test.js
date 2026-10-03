@@ -41,7 +41,7 @@ describe('Login', () => {
     const agent = await loginAgent(app, User, 'admin'); // asserts the 302 -> /dashboard itself
     const res = await agent.get('/dashboard');
     expect(res.status).toBe(200);
-    expect(res.text).toContain('Glovebox-Monitoring by KeT');
+    expect(res.text).toMatch(/Glovebox-Monitoring by <img[^>]*class="brand-logo"[^>]*alt="KeT"/);
     expect(res.text).toContain('Testa'); // session user rendered on the landing page
   });
 
@@ -209,7 +209,7 @@ describe('Terms page', () => {
   test('GET /terms is public and shows the brand name', async () => {
     const res = await request(app).get('/terms');
     expect(res.status).toBe(200);
-    expect(res.text).toContain('Glovebox-Monitoring by KeT');
+    expect(res.text).toMatch(/Glovebox-Monitoring by <img[^>]*class="brand-logo"[^>]*alt="KeT"/);
     expect(res.text).toContain('Terms');
   });
 });

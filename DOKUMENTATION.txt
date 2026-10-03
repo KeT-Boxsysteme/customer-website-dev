@@ -879,6 +879,9 @@
   - POST /monitoring/:id/ack/:key (Whitelist o2_high/o2_elevated/h2o_high/
     h2o_elevated; fridge_temp = Kühlschrank-Alarm an der Box löschen,
     Box.clearFridgeAlarm, kein alert_acks-Eintrag).
+  - KeT-Logo (2026-10-03): views/partials/brand.ejs = Wortmarke "Glovebox-Monitoring by [Logo]" (alt=KeT) für alle
+    Seitenköpfe, Dashboard-Gruß, Login/AGB/Fehlerseiten; dort ersetzt das Logo auch die frühere KeT-Kachel.
+    Seitenleiste: public/img/ket-logo-full.webp auf weißer Platte (Variante B). Bilder selbst gehostet (public/img).
   - Boxtemperatur, zweiter Fühler je Box (E-34, 2026-10-02): boxes.box_sensor_serial/_store_minutes,
     sensor_readings.kind (fridge|box). Reine Info: keine Warnung. services/sensor.js sensorKindFor
     (Art an der Seriennummer), Box.setSensor(…, kind) hängt einen Fühler auch zwischen den Arten um

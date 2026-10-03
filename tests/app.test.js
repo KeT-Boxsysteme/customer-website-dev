@@ -94,3 +94,41 @@ describe('login/register pages stay scrollable on low screens (Fund 01.10.: form
     expect(rule[1]).not.toMatch(/overflow(-[xy])?\s*:\s*(hidden|clip)/);
   });
 });
+
+describe('KeT brand shown as the logo everywhere (Betreiber 02./03.10.: sidebar variant B, small logo instead of "KeT")', () => {
+  const request = require('supertest');
+  const fsx = require('fs');
+  const pathx = require('path');
+
+  test('public pages: logo instead of the "KeT" tile and instead of "by KeT", screen readers still read "KeT"', async () => {
+    for (const url of ['/auth/login', '/auth/register', '/auth/forgot-password', '/terms']) {
+      const html = (await request(app).get(url)).text;
+      expect(html).toMatch(/<img[^>]*class="auth-brand__logo"[^>]*alt=""/);              // grosses Zeichen, schmueckend
+      expect(html).toMatch(/Glovebox-Monitoring by <img[^>]*class="brand-logo"[^>]*alt="KeT"/);
+      expect(html).not.toMatch(/auth-brand__mark/);
+      expect(html.replace(/<title>[\s\S]*?<\/title>/g, '')).not.toMatch(/Glovebox-Monitoring by KeT/);   // Tab-Titel bleibt Text
+    }
+  });
+
+  test('both logo files are served as images', async () => {
+    for (const f of ['/img/ket-logo.webp', '/img/ket-logo-full.webp']) {
+      const res = await request(app).get(f);
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toBe('image/webp');
+    }
+  });
+
+  test('no view writes "by KeT" as text any more (one partial renders the brand)', () => {
+    const dir = pathx.join(__dirname, '../views');
+    const offenders = [];
+    const walk = d => fsx.readdirSync(d, { withFileTypes: true }).forEach(e => {
+      const p = pathx.join(d, e.name);
+      if (e.isDirectory()) return walk(p);
+      // sichtbare Wortmarke als Text — nicht Tab-Titel, Alt-Texte, Kommentare oder der Firmenname im Satz (AGB)
+      const src = fsx.readFileSync(p, 'utf8').replace(/<title>[\s\S]*?<\/title>/g, '').replace(/<%#[\s\S]*?%>/g, '').replace(/alt="[^"]*"/g, '');
+      if (/Glovebox-Monitoring by KeT|auth-brand__mark|logo-sub/.test(src)) offenders.push(pathx.relative(dir, p));
+    });
+    walk(dir);
+    expect(offenders).toEqual([]);
+  });
+});
