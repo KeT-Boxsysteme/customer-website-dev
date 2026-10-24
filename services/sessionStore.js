@@ -9,6 +9,7 @@ const session = require('express-session');
 const { getPool, sql } = require('../config/database');
 
 const CLEANUP_EVERY_MS = 60 * 60 * 1000;
+const TOUCH_MIN_STEP_MS = 60 * 60 * 1000;   // Verlaengerung erst ab 1 h Unterschied in die DB schreiben
 const FALLBACK_TTL_MS = 24 * 60 * 60 * 1000;
 
 class DbSessionStore extends session.Store {
@@ -57,8 +58,11 @@ class DbSessionStore extends session.Store {
   touch(sid, sess, cb) {
     (async () => {
       const expires = this.expiresOf(sess);
-      // ohne spaeteres Ablaufdatum nichts schreiben (Tablet fragt alle 5 s; ohne rolling bleibt es gleich)
-      if (this.knownExpiry.get(sid) >= expires.getTime()) return;
+      // Jede Anfrage verlaengert die Anmeldung um 24 h (rolling, Betreiber 24.10.) — Geraete fragen alle 5 s.
+      // In die DB nur, wenn sich das Ablaufdatum um mindestens 1 h verschiebt (Fund 24.10.: vorher schrieb JEDE
+      // Anfrage). Folge: das DB-Ablaufdatum hinkt hoechstens 1 h hinterher -> ohne Nutzung abgemeldet nach 23–24 h.
+      const known = this.knownExpiry.get(sid);
+      if (known !== undefined && expires.getTime() - known < TOUCH_MIN_STEP_MS) return;
       const pool = await getPool();
       await pool.request()
         .input('sid', sql.NVarChar(255), sid)

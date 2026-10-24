@@ -112,3 +112,23 @@ describe('sessionStoreFor', () => {
     expect(sessionStoreFor('test')).toBeUndefined();
   });
 });
+
+describe('rolling login (Betreiber 24.10.): devices renew every 5 s, the DB is written at most hourly', () => {
+  const T = new Date('2026-10-24T12:00:00Z').getTime();
+  test('renewal by only seconds/minutes writes nothing (DB may rest)', async () => {
+    const store = new DbSessionStore();
+    await call(store, 'touch', 'abc', { cookie: { expires: new Date(T) } });          // erster Stand
+    mockCalls = [];
+    await call(store, 'touch', 'abc', { cookie: { expires: new Date(T + 5 * 1000) } });
+    await call(store, 'touch', 'abc', { cookie: { expires: new Date(T + 50 * 60 * 1000) } });
+    expect(mockCalls).toHaveLength(0);
+  });
+  test('renewal by an hour or more is written (DB expiry lags at most 1 h)', async () => {
+    const store = new DbSessionStore();
+    await call(store, 'touch', 'abc', { cookie: { expires: new Date(T) } });
+    mockCalls = [];
+    await call(store, 'touch', 'abc', { cookie: { expires: new Date(T + 61 * 60 * 1000) } });
+    expect(mockCalls).toHaveLength(1);
+    expect(mockCalls[0].text).toMatch(/UPDATE/i);
+  });
+});

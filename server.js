@@ -62,6 +62,9 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
+  // Betreiber 24.10.: angemeldet bleiben, solange genutzt wird (Fuehler-Geraete senden alle 5 s); abgemeldet erst
+  // nach 24 h OHNE Nutzung. Vorher lief das Cookie fest 24 h nach dem Login ab.
+  rolling: true,
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     maxAge: 1000 * 60 * 60 * 24
