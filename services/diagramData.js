@@ -7,6 +7,7 @@ const { FRIDGE_YELLOW_DELTA, FRIDGE_RED_DELTA } = require('./alerts');
 // Zeitraeume (Betreiber 01.10.): kurz fuer den Fuehler, lang wie im Lastenheft (6/9/12 Monate).
 // step = Schrittweite des Fuehler-Verlaufs in Minuten (ca. 300-1500 Punkte je Diagramm).
 const RANGES = [
+  { key: '1h',  label: '1 h',      hours: 1,    step: 1 },    // live mitschauen (Betreiber 28.10.), Fuehler speichert minuetlich
   { key: '24h', label: '24 h',     hours: 24,   step: 5 },
   { key: '7d',  label: '7 days',   hours: 168,  step: 30 },
   { key: '30d', label: '30 days',  hours: 720,  step: 120 },
@@ -65,7 +66,9 @@ function stats(avg, min, max, target) {
   };
 }
 
-function buildCharts({ box, measurements = [], sensorHours = [], bucketMinutes = null }) {
+// boxHours = Verlauf des Box-Fuehlers (E-34, reine Info); live = { fridge: {temp}|null, box: {temp}|null } aus dem
+// Speicher (frische Werte) -> neuester Punkt im Diagramm, damit es live ist (Betreiber 28.10.); now = Zeitpunkt dafuer.
+function buildCharts({ box, measurements = [], sensorHours = [], boxHours = [], bucketMinutes = null, live = {}, now = Date.now() }) {
   let temp = null;
   if (box.has_fridge) {
     const avg = series(sensorHours, 'bucket', 'avg_temp');
@@ -92,7 +95,18 @@ function buildCharts({ box, measurements = [], sensorHours = [], bucketMinutes =
     ppm = { o2, h2o, hasData: (o2 || []).length > 0 || (h2o || []).length > 0 };
   }
 
-  return { temp, ppm };
+  let boxTemp = null;
+  if (box.box_sensor_serial) {
+    const avg = series(boxHours, 'bucket', 'avg_temp');
+    boxTemp = { avg: breakGaps(avg, bucketMinutes), hasData: avg.length > 0 };
+  }
+
+  const point = v => (v && v.temp !== null && v.temp !== undefined ? { x: now, y: Number(v.temp) } : null);
+  const livePoints = { fridge: temp ? point(live.fridge) : null, box: boxTemp ? point(live.box) : null };
+  const hasAny = !!((temp && (temp.hasData || livePoints.fridge)) || (boxTemp && (boxTemp.hasData || livePoints.box)) ||
+                    (ppm && ppm.hasData));
+
+  return { temp, boxTemp, ppm, live: livePoints, hasAny };
 }
 
 module.exports = { buildCharts, resolveRange, RANGES };

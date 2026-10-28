@@ -994,6 +994,8 @@ td.actions > * + * { margin-left: 8px; }
 .chart-card__meta, .chart-card__note { margin: 0; font-size: 12px; color: var(--color-text-muted); }
 .chart-card__note { margin-top: 8px; }
 .chart-card__canvas { position: relative; height: 320px; }
+.chart-card__canvas--tall { height: 380px; }   /* ein Diagramm fuer alles (E-34 Paket 2) */
+@media (max-width: 600px) { .chart-card__canvas--tall { height: 300px; } }
 h3.chart-card__title + .table-scroll { margin-top: 10px; }
 
 /* === ROLE BADGES === */

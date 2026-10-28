@@ -122,7 +122,7 @@ describe('GET /diagrams/:id – time ranges (24 h · 7 days · 30 days · 6/9/12
     Box.findById.mockResolvedValue(makeBox({ has_fridge: 0 }));
     res = await agent.get(`/diagrams/${BOX_ID}?range=6m`);
     expect(res.text).not.toContain('Fridge (°C)');
-    expect(res.text).toContain('id="ppmChart"');
+    expect(res.text).toContain('id="mainChart"');
   });
 
   test('unknown box -> 404', async () => {
@@ -136,7 +136,7 @@ describe('GET /diagrams/:id – time ranges (24 h · 7 days · 30 days · 6/9/12
     const res = await agent.get(`/diagrams/${BOX_ID}?range=12m`);
     expect(res.status).toBe(200);
     expect(res.text).toContain('No data available for this period.');
-    expect(res.text).toContain('No temperature values in this period.');
+    expect(res.text).toContain('No values in this period.');   // ein Diagramm, ein Leerzustand (E-34 Paket 2)
   });
 });
 
@@ -148,7 +148,7 @@ describe('GET /diagrams/:id – sensor history (Fund 01.10.: sensor box showed n
     const res = await agent.get(`/diagrams/${BOX_ID}?range=30d`);
     expect(res.status).toBe(200);
     expect(SensorReading.historyByBox.mock.calls[0][2]).toBe(120);
-    expect(res.text).toContain('id="tempChart"');
+    expect(res.text).toContain('id="mainChart"');
     expect(res.text).toContain('24.9');
   });
 
@@ -156,6 +156,47 @@ describe('GET /diagrams/:id – sensor history (Fund 01.10.: sensor box showed n
     Box.findById.mockResolvedValue(makeBox({ has_fridge: 0 }));
     const res = await agent.get(`/diagrams/${BOX_ID}`);
     expect(SensorReading.historyByBox).not.toHaveBeenCalled();
+    expect(res.text).toMatch(/"temp":null/);
+  });
+});
+
+describe('ONE live diagram with all values (Betreiber 02.10. + 28.10.: "Die Diagramme sollen live sein")', () => {
+  const live = require('../services/liveReadings');
+  beforeEach(() => live.reset());
+
+  test('page shows exactly one chart (no separate temperature / ppm charts)', async () => {
+    const res = await agent.get(`/diagrams/${BOX_ID}?range=24h`);
+    expect(res.text).toContain('id="mainChart"');
     expect(res.text).not.toContain('id="tempChart"');
+    expect(res.text).not.toContain('id="ppmChart"');
+    expect(res.text).toContain(`data-live-url="/diagrams/${BOX_ID}/data?range=24h"`);
+  });
+
+  test('box temperature history is loaded separately (kind box), also for a box without fridge', async () => {
+    Box.findById.mockResolvedValue(makeBox({ has_fridge: 0, box_sensor_serial: 'A1B2C3' }));
+    await agent.get(`/diagrams/${BOX_ID}?range=24h`);
+    expect(SensorReading.historyByBox).toHaveBeenCalledWith(BOX_ID, expect.any(Date), 5, 'box');
+    expect(SensorReading.historyByBox).not.toHaveBeenCalledWith(BOX_ID, expect.any(Date), 5, 'fridge');
+  });
+
+  test('GET /diagrams/:id/data -> fresh chart data as JSON incl. live values, own company only', async () => {
+    Box.findById.mockResolvedValue(makeBox({ sensor_serial: '740B3B', box_sensor_serial: 'A1B2C3' }));
+    SensorReading.historyByBox.mockResolvedValue([{ bucket: '2026-10-28T20:00:00Z', avg_temp: -29.9, min_temp: -30.1, max_temp: -29.7 }]);
+    live.record(BOX_ID, '740B3B', -29.5);
+    live.record(BOX_ID, 'A1B2C3', 23.8, Date.now(), null, 'box');
+    const res = await agent.get(`/diagrams/${BOX_ID}/data?range=24h`);
+    expect(res.status).toBe(200);
+    expect(Box.findById).toHaveBeenCalledWith(BOX_ID, COMPANY_ID);
+    expect(res.body.charts.temp.avg[0].y).toBe(-29.9);
+    expect(res.body.charts.live.fridge.y).toBe(-29.5);
+    expect(res.body.charts.live.box.y).toBe(23.8);
+    expect(res.body.window.step).toBe(5);
+  });
+
+  test('data endpoint: unknown box -> 404, unknown range -> 400', async () => {
+    Box.findById.mockResolvedValue(null);
+    expect((await agent.get('/diagrams/999/data')).status).toBe(404);
+    Box.findById.mockResolvedValue(makeBox());
+    expect((await agent.get(`/diagrams/${BOX_ID}/data?range=nonsense`)).status).toBe(400);
   });
 });

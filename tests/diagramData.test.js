@@ -90,7 +90,14 @@ describe('resolveRange', () => {
   const NOW = new Date('2026-10-01T12:00:00Z');
 
   test('all offered ranges, in order', () => {
-    expect(RANGES.map(r => r.key)).toEqual(['24h', '7d', '30d', '6m', '9m', '12m']);
+    expect(RANGES.map(r => r.key)).toEqual(['1h', '24h', '7d', '30d', '6m', '9m', '12m']);   // 1 h zum Live-Mitschauen (28.10.)
+  });
+
+  test('1 h: last hour in 1-minute steps (sensor stores every minute)', () => {
+    const now = new Date('2026-10-28T21:00:00Z');
+    const r = resolveRange({ range: '1h' }, {}, now);
+    expect(r.since.toISOString()).toBe('2026-10-28T20:00:00.000Z');
+    expect(r.bucketMinutes).toBe(1);
   });
 
   test('explicit range -> start and step size', () => {
@@ -110,5 +117,35 @@ describe('resolveRange', () => {
     expect(resolveRange({}, box({ sensor_serial: null }), NOW).key).toBe('6m');
     expect(resolveRange({ months: 'abc' }, box({ sensor_serial: null }), NOW).key).toBe('6m');
     expect(resolveRange({ range: '5y' }, box(), NOW)).toBeNull();
+  });
+});
+
+describe('buildCharts – box temperature and live values (E-34 Paket 2)', () => {
+  const boxHours = [
+    { bucket: '2026-10-28T20:00:00Z', avg_temp: 23.1, min_temp: 22.9, max_temp: 23.4 },
+    { bucket: '2026-10-28T20:05:00Z', avg_temp: 24.0, min_temp: 23.8, max_temp: 24.3 }
+  ];
+  test('box with box sensor -> box temperature series (info, no limits)', () => {
+    const c = buildCharts({ box: box({ box_sensor_serial: 'A1B2C3' }), boxHours, bucketMinutes: 5 });
+    expect(c.boxTemp.avg).toEqual([{ x: t('2026-10-28T20:00:00Z'), y: 23.1 }, { x: t('2026-10-28T20:05:00Z'), y: 24 }]);
+    expect(c.boxTemp.hasData).toBe(true);
+    expect(c.boxTemp.limits).toBeUndefined();
+  });
+  test('box temperature works without fridge; no box sensor -> no box series', () => {
+    expect(buildCharts({ box: box({ has_fridge: 0, box_sensor_serial: 'A1B2C3' }), boxHours }).boxTemp.hasData).toBe(true);
+    expect(buildCharts({ box: box(), boxHours }).boxTemp).toBeNull();
+  });
+  test('fresh live values become the newest point (diagram is live, not only stored history)', () => {
+    const now = t('2026-10-28T20:07:30Z');
+    const c = buildCharts({ box: box({ box_sensor_serial: 'A1B2C3' }), boxHours,
+      live: { fridge: { temp: -29.6 }, box: { temp: 24.2 } }, now });
+    expect(c.live).toEqual({ fridge: { x: now, y: -29.6 }, box: { x: now, y: 24.2 } });
+  });
+  test('no live value -> no live point (missing beats wrong)', () => {
+    expect(buildCharts({ box: box(), now: 1 }).live).toEqual({ fridge: null, box: null });
+  });
+  test('hasAny: one chart with something to draw, or the empty state', () => {
+    expect(buildCharts({ box: box({ has_o2_sensor: 0, has_h2o_sensor: 0, has_fridge: 0 }) }).hasAny).toBe(false);
+    expect(buildCharts({ box: box({ box_sensor_serial: 'A1B2C3' }), boxHours }).hasAny).toBe(true);
   });
 });
